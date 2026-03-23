@@ -20,15 +20,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // To build a signed release, create a keystore and configure:
-    // signingConfigs {
-    //     create("release") {
-    //         storeFile = file("keystore/release.keystore")
-    //         storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-    //         keyAlias = System.getenv("KEY_ALIAS") ?: "photobooth"
-    //         keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-    //     }
-    // }
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore/release.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "photobooth123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "photobooth"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "photobooth123"
+        }
+    }
 
     buildTypes {
         release {
@@ -38,7 +37,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false
