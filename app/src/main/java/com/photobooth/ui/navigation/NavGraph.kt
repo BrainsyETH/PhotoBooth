@@ -9,11 +9,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.photobooth.ui.screens.capture.CaptureScreen
 import com.photobooth.ui.screens.capture.CaptureViewModel
+import com.photobooth.ui.screens.filters.FilterScreen
+import com.photobooth.ui.screens.filters.FilterViewModel
 import com.photobooth.ui.screens.review.ReviewScreen
 
 object Routes {
     const val CAPTURE = "capture"
     const val REVIEW = "review"
+    const val FILTER = "filter"
 }
 
 @Composable
@@ -48,10 +51,26 @@ fun NavGraph() {
                     navController.popBackStack()
                 },
                 onAccept = {
-                    // For Phase 1, just go back to capture for now
-                    // Later phases will navigate to filters/share
-                    captureViewModel.resetCapture()
+                    navController.navigate(Routes.FILTER)
+                }
+            )
+        }
+
+        composable(Routes.FILTER) {
+            val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
+            val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
+            val uiState by captureViewModel.uiState.collectAsState()
+
+            FilterScreen(
+                photo = uiState.capturedPhoto,
+                onBack = {
                     navController.popBackStack()
+                },
+                onDone = {
+                    // For now, reset and go back to capture
+                    // Later phases will navigate to share/print
+                    captureViewModel.resetCapture()
+                    navController.popBackStack(Routes.CAPTURE, inclusive = false)
                 }
             )
         }
