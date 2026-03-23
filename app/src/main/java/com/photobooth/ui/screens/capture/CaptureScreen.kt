@@ -26,6 +26,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.photobooth.ui.components.BigButton
 import com.photobooth.ui.components.CountdownOverlay
+import com.photobooth.ui.components.FlashOverlay
 import com.photobooth.ui.theme.BoothSecondary
 
 @Composable
@@ -34,6 +35,7 @@ fun CaptureScreen(
     viewModel: CaptureViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -63,15 +65,23 @@ fun CaptureScreen(
                 factory = { ctx ->
                     PreviewView(ctx).also { previewView ->
                         previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                        // Use scaleType that works well across different screen ratios
+                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
                         viewModel.cameraManager.bindCamera(
                             lifecycleOwner = lifecycleOwner,
                             previewView = previewView,
-                            useFront = true
+                            useFront = settings.useFrontCamera,
+                            cameraId = settings.cameraId,
+                            mirror = settings.mirrorFrontCamera,
+                            maxResolution = settings.photoResolution.maxDimension
                         )
                     }
                 },
                 modifier = Modifier.fillMaxSize()
             )
+
+            // Flash effect overlay
+            FlashOverlay(trigger = uiState.showFlash)
 
             // Countdown overlay
             if (uiState.isCountingDown) {
