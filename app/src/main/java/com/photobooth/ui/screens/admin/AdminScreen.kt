@@ -45,6 +45,7 @@ import com.photobooth.ui.theme.BoothSecondary
 @Composable
 fun AdminScreen(
     onDismiss: () -> Unit,
+    onPrivacyPolicy: () -> Unit = {},
     viewModel: AdminViewModel
 ) {
     val pinVerified by viewModel.pinVerified.collectAsState()
@@ -308,6 +309,68 @@ fun AdminScreen(
                                 valueRange = 0.1f..1f,
                                 modifier = Modifier.width(200.dp),
                                 colors = SliderDefaults.colors(thumbColor = BoothAccent, activeTrackColor = BoothPrimary)
+                            )
+                        }
+                    }
+
+                    // --- BRANDING SECTION ---
+                    item { SectionHeader("Branding") }
+
+                    item {
+                        SettingRow("Watermark") {
+                            Switch(
+                                checked = settings.watermarkEnabled,
+                                onCheckedChange = { v ->
+                                    viewModel.updateSetting { copy(watermarkEnabled = v) }
+                                },
+                                colors = switchColors()
+                            )
+                        }
+                    }
+
+                    if (settings.watermarkEnabled) {
+                        item {
+                            var text by remember { mutableStateOf(settings.watermarkText) }
+                            OutlinedTextField(
+                                value = text,
+                                onValueChange = {
+                                    text = it
+                                    viewModel.updateSetting { copy(watermarkText = it) }
+                                },
+                                label = { Text("Watermark Text") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = BoothAccent,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedLabelColor = BoothAccent,
+                                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                                    cursorColor = BoothAccent
+                                )
+                            )
+                        }
+                    }
+
+                    // --- ABOUT / PRIVACY ---
+                    item { SectionHeader("About") }
+
+                    item {
+                        BigButton(
+                            text = "PRIVACY POLICY",
+                            onClick = onPrivacyPolicy,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    item {
+                        SettingRow("Version") {
+                            Text(
+                                text = "1.0.0",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.7f)
                             )
                         }
                     }

@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
@@ -14,15 +15,24 @@ import javax.inject.Singleton
 @Singleton
 class PhotoSaver @Inject constructor() {
 
-    fun saveToGallery(context: Context, bitmap: Bitmap, fileName: String = "PhotoBooth_${System.currentTimeMillis()}"): String? {
+    companion object {
+        private const val TAG = "PhotoSaver"
+    }
+
+    fun saveToGallery(
+        context: Context,
+        bitmap: Bitmap,
+        fileName: String = "PhotoBooth_${System.currentTimeMillis()}",
+        quality: Int = 95
+    ): String? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            saveWithMediaStore(context, bitmap, fileName)
+            saveWithMediaStore(context, bitmap, fileName, quality)
         } else {
-            saveToExternalStorage(context, bitmap, fileName)
+            saveToExternalStorage(context, bitmap, fileName, quality)
         }
     }
 
-    private fun saveWithMediaStore(context: Context, bitmap: Bitmap, fileName: String): String? {
+    private fun saveWithMediaStore(context: Context, bitmap: Bitmap, fileName: String, quality: Int): String? {
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.jpg")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
@@ -35,17 +45,18 @@ class PhotoSaver @Inject constructor() {
 
         return try {
             resolver.openOutputStream(uri)?.use { stream ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality.coerceIn(1, 100), stream)
             }
             uri.toString()
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to save via MediaStore", e)
             resolver.delete(uri, null, null)
             null
         }
     }
 
     @Suppress("DEPRECATION")
-    private fun saveToExternalStorage(context: Context, bitmap: Bitmap, fileName: String): String? {
+    private fun saveToExternalStorage(context: Context, bitmap: Bitmap, fileName: String, quality: Int): String? {
         val dir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
             "PhotoBooth"
@@ -55,18 +66,19 @@ class PhotoSaver @Inject constructor() {
         val file = File(dir, "$fileName.jpg")
         return try {
             FileOutputStream(file).use { stream ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality.coerceIn(1, 100), stream)
             }
             file.absolutePath
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to save to external storage", e)
             null
         }
     }
 
-    fun saveToCacheForSharing(context: Context, bitmap: Bitmap): File {
+    fun saveToCacheForSharing(context: Context, bitmap: Bitmap, quality: Int = 95): File {
         val file = File(context.cacheDir, "share_photo_${System.currentTimeMillis()}.jpg")
         FileOutputStream(file).use { stream ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, quality.coerceIn(1, 100), stream)
         }
         return file
     }

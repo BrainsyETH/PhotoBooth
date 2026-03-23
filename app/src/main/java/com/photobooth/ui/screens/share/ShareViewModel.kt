@@ -3,20 +3,30 @@ package com.photobooth.ui.screens.share
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.wifi.WifiManager
+import android.os.Build
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.photobooth.filter.WatermarkRenderer
+import com.photobooth.settings.BoothSettings
+import com.photobooth.settings.SettingsManager
 import com.photobooth.share.LocalPhotoServer
 import com.photobooth.share.PhotoSaver
 import com.photobooth.share.QrCodeGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.Inet4Address
 import javax.inject.Inject
 
 data class ShareUiState(
@@ -32,23 +42,53 @@ data class ShareUiState(
 class ShareViewModel @Inject constructor(
     private val photoSaver: PhotoSaver,
     private val qrCodeGenerator: QrCodeGenerator,
-    private val localPhotoServer: LocalPhotoServer
+    private val localPhotoServer: LocalPhotoServer,
+    private val settingsManager: SettingsManager
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "ShareViewModel"
+    }
 
     private val _uiState = MutableStateFlow(ShareUiState())
     val uiState: StateFlow<ShareUiState> = _uiState.asStateFlow()
 
+    private val settings: StateFlow<BoothSettings> = settingsManager.settings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BoothSettings())
+
     fun setPhoto(bitmap: Bitmap, context: Context) {
-        _uiState.value = _uiState.value.copy(photo = bitmap)
-        startLocalServer(bitmap, context)
+        viewModelScope.launch {
+            // Apply watermark if configured
+            val processedPhoto = withContext(Dispatchers.Default) {
+                val s = settings.value
+                if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
+                    WatermarkRenderer.apply(bitmap, s.watermarkText)
+                } else {
+                    bitmap
+                }
+            }
+
+            _uiState.value = _uiState.value.copy(photo = processedPhoto)
+
+            // Auto-save if enabled
+            if (settings.value.autoSaveToGallery) {
+                saveToGallery(context)
+            }
+
+            // Start QR sharing if enabled
+            if (settings.value.enableQrSharing && settings.value.enableLocalServer) {
+                startLocalServer(processedPhoto, context)
+            }
+        }
     }
 
     fun saveToGallery(context: Context) {
         val photo = _uiState.value.photo ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true)
+            val quality = settings.value.outputQuality
             val path = withContext(Dispatchers.IO) {
-                photoSaver.saveToGallery(context, photo)
+                photoSaver.saveToGallery(context, photo, quality = quality)
             }
             _uiState.value = _uiState.value.copy(
                 isSaving = false,
@@ -96,13 +136,39 @@ class ShareViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                // Server failed to start, QR sharing won't be available
+                Log.w(TAG, "Local server failed to start", e)
             }
         }
     }
 
-    @Suppress("DEPRECATION")
+    /**
+     * Get local IP address using modern ConnectivityManager API (Android 23+)
+     * with WifiManager fallback for older Samsung firmware.
+     */
     private fun getLocalIpAddress(context: Context): String? {
+        // Modern approach: ConnectivityManager (works on Android M+)
+        try {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = connectivityManager.activeNetwork
+            if (network != null) {
+                val linkProperties: LinkProperties? = connectivityManager.getLinkProperties(network)
+                linkProperties?.linkAddresses?.forEach { linkAddress ->
+                    val address = linkAddress.address
+                    if (address is Inet4Address && !address.isLoopbackAddress) {
+                        return address.hostAddress
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "ConnectivityManager IP lookup failed, trying WifiManager", e)
+        }
+
+        // Fallback for older devices / Samsung firmware quirks
+        return getLocalIpViaWifiManager(context)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun getLocalIpViaWifiManager(context: Context): String? {
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
         val ip = wifiManager?.connectionInfo?.ipAddress ?: return null
         if (ip == 0) return null

@@ -15,18 +15,34 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // To build a signed release, create a keystore and configure:
+    // signingConfigs {
+    //     create("release") {
+    //         storeFile = file("keystore/release.keystore")
+    //         storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+    //         keyAlias = System.getenv("KEY_ALIAS") ?: "photobooth"
+    //         keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+    //     }
+    // }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            isMinifyEnabled = false
+            applicationIdSuffix = ".debug"
         }
     }
 
@@ -41,6 +57,14 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    // Ensure consistent behavior across Samsung, Pixel, etc.
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 
@@ -60,6 +84,9 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
+
+    // Splash Screen (Android 12+ compat)
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Navigation
     implementation(libs.navigation.compose)

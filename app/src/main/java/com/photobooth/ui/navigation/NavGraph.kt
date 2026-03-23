@@ -21,6 +21,7 @@ import com.photobooth.ui.screens.filters.FilterViewModel
 import com.photobooth.ui.screens.gif.GifScreen
 import com.photobooth.ui.screens.gif.GifViewModel
 import com.photobooth.ui.screens.modeselect.ModeSelectScreen
+import com.photobooth.ui.screens.privacy.PrivacyPolicyScreen
 import com.photobooth.ui.screens.review.ReviewScreen
 import com.photobooth.ui.screens.share.ShareScreen
 
@@ -36,6 +37,7 @@ object Routes {
     const val GIF_CAPTURE = "gif_capture"
     const val COLLAGE_CAPTURE = "collage_capture"
     const val ADMIN = "admin"
+    const val PRIVACY = "privacy"
 }
 
 @Composable
@@ -71,7 +73,15 @@ fun NavGraph(settingsManager: SettingsManager) {
                 val adminViewModel: AdminViewModel = hiltViewModel()
                 AdminScreen(
                     onDismiss = { navController.popBackStack() },
+                    onPrivacyPolicy = { navController.navigate(Routes.PRIVACY) },
                     viewModel = adminViewModel
+                )
+            }
+
+            // Privacy policy
+            composable(Routes.PRIVACY) {
+                PrivacyPolicyScreen(
+                    onDismiss = { navController.popBackStack() }
                 )
             }
 

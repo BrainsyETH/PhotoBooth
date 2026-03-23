@@ -6,6 +6,7 @@ import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.photobooth.kiosk.KioskManager
 import com.photobooth.settings.SettingsManager
@@ -13,7 +14,6 @@ import com.photobooth.ui.components.SoundManager
 import com.photobooth.ui.navigation.NavGraph
 import com.photobooth.ui.theme.PhotoBoothTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var soundManager: SoundManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         hideSystemUI()
