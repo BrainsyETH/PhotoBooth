@@ -1,4 +1,4 @@
-# PhotoBooth ProGuard Rules
+# SnapCabin ProGuard Rules
 
 # --- Hilt / Dagger ---
 -keep class dagger.hilt.** { *; }
@@ -32,10 +32,10 @@
 -keep class kotlinx.coroutines.** { *; }
 
 # --- App models (keep data classes used in StateFlow) ---
--keep class com.photobooth.settings.BoothSettings { *; }
--keep class com.photobooth.settings.PhotoResolution { *; }
--keep class com.photobooth.camera.DetectedCamera { *; }
--keep class com.photobooth.ui.screens.admin.CameraInfo { *; }
+-keep class com.snapcabin.settings.BoothSettings { *; }
+-keep class com.snapcabin.settings.PhotoResolution { *; }
+-keep class com.snapcabin.camera.DetectedCamera { *; }
+-keep class com.snapcabin.ui.screens.admin.CameraInfo { *; }
 
 # --- Prevent R8 from stripping lifecycle observers ---
 -keep class * extends androidx.lifecycle.ViewModel { *; }

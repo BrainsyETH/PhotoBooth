@@ -1,1 +1,1 @@
-# PhotoBooth
+# SnapCabin

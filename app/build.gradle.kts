@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.photobooth"
+    namespace = "com.snapcabin"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.photobooth"
+        applicationId = "com.snapcabin"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -23,9 +23,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "photobooth123"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "photobooth"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "photobooth123"
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "snapcabin123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "snapcabin"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "snapcabin123"
         }
     }
 

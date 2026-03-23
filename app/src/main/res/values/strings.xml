@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PhotoBooth</string>
+    <string name="app_name">SnapCabin</string>
 
     <!-- Attract Screen -->
-    <string name="attract_title">PHOTO BOOTH</string>
+    <string name="attract_title">SNAP CABIN</string>
     <string name="attract_tap_to_start">Tap anywhere to start!</string>
     <string name="attract_modes">Single Photo  |  Collage  |  GIF</string>
 
@@ -139,5 +139,5 @@
 
     <!-- Privacy -->
     <string name="privacy_title">Privacy Policy</string>
-    <string name="privacy_body">PhotoBooth captures photos using your device camera. Photos are stored locally on your device and are never uploaded to external servers unless you explicitly choose to share them.\n\nThe QR code sharing feature runs a temporary local server on your WiFi network. No data leaves your local network.\n\nWe do not collect analytics, personal information, or usage data.\n\nFor questions, contact: support@photobooth.app</string>
+    <string name="privacy_body">SnapCabin captures photos using your device camera. Photos are stored locally on your device and are never uploaded to external servers unless you explicitly choose to share them.\n\nThe QR code sharing feature runs a temporary local server on your WiFi network. No data leaves your local network.\n\nWe do not collect analytics, personal information, or usage data.\n\nFor questions, contact: support@snapcabin.app</string>
 </resources>
