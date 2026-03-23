@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Camera body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,38h32v24H38z" />
+    <!-- Camera lens -->
+    <path
+        android:fillColor="#6C63FF"
+        android:pathData="M54,50m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+    <!-- Flash -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,34h12v4H48z" />
+</vector>
