@@ -14,7 +14,9 @@ import androidx.lifecycle.viewModelScope
 import com.photobooth.filter.WatermarkRenderer
 import com.photobooth.settings.BoothSettings
 import com.photobooth.settings.SettingsManager
+import com.photobooth.share.EmailSmsSharer
 import com.photobooth.share.LocalPhotoServer
+import com.photobooth.share.PhotoPrinter
 import com.photobooth.share.PhotoSaver
 import com.photobooth.share.QrCodeGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,7 +45,9 @@ class ShareViewModel @Inject constructor(
     private val photoSaver: PhotoSaver,
     private val qrCodeGenerator: QrCodeGenerator,
     private val localPhotoServer: LocalPhotoServer,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val photoPrinter: PhotoPrinter,
+    private val emailSmsSharer: EmailSmsSharer
 ) : ViewModel() {
 
     companion object {
@@ -173,6 +177,21 @@ class ShareViewModel @Inject constructor(
         val ip = wifiManager?.connectionInfo?.ipAddress ?: return null
         if (ip == 0) return null
         return "${ip and 0xff}.${ip shr 8 and 0xff}.${ip shr 16 and 0xff}.${ip shr 24 and 0xff}"
+    }
+
+    fun printPhoto(context: Context) {
+        val photo = _uiState.value.photo ?: return
+        photoPrinter.print(context, photo)
+    }
+
+    fun shareViaEmail(context: Context) {
+        val photo = _uiState.value.photo ?: return
+        emailSmsSharer.shareViaEmail(context, photo)
+    }
+
+    fun shareViaSms(context: Context) {
+        val photo = _uiState.value.photo ?: return
+        emailSmsSharer.shareViaSms(context, photo)
     }
 
     fun clearMessage() {

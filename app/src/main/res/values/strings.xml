@@ -108,6 +108,35 @@
     <string name="admin_watermark">Watermark</string>
     <string name="admin_watermark_text">Watermark Text</string>
 
+    <!-- Share extras -->
+    <string name="share_print">PRINT</string>
+    <string name="share_email">EMAIL</string>
+    <string name="share_message">MESSAGE</string>
+
+    <!-- Branding -->
+    <string name="branding_title">EVENT BRANDING</string>
+    <string name="branding_event_name">Event Name</string>
+    <string name="branding_event_date">Event Date</string>
+    <string name="branding_skip">SKIP</string>
+    <string name="branding_apply">APPLY</string>
+    <string name="branding_preview_desc">Branded photo preview</string>
+
+    <!-- Gallery -->
+    <string name="gallery_title">GALLERY</string>
+    <string name="gallery_photo_count">%1$d photos</string>
+    <string name="gallery_no_photos">No photos yet</string>
+    <string name="gallery_use_photo">USE THIS PHOTO</string>
+    <string name="gallery_back_grid">BACK TO GRID</string>
+    <string name="gallery_close">CLOSE</string>
+    <string name="gallery_selected_desc">Selected photo</string>
+
+    <!-- Admin extras -->
+    <string name="admin_section_tools">Tools</string>
+    <string name="admin_photo_gallery">PHOTO GALLERY</string>
+    <string name="admin_section_about">About</string>
+    <string name="admin_privacy_policy">PRIVACY POLICY</string>
+    <string name="admin_version">Version</string>
+
     <!-- Privacy -->
     <string name="privacy_title">Privacy Policy</string>
     <string name="privacy_body">PhotoBooth captures photos using your device camera. Photos are stored locally on your device and are never uploaded to external servers unless you explicitly choose to share them.\n\nThe QR code sharing feature runs a temporary local server on your WiFi network. No data leaves your local network.\n\nWe do not collect analytics, personal information, or usage data.\n\nFor questions, contact: support@photobooth.app</string>

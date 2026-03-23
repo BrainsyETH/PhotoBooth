@@ -46,6 +46,7 @@ import com.photobooth.ui.theme.BoothSecondary
 fun AdminScreen(
     onDismiss: () -> Unit,
     onPrivacyPolicy: () -> Unit = {},
+    onGallery: () -> Unit = {},
     viewModel: AdminViewModel
 ) {
     val pinVerified by viewModel.pinVerified.collectAsState()
@@ -351,6 +352,18 @@ fun AdminScreen(
                                 )
                             )
                         }
+                    }
+
+                    // --- TOOLS ---
+                    item { SectionHeader("Tools") }
+
+                    item {
+                        BigButton(
+                            text = "PHOTO GALLERY",
+                            onClick = onGallery,
+                            containerColor = BoothPrimary,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     // --- ABOUT / PRIVACY ---

@@ -12,12 +12,16 @@ import com.photobooth.ui.components.InactivityHandler
 import com.photobooth.ui.screens.admin.AdminScreen
 import com.photobooth.ui.screens.admin.AdminViewModel
 import com.photobooth.ui.screens.attract.AttractScreen
+import com.photobooth.ui.screens.branding.BrandingScreen
+import com.photobooth.ui.screens.branding.BrandingViewModel
 import com.photobooth.ui.screens.capture.CaptureScreen
 import com.photobooth.ui.screens.capture.CaptureViewModel
 import com.photobooth.ui.screens.collage.CollageScreen
 import com.photobooth.ui.screens.collage.CollageViewModel
 import com.photobooth.ui.screens.filters.FilterScreen
 import com.photobooth.ui.screens.filters.FilterViewModel
+import com.photobooth.ui.screens.gallery.GalleryScreen
+import com.photobooth.ui.screens.gallery.GalleryViewModel
 import com.photobooth.ui.screens.gif.GifScreen
 import com.photobooth.ui.screens.gif.GifViewModel
 import com.photobooth.ui.screens.modeselect.ModeSelectScreen
@@ -31,6 +35,7 @@ object Routes {
     const val CAPTURE = "capture"
     const val REVIEW = "review"
     const val FILTER = "filter"
+    const val BRANDING = "branding"
     const val SHARE = "share"
     const val COLLAGE = "collage"
     const val GIF = "gif"
@@ -38,6 +43,7 @@ object Routes {
     const val COLLAGE_CAPTURE = "collage_capture"
     const val ADMIN = "admin"
     const val PRIVACY = "privacy"
+    const val GALLERY = "gallery"
 }
 
 @Composable
@@ -74,6 +80,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                 AdminScreen(
                     onDismiss = { navController.popBackStack() },
                     onPrivacyPolicy = { navController.navigate(Routes.PRIVACY) },
+                    onGallery = { navController.navigate(Routes.GALLERY) },
                     viewModel = adminViewModel
                 )
             }
@@ -82,6 +89,19 @@ fun NavGraph(settingsManager: SettingsManager) {
             composable(Routes.PRIVACY) {
                 PrivacyPolicyScreen(
                     onDismiss = { navController.popBackStack() }
+                )
+            }
+
+            // Gallery (from admin)
+            composable(Routes.GALLERY) {
+                val galleryViewModel: GalleryViewModel = hiltViewModel()
+                GalleryScreen(
+                    onPhotoSelected = { bitmap ->
+                        // Could re-share an existing photo
+                        navController.popBackStack()
+                    },
+                    onDismiss = { navController.popBackStack() },
+                    viewModel = galleryViewModel
                 )
             }
 
@@ -95,6 +115,7 @@ fun NavGraph(settingsManager: SettingsManager) {
             }
 
             // --- Single Photo Flow ---
+            // Capture → Review → Filter → Branding → Share
             composable(Routes.CAPTURE) { backStackEntry ->
                 val captureViewModel: CaptureViewModel = hiltViewModel(backStackEntry)
                 CaptureScreen(
@@ -127,8 +148,22 @@ fun NavGraph(settingsManager: SettingsManager) {
                 FilterScreen(
                     photo = uiState.capturedPhoto,
                     onBack = { navController.popBackStack() },
-                    onDone = { navController.navigate(Routes.SHARE) },
+                    onDone = { navController.navigate(Routes.BRANDING) },
                     viewModel = filterViewModel
+                )
+            }
+
+            composable(Routes.BRANDING) {
+                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
+                val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
+                val uiState by captureViewModel.uiState.collectAsState()
+                val brandingViewModel: BrandingViewModel = hiltViewModel()
+
+                BrandingScreen(
+                    photo = uiState.capturedPhoto,
+                    onDone = { navController.navigate(Routes.SHARE) },
+                    onSkip = { navController.navigate(Routes.SHARE) },
+                    viewModel = brandingViewModel
                 )
             }
 

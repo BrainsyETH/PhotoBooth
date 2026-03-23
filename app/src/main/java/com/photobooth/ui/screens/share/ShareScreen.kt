@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
@@ -26,11 +28,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.photobooth.R
 import com.photobooth.ui.components.BigButton
 import com.photobooth.ui.theme.BoothAccent
 import com.photobooth.ui.theme.BoothPrimary
@@ -74,7 +79,7 @@ fun ShareScreen(
             photo?.let { bitmap ->
                 Image(
                     bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Photo to share",
+                    contentDescription = stringResource(R.string.share_photo_desc),
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(12.dp)),
@@ -83,7 +88,7 @@ fun ShareScreen(
             }
         }
 
-        // Right: share options
+        // Right: share options (scrollable for all the buttons)
         Column(
             modifier = Modifier
                 .width(360.dp)
@@ -93,34 +98,37 @@ fun ShareScreen(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = "SHARE YOUR PHOTO",
+                    text = stringResource(R.string.share_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // QR Code
                 uiState.qrCodeBitmap?.let { qr ->
                     Text(
-                        text = "Scan to download",
+                        text = stringResource(R.string.share_scan_download),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Image(
                         bitmap = qr.asImageBitmap(),
-                        contentDescription = "QR code",
+                        contentDescription = stringResource(R.string.share_qr_desc),
                         modifier = Modifier
-                            .size(180.dp)
+                            .size(160.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(MaterialTheme.colorScheme.surface)
                             .padding(8.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     uiState.shareUrl?.let { url ->
                         Text(
                             text = url,
@@ -128,27 +136,58 @@ fun ShareScreen(
                             color = BoothAccent
                         )
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Action buttons stacked
+                // Primary actions
                 BigButton(
-                    text = "SAVE TO GALLERY",
+                    text = stringResource(R.string.share_save_gallery),
                     onClick = { viewModel.saveToGallery(context) },
                     containerColor = BoothPrimary,
                     enabled = !uiState.isSaving,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 BigButton(
-                    text = "SHARE",
+                    text = stringResource(R.string.share_button),
                     onClick = { viewModel.shareViaIntent(context) },
                     containerColor = BoothSecondary,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Print
+                BigButton(
+                    text = "PRINT",
+                    onClick = { viewModel.printPhoto(context) },
+                    containerColor = Color(0xFF8E44AD),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Email
+                BigButton(
+                    text = "EMAIL",
+                    onClick = { viewModel.shareViaEmail(context) },
+                    containerColor = Color(0xFF2980B9),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Message/SMS
+                BigButton(
+                    text = "MESSAGE",
+                    onClick = { viewModel.shareViaSms(context) },
+                    containerColor = Color(0xFF27AE60),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Done button + message
@@ -166,7 +205,7 @@ fun ShareScreen(
                 }
 
                 BigButton(
-                    text = "DONE",
+                    text = stringResource(R.string.share_done),
                     onClick = onDone,
                     containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth()

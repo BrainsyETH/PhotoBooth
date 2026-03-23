@@ -1,10 +1,15 @@
 package com.photobooth.di
 
 import android.content.Context
+import com.photobooth.analytics.AnalyticsTracker
+import com.photobooth.analytics.CrashReporter
 import com.photobooth.camera.CameraManager
+import com.photobooth.filter.EventBrandingRenderer
 import com.photobooth.kiosk.KioskManager
 import com.photobooth.settings.SettingsManager
+import com.photobooth.share.EmailSmsSharer
 import com.photobooth.share.LocalPhotoServer
+import com.photobooth.share.PhotoPrinter
 import com.photobooth.share.PhotoSaver
 import com.photobooth.share.QrCodeGenerator
 import com.photobooth.ui.components.SoundManager
@@ -50,4 +55,24 @@ object AppModule {
     @Provides
     @Singleton
     fun provideKioskManager(): KioskManager = KioskManager()
+
+    @Provides
+    @Singleton
+    fun providePhotoPrinter(): PhotoPrinter = PhotoPrinter()
+
+    @Provides
+    @Singleton
+    fun provideEmailSmsSharer(): EmailSmsSharer = EmailSmsSharer()
+
+    @Provides
+    @Singleton
+    fun provideEventBrandingRenderer(): EventBrandingRenderer = EventBrandingRenderer()
+
+    @Provides
+    @Singleton
+    fun provideAnalyticsTracker(): AnalyticsTracker = AnalyticsTracker()
+
+    @Provides
+    @Singleton
+    fun provideCrashReporter(): CrashReporter = CrashReporter()
 }
