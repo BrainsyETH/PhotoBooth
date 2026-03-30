@@ -96,6 +96,9 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
 
+    // ExifInterface for reading photo orientation
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

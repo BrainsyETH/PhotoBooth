@@ -20,6 +20,7 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
@@ -134,10 +135,8 @@ class CameraManager @Inject constructor(
 
                 val capture = captureBuilder.build()
 
-                // Set target rotation to match the display so output is landscape-correct
-                val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                val rotation = windowManager.defaultDisplay.rotation
-                capture.targetRotation = rotation
+                // Set target rotation to landscape — activity is locked to landscape
+                capture.targetRotation = Surface.ROTATION_0
 
                 imageCapture = capture
 
@@ -253,18 +252,43 @@ class CameraManager @Inject constructor(
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
-                    if (bitmap == null) {
+                    val rawBitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+                    if (rawBitmap == null) {
                         photoFile.delete()
                         continuation.resumeWithException(IllegalStateException("Failed to decode photo"))
                         return
                     }
-                    val finalBitmap = if (useFrontCamera && mirrorImage) {
-                        val matrix = Matrix().apply { preScale(-1f, 1f) }
-                        Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-                    } else {
-                        bitmap
+
+                    // Apply EXIF rotation — BitmapFactory ignores EXIF orientation
+                    val exifRotation = try {
+                        val exif = ExifInterface(photoFile.absolutePath)
+                        when (exif.getAttributeInt(
+                            ExifInterface.TAG_ORIENTATION,
+                            ExifInterface.ORIENTATION_NORMAL
+                        )) {
+                            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                            else -> 0f
+                        }
+                    } catch (e: Exception) {
+                        0f
                     }
+
+                    val matrix = Matrix()
+                    if (exifRotation != 0f) {
+                        matrix.postRotate(exifRotation)
+                    }
+                    if (useFrontCamera && mirrorImage) {
+                        matrix.preScale(-1f, 1f)
+                    }
+
+                    val finalBitmap = if (!matrix.isIdentity) {
+                        Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
+                    } else {
+                        rawBitmap
+                    }
+
                     photoFile.delete()
                     continuation.resume(finalBitmap)
                 }
