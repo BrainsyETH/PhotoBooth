@@ -33,6 +33,10 @@ data class BoothSettings(
     val watermarkEnabled: Boolean = false,
     val watermarkText: String = "",
 
+    // Branding
+    val customBorderPath: String = "", // File path to custom border/frame image
+    val customOverlayPath: String = "", // File path to custom overlay image
+
     // Sharing
     val enableQrSharing: Boolean = true,
     val enableLocalServer: Boolean = true,
@@ -82,6 +86,8 @@ class SettingsManager @Inject constructor(
         val OUTPUT_QUALITY = intPreferencesKey("output_quality")
         val WATERMARK_ENABLED = booleanPreferencesKey("watermark_enabled")
         val WATERMARK_TEXT = stringPreferencesKey("watermark_text")
+        val CUSTOM_BORDER_PATH = stringPreferencesKey("custom_border_path")
+        val CUSTOM_OVERLAY_PATH = stringPreferencesKey("custom_overlay_path")
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
         val ENABLE_SERVER = booleanPreferencesKey("enable_local_server")
         val SERVER_PORT = intPreferencesKey("server_port")
@@ -113,6 +119,8 @@ class SettingsManager @Inject constructor(
             outputQuality = prefs[Keys.OUTPUT_QUALITY] ?: 95,
             watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
             watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
+            customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
+            customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
             enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
             enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
             serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
@@ -144,6 +152,8 @@ class SettingsManager @Inject constructor(
                 outputQuality = prefs[Keys.OUTPUT_QUALITY] ?: 95,
                 watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
                 watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
+            customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
+            customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
                 enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
                 enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
                 serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
@@ -173,6 +183,8 @@ class SettingsManager @Inject constructor(
             prefs[Keys.OUTPUT_QUALITY] = updated.outputQuality
             prefs[Keys.WATERMARK_ENABLED] = updated.watermarkEnabled
             prefs[Keys.WATERMARK_TEXT] = updated.watermarkText
+            prefs[Keys.CUSTOM_BORDER_PATH] = updated.customBorderPath
+            prefs[Keys.CUSTOM_OVERLAY_PATH] = updated.customOverlayPath
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
             prefs[Keys.ENABLE_SERVER] = updated.enableLocalServer
             prefs[Keys.SERVER_PORT] = updated.serverPort

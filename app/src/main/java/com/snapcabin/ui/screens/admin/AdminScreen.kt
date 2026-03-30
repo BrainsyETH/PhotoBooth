@@ -1,5 +1,9 @@
 package com.snapcabin.ui.screens.admin
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,9 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.theme.CabinAccent
@@ -462,6 +469,124 @@ fun AdminScreen(
                         }
                     }
 
+                    // Custom border image
+                    item {
+                        val context = LocalContext.current
+                        val borderLauncher = rememberLauncherForActivityResult(
+                            ActivityResultContracts.GetContent()
+                        ) { uri: Uri? ->
+                            uri?.let {
+                                val file = copyUriToInternal(context, it, "custom_border.png")
+                                file?.let { f ->
+                                    viewModel.updateSetting { copy(customBorderPath = f.absolutePath) }
+                                }
+                            }
+                        }
+
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Custom Border / Frame",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color.White,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                BigButton(
+                                    text = if (settings.customBorderPath.isNotEmpty()) "CHANGE" else "UPLOAD",
+                                    onClick = { borderLauncher.launch("image/*") },
+                                    containerColor = CabinPrimary
+                                )
+                            }
+                            if (settings.customBorderPath.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            model = java.io.File(settings.customBorderPath)
+                                        ),
+                                        contentDescription = "Custom border preview",
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+                                    BigButton(
+                                        text = "REMOVE",
+                                        onClick = {
+                                            viewModel.updateSetting { copy(customBorderPath = "") }
+                                        },
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Custom overlay image
+                    item {
+                        val context = LocalContext.current
+                        val overlayLauncher = rememberLauncherForActivityResult(
+                            ActivityResultContracts.GetContent()
+                        ) { uri: Uri? ->
+                            uri?.let {
+                                val file = copyUriToInternal(context, it, "custom_overlay.png")
+                                file?.let { f ->
+                                    viewModel.updateSetting { copy(customOverlayPath = f.absolutePath) }
+                                }
+                            }
+                        }
+
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Custom Overlay / Logo",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color.White,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                BigButton(
+                                    text = if (settings.customOverlayPath.isNotEmpty()) "CHANGE" else "UPLOAD",
+                                    onClick = { overlayLauncher.launch("image/*") },
+                                    containerColor = CabinPrimary
+                                )
+                            }
+                            if (settings.customOverlayPath.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            model = java.io.File(settings.customOverlayPath)
+                                        ),
+                                        contentDescription = "Custom overlay preview",
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+                                    BigButton(
+                                        text = "REMOVE",
+                                        onClick = {
+                                            viewModel.updateSetting { copy(customOverlayPath = "") }
+                                        },
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // --- TOOLS ---
                     item { SectionHeader("Tools") }
 
@@ -634,3 +759,26 @@ private fun switchColors() = SwitchDefaults.colors(
     uncheckedThumbColor = Color.Gray,
     uncheckedTrackColor = Color.DarkGray
 )
+
+/**
+ * Copies a content URI to internal app storage so the path persists across sessions.
+ */
+private fun copyUriToInternal(
+    context: android.content.Context,
+    uri: Uri,
+    filename: String
+): java.io.File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val brandingDir = java.io.File(context.filesDir, "branding")
+        brandingDir.mkdirs()
+        val destFile = java.io.File(brandingDir, filename)
+        destFile.outputStream().use { output ->
+            inputStream.copyTo(output)
+        }
+        inputStream.close()
+        destFile
+    } catch (e: Exception) {
+        null
+    }
+}
