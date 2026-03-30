@@ -210,27 +210,38 @@ fun NavGraph(settingsManager: SettingsManager) {
 
             // --- Share Screen (serves all flows) ---
             composable(Routes.SHARE) {
-                // Resolve photo from whichever flow is active
-                val singlePhoto = try {
-                    val entry = navController.getBackStackEntry(Routes.CAPTURE)
-                    val vm: CaptureViewModel = hiltViewModel(entry)
+                // Determine which flow is active by checking backstack entries
+                val backstack = navController.currentBackStack.collectAsState()
+                val routes = backstack.value.mapNotNull { it.destination.route }.toSet()
+
+                val hasCaptureRoute = Routes.CAPTURE in routes
+                val hasCollageRoute = Routes.COLLAGE in routes
+                val hasGifRoute = Routes.GIF in routes
+
+                // Only call hiltViewModel for the flow that's actually on the backstack
+                val singlePhoto = if (hasCaptureRoute) {
+                    val vm: CaptureViewModel = hiltViewModel(
+                        navController.getBackStackEntry(Routes.CAPTURE)
+                    )
                     val state by vm.uiState.collectAsState()
                     state.capturedPhoto
-                } catch (_: Exception) { null }
+                } else null
 
-                val collagePhoto = try {
-                    val entry = navController.getBackStackEntry(Routes.COLLAGE)
-                    val vm: CollageViewModel = hiltViewModel(entry)
+                val collagePhoto = if (hasCollageRoute) {
+                    val vm: CollageViewModel = hiltViewModel(
+                        navController.getBackStackEntry(Routes.COLLAGE)
+                    )
                     val state by vm.uiState.collectAsState()
                     state.previewBitmap
-                } catch (_: Exception) { null }
+                } else null
 
-                val gifPreview = try {
-                    val entry = navController.getBackStackEntry(Routes.GIF)
-                    val vm: GifViewModel = hiltViewModel(entry)
+                val gifPreview = if (hasGifRoute) {
+                    val vm: GifViewModel = hiltViewModel(
+                        navController.getBackStackEntry(Routes.GIF)
+                    )
                     val state by vm.uiState.collectAsState()
                     state.frames.firstOrNull()
-                } catch (_: Exception) { null }
+                } else null
 
                 val photo = singlePhoto ?: collagePhoto ?: gifPreview
 
