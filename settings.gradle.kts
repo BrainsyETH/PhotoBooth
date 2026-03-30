@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PhotoBooth"
+rootProject.name = "SnapCabin"
 include(":app")

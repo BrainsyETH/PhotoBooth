@@ -1,4 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PhotoBooth</string>
+    <string name="app_name">SnapCabin</string>
+
+    <!-- Attract Screen -->
+    <string name="attract_title">SNAP CABIN</string>
+    <string name="attract_tap_to_start">Tap anywhere to start!</string>
+    <string name="attract_modes">Single Photo  |  Collage  |  GIF</string>
+
+    <!-- Mode Select -->
+    <string name="mode_title">Choose Your Mode</string>
+    <string name="mode_single_photo">Single Photo</string>
+    <string name="mode_single_desc">Take one perfect shot</string>
+    <string name="mode_collage">Collage</string>
+    <string name="mode_collage_desc">Multiple photos,\none layout</string>
+    <string name="mode_gif">GIF</string>
+    <string name="mode_gif_desc">Animated photo\nsequence</string>
+    <string name="mode_start">START</string>
+
+    <!-- Capture -->
+    <string name="capture_take_photo">TAKE PHOTO</string>
+    <string name="capture_permission_required">Camera permission is required</string>
+    <string name="capture_error">Failed to capture photo: %1$s</string>
+
+    <!-- Review -->
+    <string name="review_retake">RETAKE</string>
+    <string name="review_accept">ACCEPT</string>
+
+    <!-- Filter -->
+    <string name="filter_title">FILTERS</string>
+    <string name="filter_overlays">OVERLAYS</string>
+    <string name="filter_back">BACK</string>
+    <string name="filter_done">DONE</string>
+
+    <!-- Share -->
+    <string name="share_title">SHARE YOUR PHOTO</string>
+    <string name="share_scan_download">Scan to download</string>
+    <string name="share_save_gallery">SAVE TO GALLERY</string>
+    <string name="share_button">SHARE</string>
+    <string name="share_done">DONE</string>
+    <string name="share_saved">Saved to gallery!</string>
+    <string name="share_save_failed">Failed to save</string>
+    <string name="share_photo_desc">Photo to share</string>
+    <string name="share_qr_desc">QR code</string>
+    <string name="share_chooser_title">Share Photo</string>
+
+    <!-- Collage -->
+    <string name="collage_layout">LAYOUT</string>
+    <string name="collage_photos_count">Photos: %1$d / %2$d</string>
+    <string name="collage_take_more">TAKE PHOTO (%1$d more)</string>
+    <string name="collage_undo">UNDO LAST</string>
+    <string name="collage_cancel">CANCEL</string>
+    <string name="collage_use">USE COLLAGE</string>
+    <string name="collage_preview_desc">Collage preview</string>
+    <string name="collage_select_prompt">Select a layout and add photos</string>
+    <string name="collage_photo_singular">%1$d photo</string>
+    <string name="collage_photo_plural">%1$d photos</string>
+
+    <!-- GIF -->
+    <string name="gif_title">CREATE GIF</string>
+    <string name="gif_frames">Frames: %1$d / %2$d</string>
+    <string name="gif_take_frame">TAKE FRAME</string>
+    <string name="gif_undo">UNDO LAST</string>
+    <string name="gif_cancel">CANCEL</string>
+    <string name="gif_create">CREATE GIF</string>
+    <string name="gif_creating">Creating GIF…</string>
+    <string name="gif_speed">Speed: %1$dms per frame</string>
+    <string name="gif_preview_desc">GIF frame preview</string>
+    <string name="gif_prompt">Take photos to create a GIF</string>
+
+    <!-- Admin -->
+    <string name="admin_pin_title">Admin PIN</string>
+    <string name="admin_pin_hint">Enter PIN</string>
+    <string name="admin_pin_incorrect">Incorrect PIN</string>
+    <string name="admin_enter">ENTER</string>
+    <string name="admin_cancel">CANCEL</string>
+    <string name="admin_close">CLOSE SETTINGS</string>
+
+    <!-- Admin Sections -->
+    <string name="admin_section_camera">Camera</string>
+    <string name="admin_use_front">Use Front Camera</string>
+    <string name="admin_mirror_front">Mirror Front Camera</string>
+    <string name="admin_available_cameras">Available Cameras</string>
+    <string name="admin_camera_label">%1$s (ID: %2$s)</string>
+    <string name="admin_camera_external"> - External</string>
+    <string name="admin_photo_resolution">Photo Resolution</string>
+
+    <string name="admin_section_capture">Capture</string>
+    <string name="admin_countdown">Countdown: %1$ds</string>
+    <string name="admin_flash_effect">Flash Effect</string>
+
+    <string name="admin_section_sound">Sound</string>
+    <string name="admin_sound_enabled">Sound Enabled</string>
+    <string name="admin_shutter_sound">Shutter Sound</string>
+    <string name="admin_countdown_beep">Countdown Beep</string>
+
+    <string name="admin_section_sharing">Sharing</string>
+    <string name="admin_auto_save">Auto-Save to Gallery</string>
+    <string name="admin_qr_sharing">QR Code Sharing</string>
+    <string name="admin_jpeg_quality">JPEG Quality: %1$d%%</string>
+
+    <string name="admin_section_kiosk">Kiosk</string>
+    <string name="admin_kiosk_mode">Kiosk Mode</string>
+    <string name="admin_idle_timeout">Idle Timeout: %1$ds</string>
+    <string name="admin_brightness">Screen Brightness: %1$d%%</string>
+
+    <string name="admin_section_branding">Branding</string>
+    <string name="admin_watermark">Watermark</string>
+    <string name="admin_watermark_text">Watermark Text</string>
+
+    <!-- Share extras -->
+    <string name="share_print">PRINT</string>
+    <string name="share_email">EMAIL</string>
+    <string name="share_message">MESSAGE</string>
+
+    <!-- Branding -->
+    <string name="branding_title">EVENT BRANDING</string>
+    <string name="branding_event_name">Event Name</string>
+    <string name="branding_event_date">Event Date</string>
+    <string name="branding_skip">SKIP</string>
+    <string name="branding_apply">APPLY</string>
+    <string name="branding_preview_desc">Branded photo preview</string>
+
+    <!-- Gallery -->
+    <string name="gallery_title">GALLERY</string>
+    <string name="gallery_photo_count">%1$d photos</string>
+    <string name="gallery_no_photos">No photos yet</string>
+    <string name="gallery_use_photo">USE THIS PHOTO</string>
+    <string name="gallery_back_grid">BACK TO GRID</string>
+    <string name="gallery_close">CLOSE</string>
+    <string name="gallery_selected_desc">Selected photo</string>
+
+    <!-- Admin extras -->
+    <string name="admin_section_tools">Tools</string>
+    <string name="admin_photo_gallery">PHOTO GALLERY</string>
+    <string name="admin_section_about">About</string>
+    <string name="admin_privacy_policy">PRIVACY POLICY</string>
+    <string name="admin_version">Version</string>
+
+    <!-- Privacy -->
+    <string name="privacy_title">Privacy Policy</string>
+    <string name="privacy_body">SnapCabin captures photos using your device camera. Photos are stored locally on your device and are never uploaded to external servers unless you explicitly choose to share them.\n\nThe QR code sharing feature runs a temporary local server on your WiFi network. No data leaves your local network.\n\nWe do not collect analytics, personal information, or usage data.\n\nFor questions, contact: support@snapcabin.app</string>
 </resources>
