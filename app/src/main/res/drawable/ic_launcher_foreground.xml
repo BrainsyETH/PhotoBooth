@@ -5,39 +5,110 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Camera body -->
+    <!-- Cabin body (log wall) -->
+    <path
+        android:fillColor="#A0764A"
+        android:pathData="M26,48 L26,76 L82,76 L82,48 Z" />
+
+    <!-- Log lines (horizontal) -->
+    <path
+        android:fillColor="#8B6539"
+        android:pathData="M26,52 L82,52"
+        android:strokeWidth="0.8"
+        android:strokeColor="#8B6539" />
+    <path
+        android:fillColor="#8B6539"
+        android:pathData="M26,56 L82,56"
+        android:strokeWidth="0.8"
+        android:strokeColor="#8B6539" />
+    <path
+        android:fillColor="#8B6539"
+        android:pathData="M26,60 L82,60"
+        android:strokeWidth="0.8"
+        android:strokeColor="#8B6539" />
+    <path
+        android:fillColor="#8B6539"
+        android:pathData="M26,64 L82,64"
+        android:strokeWidth="0.8"
+        android:strokeColor="#8B6539" />
+    <path
+        android:fillColor="#8B6539"
+        android:pathData="M26,68 L82,68"
+        android:strokeWidth="0.8"
+        android:strokeColor="#8B6539" />
+    <path
+        android:fillColor="#8B6539"
+        android:pathData="M26,72 L82,72"
+        android:strokeWidth="0.8"
+        android:strokeColor="#8B6539" />
+
+    <!-- Log ends (circles on left) -->
+    <path
+        android:fillColor="#C49A6C"
+        android:pathData="M26,54 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#C49A6C"
+        android:pathData="M26,62 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#C49A6C"
+        android:pathData="M26,70 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+
+    <!-- Log ends (circles on right) -->
+    <path
+        android:fillColor="#C49A6C"
+        android:pathData="M82,54 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#C49A6C"
+        android:pathData="M82,62 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+    <path
+        android:fillColor="#C49A6C"
+        android:pathData="M82,70 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+
+    <!-- Camera viewfinder bump on top of cabin -->
+    <path
+        android:fillColor="#A0764A"
+        android:pathData="M44,44 L44,48 L58,48 L58,44 C58,42 56,40 54,40 L48,40 C46,40 44,42 44,44 Z" />
+
+    <!-- Roof -->
+    <path
+        android:fillColor="#1B5E20"
+        android:pathData="M54,30 L20,50 L88,50 Z" />
+
+    <!-- Roof outline for definition -->
+    <path
+        android:pathData="M54,30 L20,50 L88,50 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#145218"
+        android:fillColor="#00000000" />
+
+    <!-- Chimney -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M70,30 L70,42 L76,42 L76,34 Z" />
+
+    <!-- Camera lens outer ring -->
+    <path
+        android:fillColor="#616161"
+        android:pathData="M54,62 m-11,0 a11,11 0,1 1,22 0 a11,11 0,1 1,-22 0" />
+
+    <!-- Camera lens middle ring -->
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M54,62 m-9,0 a9,9 0,1 1,18 0 a9,9 0,1 1,-18 0" />
+
+    <!-- Camera lens inner (dark) -->
+    <path
+        android:fillColor="#424242"
+        android:pathData="M54,62 m-7,0 a7,7 0,1 1,14 0 a7,7 0,1 1,-14 0" />
+
+    <!-- Lens glass reflection -->
+    <path
+        android:fillColor="#616161"
+        android:pathData="M54,62 m-4,0 a4,4 0,1 1,8 0 a4,4 0,1 1,-8 0" />
+
+    <!-- Lens glint highlight -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M30,40 L30,66 C30,68.2 31.8,70 34,70 L74,70 C76.2,70 78,68.2 78,66 L78,40 C78,37.8 76.2,36 74,36 L68,36 L65,32 C64.4,31.4 63.7,31 63,31 L45,31 C44.3,31 43.6,31.4 43,32 L40,36 L34,36 C31.8,36 30,37.8 30,40 Z" />
-
-    <!-- Lens outer ring -->
-    <path
-        android:fillColor="#6C63FF"
-        android:pathData="M54,52 m-14,0 a14,14 0,1 1,28 0 a14,14 0,1 1,-28 0" />
-
-    <!-- Lens inner -->
-    <path
-        android:fillColor="#121212"
-        android:pathData="M54,52 m-10,0 a10,10 0,1 1,20 0 a10,10 0,1 1,-20 0" />
-
-    <!-- Lens highlight -->
-    <path
-        android:fillColor="#00E5FF"
-        android:pathData="M54,52 m-6,0 a6,6 0,1 1,12 0 a6,6 0,1 1,-12 0" />
-
-    <!-- Lens glint -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:alpha="0.6"
-        android:pathData="M50,48 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0" />
-
-    <!-- Flash indicator -->
-    <path
-        android:fillColor="#FFD93D"
-        android:pathData="M35,39 L37,39 L37,41 L35,41 Z" />
-
-    <!-- Status dot -->
-    <path
-        android:fillColor="#FF6584"
-        android:pathData="M72,39 m-1.5,0 a1.5,1.5 0,1 1,3 0 a1.5,1.5 0,1 1,-3 0" />
+        android:alpha="0.5"
+        android:pathData="M50,58 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0" />
 </vector>
