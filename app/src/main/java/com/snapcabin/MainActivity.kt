@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -25,10 +26,12 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var kioskManager: KioskManager
     @Inject lateinit var soundManager: SoundManager
 
+    private var kioskEnabled = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         enableEdgeToEdge()
         hideSystemUI()
 
@@ -37,6 +40,7 @@ class MainActivity : ComponentActivity() {
             settingsManager.settings.collect { settings ->
                 kioskManager.setScreenBrightness(this@MainActivity, settings.screenBrightness)
                 kioskManager.keepScreenOn(this@MainActivity, true)
+                kioskEnabled = settings.kioskModeEnabled
 
                 if (settings.kioskModeEnabled) {
                     kioskManager.enterKioskMode(this@MainActivity)
@@ -46,6 +50,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SnapCabinTheme {
+                // Swallow hardware back button in kiosk mode
+                BackHandler(enabled = kioskEnabled) {
+                    // Do nothing — prevent exiting the app
+                }
                 NavGraph(settingsManager = settingsManager)
             }
         }
@@ -54,6 +62,17 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         hideSystemUI()
+        // Re-enter lock task mode on resume if kiosk is enabled
+        if (kioskEnabled) {
+            kioskManager.enterKioskMode(this)
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            hideSystemUI()
+        }
     }
 
     override fun onDestroy() {
