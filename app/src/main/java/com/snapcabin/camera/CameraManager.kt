@@ -8,6 +8,8 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager as SystemCameraManager
 import android.hardware.usb.UsbManager
 import android.util.Log
+import android.view.Surface
+import android.view.WindowManager
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -130,7 +132,14 @@ class CameraManager @Inject constructor(
                     captureBuilder.setResolutionSelector(resSelector)
                 }
 
-                imageCapture = captureBuilder.build()
+                val capture = captureBuilder.build()
+
+                // Set target rotation to match the display so output is landscape-correct
+                val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                val rotation = windowManager.defaultDisplay.rotation
+                capture.targetRotation = rotation
+
+                imageCapture = capture
 
                 val cameraSelector = buildCameraSelector(provider, cameraId, useFront)
 
