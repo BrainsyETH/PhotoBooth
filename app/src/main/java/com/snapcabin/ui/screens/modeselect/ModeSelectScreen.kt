@@ -1,6 +1,7 @@
 package com.snapcabin.ui.screens.modeselect
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,10 +24,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinBackground
+import com.snapcabin.ui.theme.CabinOnBackground
 import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinSurface
 
 @Composable
 fun ModeSelectScreen(
@@ -37,7 +40,7 @@ fun ModeSelectScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(CabinBackground),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -45,33 +48,33 @@ fun ModeSelectScreen(
         ) {
             Text(
                 text = "Choose Your Mode",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = CabinOnBackground,
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(48.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(32.dp)
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 ModeCard(
-                    title = "Single Photo",
-                    description = "Take one perfect shot",
-                    color = CabinSecondary,
+                    title = "Photo",
+                    description = "One perfect shot",
+                    accentColor = CabinSecondary,
                     onClick = onSinglePhoto
                 )
                 ModeCard(
                     title = "Collage",
-                    description = "Multiple photos,\none layout",
-                    color = CabinPrimary,
+                    description = "Multiple photos, one layout",
+                    accentColor = CabinPrimary,
                     onClick = onCollage
                 )
                 ModeCard(
                     title = "GIF",
-                    description = "Animated photo\nsequence",
-                    color = CabinAccent,
+                    description = "Animated sequence",
+                    accentColor = CabinAccent,
                     onClick = onGif
                 )
             }
@@ -83,56 +86,50 @@ fun ModeSelectScreen(
 private fun ModeCard(
     title: String,
     description: String,
-    color: Color,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(32.dp)
-            .width(200.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(CabinSurface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 36.dp, vertical = 32.dp)
+            .width(180.dp)
     ) {
+        // Minimal accent indicator
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(40.dp))
-                .background(color.copy(alpha = 0.2f)),
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(color)
+                    .size(20.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(accentColor)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
+            color = CabinOnBackground,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = description,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.6f),
+            color = Color.White.copy(alpha = 0.4f),
             textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        BigButton(
-            text = "START",
-            onClick = onClick,
-            containerColor = color
         )
     }
 }
