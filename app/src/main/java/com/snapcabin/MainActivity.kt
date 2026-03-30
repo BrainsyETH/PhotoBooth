@@ -1,5 +1,6 @@
 package com.snapcabin
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         enableEdgeToEdge()
         hideSystemUI()
 

@@ -41,9 +41,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.snapcabin.filter.PhotoFilter
 import com.snapcabin.filter.PhotoOverlay
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun FilterScreen(
@@ -83,7 +83,7 @@ fun FilterScreen(
             }
 
             if (uiState.isProcessing) {
-                CircularProgressIndicator(color = BoothAccent)
+                CircularProgressIndicator(color = CabinAccent)
             }
         }
 
@@ -157,7 +157,7 @@ fun FilterScreen(
                 BigButton(
                     text = "DONE",
                     onClick = onDone,
-                    containerColor = BoothSecondary
+                    containerColor = CabinSecondary
                 )
             }
         }
@@ -171,7 +171,7 @@ private fun FilterThumbnail(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) BoothAccent else Color.Transparent
+    val borderColor = if (isSelected) CabinAccent else Color.Transparent
     val borderWidth = if (isSelected) 3.dp else 0.dp
 
     Column(
@@ -201,7 +201,7 @@ private fun FilterThumbnail(
         Text(
             text = filter.displayName,
             style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) BoothAccent else MaterialTheme.colorScheme.onBackground,
+            color = if (isSelected) CabinAccent else MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             fontSize = 11.sp
         )
@@ -214,7 +214,7 @@ private fun OverlayChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) BoothPrimary else MaterialTheme.colorScheme.surface
+    val bgColor = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface
     val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
 
     Box(

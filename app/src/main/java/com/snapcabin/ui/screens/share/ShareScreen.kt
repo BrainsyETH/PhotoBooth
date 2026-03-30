@@ -37,9 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 import kotlinx.coroutines.delay
 
 @Composable
@@ -133,7 +133,7 @@ fun ShareScreen(
                         Text(
                             text = url,
                             style = MaterialTheme.typography.bodySmall,
-                            color = BoothAccent
+                            color = CabinAccent
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -143,7 +143,7 @@ fun ShareScreen(
                 BigButton(
                     text = stringResource(R.string.share_save_gallery),
                     onClick = { viewModel.saveToGallery(context) },
-                    containerColor = BoothPrimary,
+                    containerColor = CabinPrimary,
                     enabled = !uiState.isSaving,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -153,7 +153,7 @@ fun ShareScreen(
                 BigButton(
                     text = stringResource(R.string.share_button),
                     onClick = { viewModel.shareViaIntent(context) },
-                    containerColor = BoothSecondary,
+                    containerColor = CabinSecondary,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -163,7 +163,7 @@ fun ShareScreen(
                 BigButton(
                     text = "PRINT",
                     onClick = { viewModel.printPhoto(context) },
-                    containerColor = Color(0xFF8E44AD),
+                    containerColor = Color(0xFF5D4037),
                     modifier = Modifier.fillMaxWidth()
                 )
 

@@ -27,7 +27,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.CountdownOverlay
 import com.snapcabin.ui.components.FlashOverlay
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun CaptureScreen(
@@ -93,7 +93,7 @@ fun CaptureScreen(
                 BigButton(
                     text = "TAKE PHOTO",
                     onClick = { viewModel.startCountdown() },
-                    containerColor = BoothSecondary,
+                    containerColor = CabinSecondary,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 48.dp)

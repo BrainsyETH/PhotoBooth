@@ -36,9 +36,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.snapcabin.collage.CollageLayout
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun CollageScreen(
@@ -87,7 +87,7 @@ fun CollageScreen(
             }
 
             if (uiState.isProcessing) {
-                CircularProgressIndicator(color = BoothAccent)
+                CircularProgressIndicator(color = CabinAccent)
             }
         }
 
@@ -135,7 +135,7 @@ fun CollageScreen(
                     BigButton(
                         text = "TAKE PHOTO (${uiState.selectedLayout.photoCount - uiState.photos.size} more)",
                         onClick = onTakeMore,
-                        containerColor = BoothAccent,
+                        containerColor = CabinAccent,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -166,7 +166,7 @@ fun CollageScreen(
                 BigButton(
                     text = "USE COLLAGE",
                     onClick = { onDone(viewModel.getCollageBitmap()) },
-                    containerColor = BoothSecondary,
+                    containerColor = CabinSecondary,
                     enabled = uiState.previewBitmap != null
                 )
             }
@@ -180,8 +180,8 @@ private fun LayoutChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) BoothPrimary else MaterialTheme.colorScheme.surface
-    val borderColor = if (isSelected) BoothAccent else Color.Transparent
+    val bgColor = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface
+    val borderColor = if (isSelected) CabinAccent else Color.Transparent
 
     Box(
         modifier = Modifier

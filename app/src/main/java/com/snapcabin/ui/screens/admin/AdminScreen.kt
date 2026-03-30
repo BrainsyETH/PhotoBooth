@@ -38,9 +38,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun AdminScreen(
@@ -127,7 +127,7 @@ fun AdminScreen(
                                             onClick = {
                                                 viewModel.updateSetting { copy(cameraId = cam.id) }
                                             },
-                                            containerColor = if (isSelected) BoothPrimary else MaterialTheme.colorScheme.surface,
+                                            containerColor = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface,
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
@@ -150,7 +150,7 @@ fun AdminScreen(
                                         onClick = {
                                             viewModel.updateSetting { copy(photoResolution = res) }
                                         },
-                                        containerColor = if (settings.photoResolution == res) BoothAccent else MaterialTheme.colorScheme.surface
+                                        containerColor = if (settings.photoResolution == res) CabinAccent else MaterialTheme.colorScheme.surface
                                     )
                                 }
                             }
@@ -170,7 +170,7 @@ fun AdminScreen(
                                 valueRange = 1f..10f,
                                 steps = 8,
                                 modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = BoothAccent, activeTrackColor = BoothPrimary)
+                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
                             )
                         }
                     }
@@ -265,7 +265,7 @@ fun AdminScreen(
                                 valueRange = 50f..100f,
                                 steps = 9,
                                 modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = BoothAccent, activeTrackColor = BoothPrimary)
+                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
                             )
                         }
                     }
@@ -295,7 +295,7 @@ fun AdminScreen(
                                 valueRange = 15f..300f,
                                 steps = 18,
                                 modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = BoothAccent, activeTrackColor = BoothPrimary)
+                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
                             )
                         }
                     }
@@ -309,7 +309,7 @@ fun AdminScreen(
                                 },
                                 valueRange = 0.1f..1f,
                                 modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = BoothAccent, activeTrackColor = BoothPrimary)
+                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
                             )
                         }
                     }
@@ -342,13 +342,13 @@ fun AdminScreen(
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = BoothAccent,
+                                    focusedBorderColor = CabinAccent,
                                     unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White,
-                                    focusedLabelColor = BoothAccent,
+                                    focusedLabelColor = CabinAccent,
                                     unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                                    cursorColor = BoothAccent
+                                    cursorColor = CabinAccent
                                 )
                             )
                         }
@@ -361,7 +361,7 @@ fun AdminScreen(
                         BigButton(
                             text = "PHOTO GALLERY",
                             onClick = onGallery,
-                            containerColor = BoothPrimary,
+                            containerColor = CabinPrimary,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -394,7 +394,7 @@ fun AdminScreen(
                         BigButton(
                             text = "CLOSE SETTINGS",
                             onClick = onDismiss,
-                            containerColor = BoothSecondary,
+                            containerColor = CabinSecondary,
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(32.dp))
@@ -443,13 +443,13 @@ private fun PinEntry(
                 isError = error,
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = BoothAccent,
+                    focusedBorderColor = CabinAccent,
                     unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    focusedLabelColor = BoothAccent,
+                    focusedLabelColor = CabinAccent,
                     unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                    cursorColor = BoothAccent
+                    cursorColor = CabinAccent
                 )
             )
 
@@ -478,7 +478,7 @@ private fun PinEntry(
                             pin = ""
                         }
                     },
-                    containerColor = BoothPrimary
+                    containerColor = CabinPrimary
                 )
             }
         }
@@ -490,7 +490,7 @@ private fun SectionHeader(title: String) {
     Text(
         text = title.uppercase(),
         style = MaterialTheme.typography.titleMedium,
-        color = BoothAccent,
+        color = CabinAccent,
         modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
     )
 }
@@ -521,8 +521,8 @@ private fun SettingRow(
 
 @Composable
 private fun switchColors() = SwitchDefaults.colors(
-    checkedThumbColor = BoothAccent,
-    checkedTrackColor = BoothPrimary,
+    checkedThumbColor = CabinAccent,
+    checkedTrackColor = CabinPrimary,
     uncheckedThumbColor = Color.Gray,
     uncheckedTrackColor = Color.DarkGray
 )

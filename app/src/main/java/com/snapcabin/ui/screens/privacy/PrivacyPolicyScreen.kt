@@ -19,7 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun PrivacyPolicyScreen(
@@ -53,7 +53,7 @@ fun PrivacyPolicyScreen(
         BigButton(
             text = "CLOSE",
             onClick = onDismiss,
-            containerColor = BoothSecondary
+            containerColor = CabinSecondary
         )
     }
 }

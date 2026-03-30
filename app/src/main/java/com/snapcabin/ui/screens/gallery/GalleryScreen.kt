@@ -39,9 +39,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun GalleryScreen(
@@ -80,7 +80,7 @@ fun GalleryScreen(
                     contentScale = ContentScale.Fit
                 )
             } else if (uiState.isLoading) {
-                CircularProgressIndicator(color = BoothAccent)
+                CircularProgressIndicator(color = CabinAccent)
             } else if (uiState.photos.isEmpty()) {
                 Text(
                     text = "No photos yet",
@@ -138,7 +138,7 @@ fun GalleryScreen(
                         onClick = {
                             uiState.fullBitmap?.let { onPhotoSelected(it) }
                         },
-                        containerColor = BoothAccent,
+                        containerColor = CabinAccent,
                         enabled = uiState.fullBitmap != null,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -154,7 +154,7 @@ fun GalleryScreen(
                 BigButton(
                     text = "CLOSE",
                     onClick = onDismiss,
-                    containerColor = BoothSecondary,
+                    containerColor = CabinSecondary,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

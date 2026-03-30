@@ -5,20 +5,20 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 private val DarkColorScheme = darkColorScheme(
-    primary = BoothPrimary,
-    secondary = BoothSecondary,
-    background = BoothBackground,
-    surface = BoothSurface,
-    onPrimary = BoothOnPrimary,
-    onBackground = BoothOnBackground,
-    onSurface = BoothOnSurface
+    primary = CabinPrimary,
+    secondary = CabinSecondary,
+    background = CabinBackground,
+    surface = CabinSurface,
+    onPrimary = CabinOnPrimary,
+    onBackground = CabinOnBackground,
+    onSurface = CabinOnSurface
 )
 
 @Composable
 fun SnapCabinTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DarkColorScheme,
-        typography = BoothTypography,
+        typography = CabinTypography,
         content = content
     )
 }

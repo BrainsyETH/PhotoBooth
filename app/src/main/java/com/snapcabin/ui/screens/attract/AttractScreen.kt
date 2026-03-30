@@ -28,9 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun AttractScreen(
@@ -65,7 +65,7 @@ fun AttractScreen(
             .background(
                 Brush.radialGradient(
                     colors = listOf(
-                        BoothPrimary.copy(alpha = 0.3f),
+                        CabinPrimary.copy(alpha = 0.3f),
                         Color.Black
                     ),
                     radius = 1200f
@@ -97,7 +97,7 @@ fun AttractScreen(
             Text(
                 text = "Tap anywhere to start!",
                 fontSize = 28.sp,
-                color = BoothAccent.copy(alpha = glowAlpha),
+                color = CabinAccent.copy(alpha = glowAlpha),
                 textAlign = TextAlign.Center
             )
 
@@ -106,7 +106,7 @@ fun AttractScreen(
             Text(
                 text = "Single Photo  |  Collage  |  GIF",
                 fontSize = 20.sp,
-                color = BoothSecondary.copy(alpha = 0.7f),
+                color = CabinSecondary.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
         }

@@ -24,9 +24,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun ModeSelectScreen(
@@ -59,19 +59,19 @@ fun ModeSelectScreen(
                 ModeCard(
                     title = "Single Photo",
                     description = "Take one perfect shot",
-                    color = BoothSecondary,
+                    color = CabinSecondary,
                     onClick = onSinglePhoto
                 )
                 ModeCard(
                     title = "Collage",
                     description = "Multiple photos,\none layout",
-                    color = BoothPrimary,
+                    color = CabinPrimary,
                     onClick = onCollage
                 )
                 ModeCard(
                     title = "GIF",
                     description = "Animated photo\nsequence",
-                    color = BoothAccent,
+                    color = CabinAccent,
                     onClick = onGif
                 )
             }

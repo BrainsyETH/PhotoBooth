@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun ReviewScreen(
@@ -63,7 +63,7 @@ fun ReviewScreen(
             BigButton(
                 text = "ACCEPT",
                 onClick = onAccept,
-                containerColor = BoothSecondary
+                containerColor = CabinSecondary
             )
         }
     }

@@ -46,9 +46,9 @@ import androidx.lifecycle.viewModelScope
 import com.snapcabin.filter.EventBrandingRenderer
 import com.snapcabin.filter.EventTemplate
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -156,7 +156,7 @@ fun BrandingScreen(
                 )
             }
             if (uiState.isProcessing) {
-                CircularProgressIndicator(color = BoothAccent)
+                CircularProgressIndicator(color = CabinAccent)
             }
         }
 
@@ -189,10 +189,10 @@ fun BrandingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) BoothPrimary else MaterialTheme.colorScheme.surface)
+                                .background(if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface)
                                 .border(
                                     width = if (isSelected) 2.dp else 0.dp,
-                                    color = if (isSelected) BoothAccent else Color.Transparent,
+                                    color = if (isSelected) CabinAccent else Color.Transparent,
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .clickable { viewModel.selectTemplate(template) }
@@ -211,13 +211,13 @@ fun BrandingScreen(
 
                 // Event name input
                 val textFieldColors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = BoothAccent,
+                    focusedBorderColor = CabinAccent,
                     unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    focusedLabelColor = BoothAccent,
+                    focusedLabelColor = CabinAccent,
                     unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                    cursorColor = BoothAccent
+                    cursorColor = CabinAccent
                 )
 
                 var nameText by remember { mutableStateOf(uiState.eventName) }
@@ -266,7 +266,7 @@ fun BrandingScreen(
                 BigButton(
                     text = "APPLY",
                     onClick = { onDone(viewModel.getResultBitmap()) },
-                    containerColor = BoothSecondary
+                    containerColor = CabinSecondary
                 )
             }
         }

@@ -32,9 +32,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.BoothAccent
-import com.snapcabin.ui.theme.BoothPrimary
-import com.snapcabin.ui.theme.BoothSecondary
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -102,7 +102,7 @@ fun GifScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = BoothAccent)
+                        CircularProgressIndicator(color = CabinAccent)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Creating GIF...", color = MaterialTheme.colorScheme.onBackground)
                     }
@@ -139,7 +139,7 @@ fun GifScreen(
                     BigButton(
                         text = "TAKE FRAME",
                         onClick = onTakeMore,
-                        containerColor = BoothAccent,
+                        containerColor = CabinAccent,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -168,8 +168,8 @@ fun GifScreen(
                     valueRange = 100f..2000f,
                     steps = 18,
                     colors = SliderDefaults.colors(
-                        thumbColor = BoothAccent,
-                        activeTrackColor = BoothPrimary
+                        thumbColor = CabinAccent,
+                        activeTrackColor = CabinPrimary
                     )
                 )
             }
@@ -190,7 +190,7 @@ fun GifScreen(
                     onClick = {
                         viewModel.encodeGif(context)
                     },
-                    containerColor = BoothSecondary,
+                    containerColor = CabinSecondary,
                     enabled = uiState.frames.size >= 2 && !uiState.isEncoding
                 )
             }
