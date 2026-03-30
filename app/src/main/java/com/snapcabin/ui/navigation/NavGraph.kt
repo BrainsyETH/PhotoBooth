@@ -3,10 +3,13 @@ package com.snapcabin.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.ui.components.InactivityHandler
 import com.snapcabin.ui.screens.admin.AdminScreen
@@ -28,6 +31,7 @@ import com.snapcabin.ui.screens.modeselect.ModeSelectScreen
 import com.snapcabin.ui.screens.privacy.PrivacyPolicyScreen
 import com.snapcabin.ui.screens.review.ReviewScreen
 import com.snapcabin.ui.screens.share.ShareScreen
+import com.snapcabin.ui.screens.thankyou.ThankYouScreen
 
 object Routes {
     const val ATTRACT = "attract"
@@ -44,20 +48,56 @@ object Routes {
     const val ADMIN = "admin"
     const val PRIVACY = "privacy"
     const val GALLERY = "gallery"
+    const val THANK_YOU = "thank_you"
+}
+
+private fun getScreenTimeout(route: String?): Long = when (route) {
+    Routes.MODE_SELECT -> 30_000L
+    Routes.CAPTURE, Routes.COLLAGE_CAPTURE, Routes.GIF_CAPTURE -> 90_000L
+    Routes.REVIEW -> 30_000L
+    Routes.FILTER, Routes.BRANDING -> 60_000L
+    Routes.SHARE -> 60_000L
+    Routes.COLLAGE, Routes.GIF -> 60_000L
+    Routes.THANK_YOU -> 5_000L
+    else -> 0L // Disabled for ATTRACT, ADMIN, PRIVACY, GALLERY
+}
+
+private fun getWarningDuration(route: String?): Long = when (route) {
+    Routes.REVIEW -> 10_000L
+    Routes.THANK_YOU -> 0L // No warning, just auto-reset
+    else -> 15_000L
+}
+
+/**
+ * Determines the start route based on enabled modes.
+ * If exactly one mode is enabled, skip mode select and go directly to that mode.
+ */
+private fun getStartRoute(settings: BoothSettings): String {
+    val enabledModes = mutableListOf<String>()
+    if (settings.enableSinglePhotoMode) enabledModes.add(Routes.CAPTURE)
+    if (settings.enableCollageMode) enabledModes.add(Routes.COLLAGE)
+    if (settings.enableGifMode) enabledModes.add(Routes.GIF)
+    return if (enabledModes.size == 1) enabledModes.first() else Routes.MODE_SELECT
 }
 
 @Composable
 fun NavGraph(settingsManager: SettingsManager) {
     val navController = rememberNavController()
     val settings by settingsManager.settings.collectAsState(
-        initial = com.snapcabin.settings.BoothSettings()
+        initial = BoothSettings()
     )
 
-    // Wrap everything in inactivity handler — returns to attract on timeout
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentEntry?.destination?.route
+
+    val timeoutMs = remember(currentRoute) { getScreenTimeout(currentRoute) }
+    val warningMs = remember(currentRoute) { getWarningDuration(currentRoute) }
+    val timeoutEnabled = timeoutMs > 0
+
     InactivityHandler(
-        timeoutMs = settings.inactivityTimeoutSeconds * 1000L,
-        enabled = navController.currentDestination?.route != Routes.ATTRACT &&
-            navController.currentDestination?.route != Routes.ADMIN,
+        timeoutMs = timeoutMs,
+        warningMs = warningMs,
+        enabled = timeoutEnabled,
         onTimeout = {
             navController.popBackStack(Routes.ATTRACT, inclusive = false)
         }
@@ -69,7 +109,10 @@ fun NavGraph(settingsManager: SettingsManager) {
             // Attract / idle screen
             composable(Routes.ATTRACT) {
                 AttractScreen(
-                    onTap = { navController.navigate(Routes.MODE_SELECT) },
+                    onTap = {
+                        val route = getStartRoute(settings)
+                        navController.navigate(route)
+                    },
                     onAdminLongPress = { navController.navigate(Routes.ADMIN) }
                 )
             }
@@ -115,7 +158,7 @@ fun NavGraph(settingsManager: SettingsManager) {
             }
 
             // --- Single Photo Flow ---
-            // Capture → Review → Filter → Branding → Share
+            // Capture → Review → Filter → Branding → Share → ThankYou
             composable(Routes.CAPTURE) { backStackEntry ->
                 val captureViewModel: CaptureViewModel = hiltViewModel(backStackEntry)
                 CaptureScreen(
@@ -131,6 +174,7 @@ fun NavGraph(settingsManager: SettingsManager) {
 
                 ReviewScreen(
                     photo = uiState.capturedPhoto,
+                    autoAcceptSeconds = settings.reviewAutoAcceptSeconds,
                     onRetake = {
                         captureViewModel.resetCapture()
                         navController.popBackStack()
@@ -176,6 +220,17 @@ fun NavGraph(settingsManager: SettingsManager) {
                     photo = uiState.capturedPhoto,
                     onDone = {
                         captureViewModel.resetCapture()
+                        navController.navigate(Routes.THANK_YOU) {
+                            popUpTo(Routes.ATTRACT) { inclusive = false }
+                        }
+                    }
+                )
+            }
+
+            // Thank-you transition screen
+            composable(Routes.THANK_YOU) {
+                ThankYouScreen(
+                    onDone = {
                         navController.popBackStack(Routes.ATTRACT, inclusive = false)
                     }
                 )
@@ -203,7 +258,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                     onDone = { navController.navigate(Routes.SHARE) },
                     onCancel = {
                         collageViewModel.reset()
-                        navController.popBackStack(Routes.MODE_SELECT, inclusive = false)
+                        navController.popBackStack(Routes.ATTRACT, inclusive = false)
                     },
                     viewModel = collageViewModel
                 )
@@ -237,11 +292,13 @@ fun NavGraph(settingsManager: SettingsManager) {
                     initialFrame = null,
                     onTakeMore = { navController.navigate(Routes.GIF_CAPTURE) },
                     onDone = {
-                        navController.popBackStack(Routes.ATTRACT, inclusive = false)
+                        navController.navigate(Routes.THANK_YOU) {
+                            popUpTo(Routes.ATTRACT) { inclusive = false }
+                        }
                     },
                     onCancel = {
                         gifViewModel.reset()
-                        navController.popBackStack(Routes.MODE_SELECT, inclusive = false)
+                        navController.popBackStack(Routes.ATTRACT, inclusive = false)
                     },
                     viewModel = gifViewModel
                 )

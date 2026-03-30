@@ -157,6 +157,45 @@ fun AdminScreen(
                         }
                     }
 
+                    // --- MODES SECTION ---
+                    item { SectionHeader("Modes") }
+
+                    item {
+                        SettingRow("Single Photo Mode") {
+                            Switch(
+                                checked = settings.enableSinglePhotoMode,
+                                onCheckedChange = { v ->
+                                    viewModel.updateSetting { copy(enableSinglePhotoMode = v) }
+                                },
+                                colors = switchColors()
+                            )
+                        }
+                    }
+
+                    item {
+                        SettingRow("Collage Mode") {
+                            Switch(
+                                checked = settings.enableCollageMode,
+                                onCheckedChange = { v ->
+                                    viewModel.updateSetting { copy(enableCollageMode = v) }
+                                },
+                                colors = switchColors()
+                            )
+                        }
+                    }
+
+                    item {
+                        SettingRow("GIF Mode") {
+                            Switch(
+                                checked = settings.enableGifMode,
+                                onCheckedChange = { v ->
+                                    viewModel.updateSetting { copy(enableGifMode = v) }
+                                },
+                                colors = switchColors()
+                            )
+                        }
+                    }
+
                     // --- CAPTURE SECTION ---
                     item { SectionHeader("Capture") }
 
@@ -183,6 +222,21 @@ fun AdminScreen(
                                     viewModel.updateSetting { copy(showFlashEffect = v) }
                                 },
                                 colors = switchColors()
+                            )
+                        }
+                    }
+
+                    item {
+                        SettingRow("Review Auto-Accept: ${if (settings.reviewAutoAcceptSeconds == 0) "Off" else "${settings.reviewAutoAcceptSeconds}s"}") {
+                            Slider(
+                                value = settings.reviewAutoAcceptSeconds.toFloat(),
+                                onValueChange = { v ->
+                                    viewModel.updateSetting { copy(reviewAutoAcceptSeconds = v.toInt()) }
+                                },
+                                valueRange = 0f..30f,
+                                steps = 29,
+                                modifier = Modifier.width(200.dp),
+                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
                             )
                         }
                     }

@@ -38,10 +38,18 @@ data class BoothSettings(
     val enableLocalServer: Boolean = true,
     val serverPort: Int = 8080,
 
+    // Modes
+    val enableSinglePhotoMode: Boolean = true,
+    val enableCollageMode: Boolean = true,
+    val enableGifMode: Boolean = true,
+
     // Kiosk
     val kioskModeEnabled: Boolean = false,
     val adminPin: String = "1234",
     val inactivityTimeoutSeconds: Int = 60,
+
+    // Review
+    val reviewAutoAcceptSeconds: Int = 10, // 0 = disabled
 
     // Display
     val screenBrightness: Float = 1.0f,
@@ -77,9 +85,13 @@ class SettingsManager @Inject constructor(
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
         val ENABLE_SERVER = booleanPreferencesKey("enable_local_server")
         val SERVER_PORT = intPreferencesKey("server_port")
+        val ENABLE_SINGLE_PHOTO = booleanPreferencesKey("enable_single_photo_mode")
+        val ENABLE_COLLAGE = booleanPreferencesKey("enable_collage_mode")
+        val ENABLE_GIF = booleanPreferencesKey("enable_gif_mode")
         val KIOSK_MODE = booleanPreferencesKey("kiosk_mode")
         val ADMIN_PIN = stringPreferencesKey("admin_pin")
         val INACTIVITY_TIMEOUT = intPreferencesKey("inactivity_timeout")
+        val REVIEW_AUTO_ACCEPT = intPreferencesKey("review_auto_accept_seconds")
         val SCREEN_BRIGHTNESS = floatPreferencesKey("screen_brightness")
         val SHOW_FLASH = booleanPreferencesKey("show_flash_effect")
         val SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
@@ -104,9 +116,13 @@ class SettingsManager @Inject constructor(
             enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
             enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
             serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
+            enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
+            enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
+            enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
             kioskModeEnabled = prefs[Keys.KIOSK_MODE] ?: false,
             adminPin = prefs[Keys.ADMIN_PIN] ?: "1234",
             inactivityTimeoutSeconds = prefs[Keys.INACTIVITY_TIMEOUT] ?: 60,
+            reviewAutoAcceptSeconds = prefs[Keys.REVIEW_AUTO_ACCEPT] ?: 10,
             screenBrightness = prefs[Keys.SCREEN_BRIGHTNESS] ?: 1.0f,
             showFlashEffect = prefs[Keys.SHOW_FLASH] ?: true,
             soundEnabled = prefs[Keys.SOUND_ENABLED] ?: true,
@@ -131,9 +147,13 @@ class SettingsManager @Inject constructor(
                 enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
                 enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
                 serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
+                enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
+                enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
+                enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
                 kioskModeEnabled = prefs[Keys.KIOSK_MODE] ?: false,
                 adminPin = prefs[Keys.ADMIN_PIN] ?: "1234",
                 inactivityTimeoutSeconds = prefs[Keys.INACTIVITY_TIMEOUT] ?: 60,
+                reviewAutoAcceptSeconds = prefs[Keys.REVIEW_AUTO_ACCEPT] ?: 10,
                 screenBrightness = prefs[Keys.SCREEN_BRIGHTNESS] ?: 1.0f,
                 showFlashEffect = prefs[Keys.SHOW_FLASH] ?: true,
                 soundEnabled = prefs[Keys.SOUND_ENABLED] ?: true,
@@ -156,9 +176,13 @@ class SettingsManager @Inject constructor(
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
             prefs[Keys.ENABLE_SERVER] = updated.enableLocalServer
             prefs[Keys.SERVER_PORT] = updated.serverPort
+            prefs[Keys.ENABLE_SINGLE_PHOTO] = updated.enableSinglePhotoMode
+            prefs[Keys.ENABLE_COLLAGE] = updated.enableCollageMode
+            prefs[Keys.ENABLE_GIF] = updated.enableGifMode
             prefs[Keys.KIOSK_MODE] = updated.kioskModeEnabled
             prefs[Keys.ADMIN_PIN] = updated.adminPin
             prefs[Keys.INACTIVITY_TIMEOUT] = updated.inactivityTimeoutSeconds
+            prefs[Keys.REVIEW_AUTO_ACCEPT] = updated.reviewAutoAcceptSeconds
             prefs[Keys.SCREEN_BRIGHTNESS] = updated.screenBrightness
             prefs[Keys.SHOW_FLASH] = updated.showFlashEffect
             prefs[Keys.SOUND_ENABLED] = updated.soundEnabled
