@@ -1,5 +1,6 @@
 package com.snapcabin.ui.components
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -21,8 +23,13 @@ fun BigButton(
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
     enabled: Boolean = true
 ) {
+    val view = LocalView.current
+
     Button(
-        onClick = onClick,
+        onClick = {
+            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            onClick()
+        },
         modifier = modifier.height(80.dp),
         enabled = enabled,
         shape = RoundedCornerShape(16.dp),

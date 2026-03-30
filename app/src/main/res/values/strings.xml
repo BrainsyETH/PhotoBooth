@@ -3,18 +3,39 @@
     <string name="app_name">SnapCabin</string>
 
     <!-- Attract Screen -->
-    <string name="attract_title">SNAP CABIN</string>
-    <string name="attract_tap_to_start">Tap anywhere to start!</string>
-    <string name="attract_modes">Single Photo  |  Collage  |  GIF</string>
+    <string name="attract_title">SnapCabin</string>
+    <string name="attract_tap_to_start">Tap anywhere to start</string>
+    <string name="attract_modes">Photo  /  Collage  /  GIF</string>
+    <string name="attract_admin_hint">Long-press for settings</string>
+
+    <!-- Thank You -->
+    <string name="thankyou_title">Thank You</string>
+    <string name="thankyou_subtitle">Your photo is ready</string>
+
+    <!-- Inactivity Warning -->
+    <string name="inactivity_still_there">Still there?</string>
+    <string name="inactivity_resetting">Resetting in %1$d seconds</string>
+    <string name="inactivity_dismiss">I\'M HERE</string>
+
+    <!-- Review -->
+    <string name="review_auto_accept">Auto-accepting in %1$ds</string>
+
+    <!-- Admin extras -->
+    <string name="admin_section_modes">Modes</string>
+    <string name="admin_single_photo_mode">Single Photo Mode</string>
+    <string name="admin_collage_mode">Collage Mode</string>
+    <string name="admin_gif_mode">GIF Mode</string>
+    <string name="admin_review_auto_accept">Review Auto-Accept: %1$s</string>
+    <string name="admin_pin_label">Admin PIN (min 4 digits)</string>
 
     <!-- Mode Select -->
     <string name="mode_title">Choose Your Mode</string>
     <string name="mode_single_photo">Single Photo</string>
-    <string name="mode_single_desc">Take one perfect shot</string>
+    <string name="mode_single_desc">One perfect shot</string>
     <string name="mode_collage">Collage</string>
-    <string name="mode_collage_desc">Multiple photos,\none layout</string>
+    <string name="mode_collage_desc">Multiple photos, one layout</string>
     <string name="mode_gif">GIF</string>
-    <string name="mode_gif_desc">Animated photo\nsequence</string>
+    <string name="mode_gif_desc">Animated sequence</string>
     <string name="mode_start">START</string>
 
     <!-- Capture -->

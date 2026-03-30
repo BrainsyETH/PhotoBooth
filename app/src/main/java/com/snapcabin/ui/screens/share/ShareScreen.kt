@@ -159,9 +159,8 @@ fun ShareScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Print
                 BigButton(
-                    text = "PRINT",
+                    text = stringResource(R.string.share_print),
                     onClick = { viewModel.printPhoto(context) },
                     containerColor = Color(0xFF5D4037),
                     modifier = Modifier.fillMaxWidth()
@@ -169,9 +168,8 @@ fun ShareScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Email
                 BigButton(
-                    text = "EMAIL",
+                    text = stringResource(R.string.share_email),
                     onClick = { viewModel.shareViaEmail(context) },
                     containerColor = Color(0xFF2980B9),
                     modifier = Modifier.fillMaxWidth()
@@ -179,9 +177,8 @@ fun ShareScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Message/SMS
                 BigButton(
-                    text = "MESSAGE",
+                    text = stringResource(R.string.share_message),
                     onClick = { viewModel.shareViaSms(context) },
                     containerColor = Color(0xFF27AE60),
                     modifier = Modifier.fillMaxWidth()
