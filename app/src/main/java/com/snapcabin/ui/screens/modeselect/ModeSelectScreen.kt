@@ -20,10 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.snapcabin.R
 import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinBackground
 import com.snapcabin.ui.theme.CabinOnBackground
@@ -35,7 +37,10 @@ import com.snapcabin.ui.theme.CabinSurface
 fun ModeSelectScreen(
     onSinglePhoto: () -> Unit,
     onCollage: () -> Unit,
-    onGif: () -> Unit
+    onGif: () -> Unit,
+    singlePhotoEnabled: Boolean = true,
+    collageEnabled: Boolean = true,
+    gifEnabled: Boolean = true
 ) {
     Box(
         modifier = Modifier
@@ -47,7 +52,7 @@ fun ModeSelectScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Choose Your Mode",
+                text = stringResource(R.string.mode_title),
                 fontSize = 36.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = CabinOnBackground,
@@ -59,24 +64,30 @@ fun ModeSelectScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                ModeCard(
-                    title = "Photo",
-                    description = "One perfect shot",
-                    accentColor = CabinSecondary,
-                    onClick = onSinglePhoto
-                )
-                ModeCard(
-                    title = "Collage",
-                    description = "Multiple photos, one layout",
-                    accentColor = CabinPrimary,
-                    onClick = onCollage
-                )
-                ModeCard(
-                    title = "GIF",
-                    description = "Animated sequence",
-                    accentColor = CabinAccent,
-                    onClick = onGif
-                )
+                if (singlePhotoEnabled) {
+                    ModeCard(
+                        title = stringResource(R.string.mode_single_photo),
+                        description = stringResource(R.string.mode_single_desc),
+                        accentColor = CabinSecondary,
+                        onClick = onSinglePhoto
+                    )
+                }
+                if (collageEnabled) {
+                    ModeCard(
+                        title = stringResource(R.string.mode_collage),
+                        description = stringResource(R.string.mode_collage_desc),
+                        accentColor = CabinPrimary,
+                        onClick = onCollage
+                    )
+                }
+                if (gifEnabled) {
+                    ModeCard(
+                        title = stringResource(R.string.mode_gif),
+                        description = stringResource(R.string.mode_gif_desc),
+                        accentColor = CabinAccent,
+                        onClick = onGif
+                    )
+                }
             }
         }
     }
@@ -98,7 +109,6 @@ private fun ModeCard(
             .padding(horizontal = 36.dp, vertical = 32.dp)
             .width(180.dp)
     ) {
-        // Minimal accent indicator
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -128,7 +138,7 @@ private fun ModeCard(
         Text(
             text = description,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.4f),
+            color = Color.White.copy(alpha = 0.5f),
             textAlign = TextAlign.Center
         )
     }

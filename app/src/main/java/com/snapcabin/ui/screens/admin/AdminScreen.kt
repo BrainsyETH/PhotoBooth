@@ -161,37 +161,64 @@ fun AdminScreen(
                     item { SectionHeader("Modes") }
 
                     item {
+                        val enabledCount = listOf(
+                            settings.enableSinglePhotoMode,
+                            settings.enableCollageMode,
+                            settings.enableGifMode
+                        ).count { it }
+
                         SettingRow("Single Photo Mode") {
                             Switch(
                                 checked = settings.enableSinglePhotoMode,
                                 onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(enableSinglePhotoMode = v) }
+                                    if (v || enabledCount > 1) {
+                                        viewModel.updateSetting { copy(enableSinglePhotoMode = v) }
+                                    }
                                 },
-                                colors = switchColors()
+                                colors = switchColors(),
+                                enabled = !settings.enableSinglePhotoMode || enabledCount > 1
                             )
                         }
                     }
 
                     item {
+                        val enabledCount = listOf(
+                            settings.enableSinglePhotoMode,
+                            settings.enableCollageMode,
+                            settings.enableGifMode
+                        ).count { it }
+
                         SettingRow("Collage Mode") {
                             Switch(
                                 checked = settings.enableCollageMode,
                                 onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(enableCollageMode = v) }
+                                    if (v || enabledCount > 1) {
+                                        viewModel.updateSetting { copy(enableCollageMode = v) }
+                                    }
                                 },
-                                colors = switchColors()
+                                colors = switchColors(),
+                                enabled = !settings.enableCollageMode || enabledCount > 1
                             )
                         }
                     }
 
                     item {
+                        val enabledCount = listOf(
+                            settings.enableSinglePhotoMode,
+                            settings.enableCollageMode,
+                            settings.enableGifMode
+                        ).count { it }
+
                         SettingRow("GIF Mode") {
                             Switch(
                                 checked = settings.enableGifMode,
                                 onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(enableGifMode = v) }
+                                    if (v || enabledCount > 1) {
+                                        viewModel.updateSetting { copy(enableGifMode = v) }
+                                    }
                                 },
-                                colors = switchColors()
+                                colors = switchColors(),
+                                enabled = !settings.enableGifMode || enabledCount > 1
                             )
                         }
                     }
@@ -326,6 +353,33 @@ fun AdminScreen(
 
                     // --- KIOSK SECTION ---
                     item { SectionHeader("Kiosk") }
+
+                    item {
+                        var pinText by remember { mutableStateOf(settings.adminPin) }
+                        OutlinedTextField(
+                            value = pinText,
+                            onValueChange = { newPin ->
+                                pinText = newPin.filter { c -> c.isDigit() }.take(8)
+                                if (pinText.length >= 4) {
+                                    viewModel.updateSetting { copy(adminPin = pinText) }
+                                }
+                            },
+                            label = { Text("Admin PIN (min 4 digits)") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = CabinAccent,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedLabelColor = CabinAccent,
+                                unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+                                cursorColor = CabinAccent
+                            )
+                        )
+                    }
 
                     item {
                         SettingRow("Kiosk Mode") {

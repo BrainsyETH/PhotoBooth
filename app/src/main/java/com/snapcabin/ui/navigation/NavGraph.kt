@@ -64,19 +64,17 @@ private fun getScreenTimeout(route: String?): Long = when (route) {
 
 private fun getWarningDuration(route: String?): Long = when (route) {
     Routes.REVIEW -> 10_000L
-    Routes.THANK_YOU -> 0L // No warning, just auto-reset
+    Routes.THANK_YOU -> 0L
     else -> 15_000L
 }
 
-/**
- * Determines the start route based on enabled modes.
- * If exactly one mode is enabled, skip mode select and go directly to that mode.
- */
 private fun getStartRoute(settings: BoothSettings): String {
     val enabledModes = mutableListOf<String>()
     if (settings.enableSinglePhotoMode) enabledModes.add(Routes.CAPTURE)
     if (settings.enableCollageMode) enabledModes.add(Routes.COLLAGE)
     if (settings.enableGifMode) enabledModes.add(Routes.GIF)
+    // Guard: if no modes enabled, fall back to mode select (shows all)
+    if (enabledModes.isEmpty()) return Routes.MODE_SELECT
     return if (enabledModes.size == 1) enabledModes.first() else Routes.MODE_SELECT
 }
 
@@ -139,26 +137,25 @@ fun NavGraph(settingsManager: SettingsManager) {
             composable(Routes.GALLERY) {
                 val galleryViewModel: GalleryViewModel = hiltViewModel()
                 GalleryScreen(
-                    onPhotoSelected = { bitmap ->
-                        // Could re-share an existing photo
-                        navController.popBackStack()
-                    },
+                    onPhotoSelected = { navController.popBackStack() },
                     onDismiss = { navController.popBackStack() },
                     viewModel = galleryViewModel
                 )
             }
 
-            // Mode selection
+            // Mode selection — passes enabled flags
             composable(Routes.MODE_SELECT) {
                 ModeSelectScreen(
                     onSinglePhoto = { navController.navigate(Routes.CAPTURE) },
                     onCollage = { navController.navigate(Routes.COLLAGE) },
-                    onGif = { navController.navigate(Routes.GIF) }
+                    onGif = { navController.navigate(Routes.GIF) },
+                    singlePhotoEnabled = settings.enableSinglePhotoMode,
+                    collageEnabled = settings.enableCollageMode,
+                    gifEnabled = settings.enableGifMode
                 )
             }
 
             // --- Single Photo Flow ---
-            // Capture → Review → Filter → Branding → Share → ThankYou
             composable(Routes.CAPTURE) { backStackEntry ->
                 val captureViewModel: CaptureViewModel = hiltViewModel(backStackEntry)
                 CaptureScreen(
@@ -211,15 +208,35 @@ fun NavGraph(settingsManager: SettingsManager) {
                 )
             }
 
+            // --- Share Screen (serves all flows) ---
             composable(Routes.SHARE) {
-                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
-                val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
-                val uiState by captureViewModel.uiState.collectAsState()
+                // Resolve photo from whichever flow is active
+                val singlePhoto = try {
+                    val entry = navController.getBackStackEntry(Routes.CAPTURE)
+                    val vm: CaptureViewModel = hiltViewModel(entry)
+                    val state by vm.uiState.collectAsState()
+                    state.capturedPhoto
+                } catch (_: Exception) { null }
+
+                val collagePhoto = try {
+                    val entry = navController.getBackStackEntry(Routes.COLLAGE)
+                    val vm: CollageViewModel = hiltViewModel(entry)
+                    val state by vm.uiState.collectAsState()
+                    state.previewBitmap
+                } catch (_: Exception) { null }
+
+                val gifPreview = try {
+                    val entry = navController.getBackStackEntry(Routes.GIF)
+                    val vm: GifViewModel = hiltViewModel(entry)
+                    val state by vm.uiState.collectAsState()
+                    state.frames.firstOrNull()
+                } catch (_: Exception) { null }
+
+                val photo = singlePhoto ?: collagePhoto ?: gifPreview
 
                 ShareScreen(
-                    photo = uiState.capturedPhoto,
+                    photo = photo,
                     onDone = {
-                        captureViewModel.resetCapture()
                         navController.navigate(Routes.THANK_YOU) {
                             popUpTo(Routes.ATTRACT) { inclusive = false }
                         }
@@ -241,7 +258,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                 val collageViewModel: CollageViewModel = hiltViewModel(backStackEntry)
                 val captureEntry = try {
                     navController.getBackStackEntry(Routes.COLLAGE_CAPTURE)
-                } catch (e: Exception) { null }
+                } catch (_: Exception) { null }
 
                 val captureViewModel: CaptureViewModel? = captureEntry?.let { hiltViewModel(it) }
                 val captureState = captureViewModel?.uiState?.collectAsState()
@@ -255,7 +272,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                 CollageScreen(
                     initialPhoto = null,
                     onTakeMore = { navController.navigate(Routes.COLLAGE_CAPTURE) },
-                    onDone = { navController.navigate(Routes.SHARE) },
+                    onDone = { _ -> navController.navigate(Routes.SHARE) },
                     onCancel = {
                         collageViewModel.reset()
                         navController.popBackStack(Routes.ATTRACT, inclusive = false)
@@ -272,12 +289,12 @@ fun NavGraph(settingsManager: SettingsManager) {
                 )
             }
 
-            // --- GIF Flow ---
+            // --- GIF Flow (now routes through Share) ---
             composable(Routes.GIF) { backStackEntry ->
                 val gifViewModel: GifViewModel = hiltViewModel(backStackEntry)
                 val captureEntry = try {
                     navController.getBackStackEntry(Routes.GIF_CAPTURE)
-                } catch (e: Exception) { null }
+                } catch (_: Exception) { null }
 
                 val captureViewModel: CaptureViewModel? = captureEntry?.let { hiltViewModel(it) }
                 val captureState = captureViewModel?.uiState?.collectAsState()
@@ -291,11 +308,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                 GifScreen(
                     initialFrame = null,
                     onTakeMore = { navController.navigate(Routes.GIF_CAPTURE) },
-                    onDone = {
-                        navController.navigate(Routes.THANK_YOU) {
-                            popUpTo(Routes.ATTRACT) { inclusive = false }
-                        }
-                    },
+                    onDone = { _ -> navController.navigate(Routes.SHARE) },
                     onCancel = {
                         gifViewModel.reset()
                         navController.popBackStack(Routes.ATTRACT, inclusive = false)

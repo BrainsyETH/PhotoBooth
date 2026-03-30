@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,7 +42,6 @@ fun AttractScreen(
     onTap: () -> Unit,
     onAdminLongPress: () -> Unit = {}
 ) {
-    // Subtle breathing animation on the CTA text only
     val infiniteTransition = rememberInfiniteTransition(label = "attract")
     val ctaAlpha by infiniteTransition.animateFloat(
         initialValue = 0.5f,
@@ -61,25 +62,25 @@ fun AttractScreen(
                     onTap = { onTap() },
                     onLongPress = { onAdminLongPress() }
                 )
-            },
-        contentAlignment = Alignment.Center
+            }
     ) {
+        // Main content centered
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Logo + Title side by side
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "SnapCabin logo",
+                    contentDescription = stringResource(R.string.app_name),
                     modifier = Modifier.size(96.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "SnapCabin",
+                    text = stringResource(R.string.app_name),
                     fontSize = 64.sp,
                     fontWeight = FontWeight.Bold,
                     color = CabinOnBackground,
@@ -90,7 +91,7 @@ fun AttractScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             Text(
-                text = "Tap anywhere to start",
+                text = stringResource(R.string.attract_tap_to_start),
                 fontSize = 24.sp,
                 color = CabinAccent.copy(alpha = ctaAlpha),
                 textAlign = TextAlign.Center
@@ -99,13 +100,23 @@ fun AttractScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Photo  /  Collage  /  GIF",
+                text = stringResource(R.string.attract_modes),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Normal,
-                color = Color.White.copy(alpha = 0.35f),
+                color = Color.White.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
                 letterSpacing = 2.sp
             )
         }
+
+        // Admin hint at bottom-right
+        Text(
+            text = stringResource(R.string.attract_admin_hint),
+            fontSize = 12.sp,
+            color = Color.White.copy(alpha = 0.2f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        )
     }
 }
