@@ -61,6 +61,7 @@ fun ShareScreen(
     viewModel: ShareViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(photo) {
@@ -124,75 +125,85 @@ fun ShareScreen(
                     color = Espresso
                 )
 
-                // QR Code block
-                uiState.qrCodeBitmap?.let { qr ->
-                    Text(
-                        text = stringResource(R.string.share_scan_download),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Espresso.copy(alpha = 0.72f)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(172.dp)
-                            .shadow(elevation = 1.dp, shape = RoundedCornerShape(Radii.s))
-                            .clip(RoundedCornerShape(Radii.s))
-                            .background(Color.White)
-                            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
-                            .padding(14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            bitmap = qr.asImageBitmap(),
-                            contentDescription = stringResource(R.string.share_qr_desc),
-                            modifier = Modifier.size(144.dp)
-                        )
-                    }
-                    uiState.shareUrl?.let { url ->
+                // QR Code block (gated on admin toggle)
+                if (settings.enableQrSharing) {
+                    uiState.qrCodeBitmap?.let { qr ->
                         Text(
-                            text = url,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = HoneyDeep
+                            text = stringResource(R.string.share_scan_download),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Espresso.copy(alpha = 0.72f)
                         )
+                        Box(
+                            modifier = Modifier
+                                .size(172.dp)
+                                .shadow(elevation = 1.dp, shape = RoundedCornerShape(Radii.s))
+                                .clip(RoundedCornerShape(Radii.s))
+                                .background(Color.White)
+                                .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                                .padding(14.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = qr.asImageBitmap(),
+                                contentDescription = stringResource(R.string.share_qr_desc),
+                                modifier = Modifier.size(144.dp)
+                            )
+                        }
+                        uiState.shareUrl?.let { url ->
+                            Text(
+                                text = url,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = HoneyDeep
+                            )
+                        }
                     }
                 }
 
-                // Primary actions
-                BigButton(
-                    text = stringResource(R.string.share_save_gallery),
-                    onClick = { viewModel.saveToGallery(context) },
-                    variant = BigButtonVariant.Primary,
-                    enabled = !uiState.isSaving,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (settings.enableSaveToGallery) {
+                    BigButton(
+                        text = stringResource(R.string.share_save_gallery),
+                        onClick = { viewModel.saveToGallery(context) },
+                        variant = BigButtonVariant.Primary,
+                        enabled = !uiState.isSaving,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
-                BigButton(
-                    text = stringResource(R.string.share_button),
-                    onClick = { viewModel.shareViaIntent(context) },
-                    variant = BigButtonVariant.Secondary,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (settings.enableShareIntent) {
+                    BigButton(
+                        text = stringResource(R.string.share_button),
+                        onClick = { viewModel.shareViaIntent(context) },
+                        variant = BigButtonVariant.Secondary,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
-                // Tertiary share channels — stacked so labels always fit
-                BigButton(
-                    text = stringResource(R.string.share_print),
-                    onClick = { viewModel.printPhoto(context) },
-                    variant = BigButtonVariant.Secondary,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                BigButton(
-                    text = stringResource(R.string.share_email),
-                    onClick = { viewModel.shareViaEmail(context) },
-                    containerColor = ShareDenim,
-                    contentColor = Color.White,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                BigButton(
-                    text = stringResource(R.string.share_message),
-                    onClick = { viewModel.shareViaSms(context) },
-                    containerColor = ShareLeaf,
-                    contentColor = Color.White,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (settings.enablePrint) {
+                    BigButton(
+                        text = stringResource(R.string.share_print),
+                        onClick = { viewModel.printPhoto(context) },
+                        variant = BigButtonVariant.Secondary,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (settings.enableEmail) {
+                    BigButton(
+                        text = stringResource(R.string.share_email),
+                        onClick = { viewModel.shareViaEmail(context) },
+                        containerColor = ShareDenim,
+                        contentColor = Color.White,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (settings.enableSms) {
+                    BigButton(
+                        text = stringResource(R.string.share_message),
+                        onClick = { viewModel.shareViaSms(context) },
+                        containerColor = ShareLeaf,
+                        contentColor = Color.White,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             // Done + message

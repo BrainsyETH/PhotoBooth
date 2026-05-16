@@ -352,8 +352,8 @@ fun AdminScreen(
                         Spacer(modifier = Modifier.height(Spacing.s))
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                             val flashOptions = listOf(
-                                "Cream" to "#FBF6EA",
-                                "Honey" to "#D4A24A",
+                                "Cream" to "#FDFAF1",
+                                "Champagne" to "#C9A86A",
                                 "White" to "#FFFFFF"
                             )
                             flashOptions.forEach { (label, hex) ->
@@ -438,15 +438,15 @@ fun AdminScreen(
                     }
                 }
 
-                // SHARING
-                item { AdminEyebrow("SHARING") }
+                // SHARE OPTIONS
+                item { AdminEyebrow("SHARE OPTIONS") }
 
                 item {
-                    SettingRow("Auto-Save to Gallery") {
+                    SettingRow("Save to Gallery button") {
                         Switch(
-                            checked = settings.autoSaveToGallery,
+                            checked = settings.enableSaveToGallery,
                             onCheckedChange = { v ->
-                                viewModel.updateSetting { copy(autoSaveToGallery = v) }
+                                viewModel.updateSetting { copy(enableSaveToGallery = v) }
                             },
                             colors = adminSwitchColors()
                         )
@@ -454,11 +454,71 @@ fun AdminScreen(
                 }
 
                 item {
-                    SettingRow("QR Code Sharing") {
+                    SettingRow("Share button (system picker)") {
+                        Switch(
+                            checked = settings.enableShareIntent,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(enableShareIntent = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Print button") {
+                        Switch(
+                            checked = settings.enablePrint,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(enablePrint = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Email button") {
+                        Switch(
+                            checked = settings.enableEmail,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(enableEmail = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Message (SMS) button") {
+                        Switch(
+                            checked = settings.enableSms,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(enableSms = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("QR code (scan to download)") {
                         Switch(
                             checked = settings.enableQrSharing,
                             onCheckedChange = { v ->
                                 viewModel.updateSetting { copy(enableQrSharing = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Auto-save every photo silently") {
+                        Switch(
+                            checked = settings.autoSaveToGallery,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(autoSaveToGallery = v) }
                             },
                             colors = adminSwitchColors()
                         )

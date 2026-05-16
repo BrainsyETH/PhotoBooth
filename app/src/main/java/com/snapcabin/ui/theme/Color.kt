@@ -2,28 +2,27 @@ package com.snapcabin.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light farmhouse parlor palette
-// Parchment & cream backgrounds, pine + walnut + honey actions, espresso ink.
-val Parchment = Color(0xFFF6EFE0)       // Page background — warm cream
-val Cream = Color(0xFFFBF6EA)           // Elevated card / panel surface
-val Oat = Color(0xFFEBE2CC)             // Recessed surface, slider tracks
-val Pine = Color(0xFF3F5A3E)            // Primary action — deep moss green
-val PineDeep = Color(0xFF2D4530)        // Pressed primary
-val Walnut = Color(0xFF6B4F35)          // Secondary action — warm wood
-val WalnutDeep = Color(0xFF4D3924)      // Secondary text / pressed
-val Honey = Color(0xFFD4A24A)           // Accent — selection / amber pop
-val HoneyDeep = Color(0xFFB27F1E)       // High-contrast amber on light
-val Clay = Color(0xFFB8633F)            // Warm pop — error / clay CTA
-val Sage = Color(0xFF8FA98A)            // Soft tertiary accent
-val Espresso = Color(0xFF2A1F13)        // Primary text — ink
-val Mist = Color(0xFF9D9281)            // Muted text / hints
+// Upscale wedding meets cabin warmth — ivory & champagne base, sage primary,
+// warm taupe secondary, soft champagne-gold accent, gentle terracotta pop.
+val Parchment = Color(0xFFFAF5EA)       // Page background — ivory / linen
+val Cream = Color(0xFFFDFAF1)           // Elevated card / panel — near-white cream
+val Oat = Color(0xFFEEE5CF)             // Recessed surface — soft sand
+val Pine = Color(0xFF6B8F73)            // Primary action — fresh sage
+val PineDeep = Color(0xFF52755A)        // Pressed primary — deeper sage
+val Walnut = Color(0xFF8B7558)          // Secondary action — warm taupe
+val WalnutDeep = Color(0xFF6B5840)      // Secondary text / pressed taupe
+val Honey = Color(0xFFC9A86A)           // Accent — champagne gold
+val HoneyDeep = Color(0xFFA8804A)       // High-contrast champagne on light
+val Clay = Color(0xFFC4866A)            // Warm pop — soft terracotta
+val Sage = Color(0xFFB5C6AD)            // Tertiary — pale sage
+val Espresso = Color(0xFF322619)        // Primary text — warm ink
+val Mist = Color(0xFFB5A892)            // Muted text / hints — soft warm grey
 
-// Share-channel accents — warmed for light theme
-val ShareDenim = Color(0xFF4A7CA1)      // Email button
-val ShareLeaf = Color(0xFF5C8C5A)       // Message button
+// Share-channel accents — softened for the wedding palette
+val ShareDenim = Color(0xFF6B96B0)      // Email — slate blue
+val ShareLeaf = Color(0xFF8DA887)       // Message — sage leaf
 
-// Token aliases (kept stable across the dark → light pivot so existing
-// screen code keeps working). The names are dark-theme legacy; values are now light.
+// Token aliases (kept stable across palette pivots so screen code keeps working).
 val CabinPrimary = Pine
 val CabinPrimaryVariant = PineDeep
 val CabinSecondary = Walnut
@@ -35,5 +34,5 @@ val CabinOnBackground = Espresso
 val CabinOnSurface = Espresso
 val CabinAccent = Honey
 val CabinMuted = Mist
-val CabinLine = Color(0x1A2A1F13)       // espresso @ 10% — hairline border
-val CabinLineStrong = Color(0x382A1F13) // espresso @ 22%
+val CabinLine = Color(0x1A322619)       // espresso @ 10% — hairline border
+val CabinLineStrong = Color(0x38322619) // espresso @ 22%

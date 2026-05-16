@@ -58,7 +58,7 @@ class ShareViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ShareUiState())
     val uiState: StateFlow<ShareUiState> = _uiState.asStateFlow()
 
-    private val settings: StateFlow<BoothSettings> = settingsManager.settings
+    val settings: StateFlow<BoothSettings> = settingsManager.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BoothSettings())
 
     fun setPhoto(bitmap: Bitmap, context: Context) {
