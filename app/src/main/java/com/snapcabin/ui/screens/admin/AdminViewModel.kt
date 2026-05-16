@@ -1,8 +1,12 @@
 package com.snapcabin.ui.screens.admin
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager as SystemCameraManager
+import android.hardware.usb.UsbManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snapcabin.settings.BoothSettings
@@ -39,8 +43,27 @@ class AdminViewModel @Inject constructor(
     private val _availableCameras = MutableStateFlow<List<CameraInfo>>(emptyList())
     val availableCameras: StateFlow<List<CameraInfo>> = _availableCameras.asStateFlow()
 
+    private val usbReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            // Re-enumerate when a USB camera is plugged or unplugged
+            detectCameras()
+        }
+    }
+
     init {
         detectCameras()
+        val filter = IntentFilter().apply {
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        // RECEIVER_NOT_EXPORTED requires Tiramisu+; use the no-flag form for compatibility
+        @Suppress("UnspecifiedRegisterReceiverFlag")
+        context.registerReceiver(usbReceiver, filter)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try { context.unregisterReceiver(usbReceiver) } catch (_: Exception) { }
     }
 
     fun verifyPin(enteredPin: String): Boolean {

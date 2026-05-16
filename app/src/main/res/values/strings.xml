@@ -67,7 +67,7 @@
     <!-- Admin Sections -->
     <string name="admin_section_camera">Camera</string>
     <string name="admin_use_front">Use Front Camera</string>
-    <string name="admin_mirror_front">Mirror Front Camera</string>
+    <string name="admin_mirror_image">Mirror Image</string>
     <string name="admin_available_cameras">Available Cameras</string>
     <string name="admin_camera_label">%1$s (ID: %2$s)</string>
     <string name="admin_camera_external"> - External</string>

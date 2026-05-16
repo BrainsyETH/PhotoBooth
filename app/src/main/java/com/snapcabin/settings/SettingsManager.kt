@@ -20,7 +20,7 @@ data class BoothSettings(
     // Camera
     val useFrontCamera: Boolean = true,
     val cameraId: String = "", // Empty = auto-detect, or specific camera ID for external cameras
-    val mirrorFrontCamera: Boolean = true,
+    val mirrorImage: Boolean = true,
     val photoResolution: PhotoResolution = PhotoResolution.FULL,
 
     // Capture
@@ -85,7 +85,7 @@ class SettingsManager @Inject constructor(
     private object Keys {
         val USE_FRONT_CAMERA = booleanPreferencesKey("use_front_camera")
         val CAMERA_ID = stringPreferencesKey("camera_id")
-        val MIRROR_FRONT = booleanPreferencesKey("mirror_front_camera")
+        val MIRROR_IMAGE = booleanPreferencesKey("mirror_image")
         val PHOTO_RESOLUTION = stringPreferencesKey("photo_resolution")
         val COUNTDOWN_SECONDS = intPreferencesKey("countdown_seconds")
         val AUTO_CAPTURE = booleanPreferencesKey("auto_capture")
@@ -123,7 +123,7 @@ class SettingsManager @Inject constructor(
         BoothSettings(
             useFrontCamera = prefs[Keys.USE_FRONT_CAMERA] ?: true,
             cameraId = prefs[Keys.CAMERA_ID] ?: "",
-            mirrorFrontCamera = prefs[Keys.MIRROR_FRONT] ?: true,
+            mirrorImage = prefs[Keys.MIRROR_IMAGE] ?: true,
             photoResolution = prefs[Keys.PHOTO_RESOLUTION]?.let {
                 try { PhotoResolution.valueOf(it) } catch (e: Exception) { PhotoResolution.FULL }
             } ?: PhotoResolution.FULL,
@@ -166,7 +166,7 @@ class SettingsManager @Inject constructor(
             val current = BoothSettings(
                 useFrontCamera = prefs[Keys.USE_FRONT_CAMERA] ?: true,
                 cameraId = prefs[Keys.CAMERA_ID] ?: "",
-                mirrorFrontCamera = prefs[Keys.MIRROR_FRONT] ?: true,
+                mirrorImage = prefs[Keys.MIRROR_IMAGE] ?: true,
                 photoResolution = prefs[Keys.PHOTO_RESOLUTION]?.let {
                     try { PhotoResolution.valueOf(it) } catch (e: Exception) { PhotoResolution.FULL }
                 } ?: PhotoResolution.FULL,
@@ -206,7 +206,7 @@ class SettingsManager @Inject constructor(
 
             prefs[Keys.USE_FRONT_CAMERA] = updated.useFrontCamera
             prefs[Keys.CAMERA_ID] = updated.cameraId
-            prefs[Keys.MIRROR_FRONT] = updated.mirrorFrontCamera
+            prefs[Keys.MIRROR_IMAGE] = updated.mirrorImage
             prefs[Keys.PHOTO_RESOLUTION] = updated.photoResolution.name
             prefs[Keys.COUNTDOWN_SECONDS] = updated.countdownSeconds
             prefs[Keys.AUTO_CAPTURE] = updated.autoCapture
