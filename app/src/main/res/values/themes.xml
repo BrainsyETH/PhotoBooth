@@ -3,14 +3,14 @@
     <style name="Theme.SnapCabin" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:statusBarColor">#F6EFE0</item>
-        <item name="android:navigationBarColor">#F6EFE0</item>
+        <item name="android:statusBarColor">#FAF5EA</item>
+        <item name="android:navigationBarColor">#FAF5EA</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
 
     <!-- Splash screen theme for Android 12+ -->
     <style name="Theme.SnapCabin.Splash" parent="Theme.SnapCabin">
-        <item name="android:windowBackground">#F6EFE0</item>
+        <item name="android:windowBackground">#FAF5EA</item>
     </style>
 </resources>
