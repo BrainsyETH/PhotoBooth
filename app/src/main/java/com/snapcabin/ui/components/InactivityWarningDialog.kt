@@ -14,15 +14,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinOnBackground
 import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
 
 @Composable
 fun InactivityWarningDialog(
@@ -32,7 +31,7 @@ fun InactivityWarningDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f)),
+            .background(Espresso.copy(alpha = 0.55f)),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -56,7 +55,7 @@ fun InactivityWarningDialog(
             Text(
                 text = "Resetting in $remainingSeconds seconds",
                 fontSize = 20.sp,
-                color = CabinAccent,
+                color = CabinOnBackground.copy(alpha = 0.72f),
                 textAlign = TextAlign.Center
             )
 

@@ -7,9 +7,13 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,14 +27,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
 import kotlinx.coroutines.delay
 
 @Composable
@@ -84,19 +90,30 @@ fun ReviewScreen(
             )
         }
 
-        // Auto-accept indicator
+        // Auto-accept pill — 94% cream capsule with espresso ink + honey dot.
         if (autoAcceptSeconds > 0 && countdown > 0) {
-            Text(
-                text = "Auto-accepting in ${countdown}s",
-                style = MaterialTheme.typography.bodyMedium,
-                color = CabinAccent,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 24.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(CabinSurface.copy(alpha = 0.94f))
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(CabinAccent)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Auto-accepting in ${countdown}s",
+                    fontSize = 16.sp,
+                    color = Espresso
+                )
+            }
         }
 
         // Action buttons

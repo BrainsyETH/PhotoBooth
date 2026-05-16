@@ -4,12 +4,13 @@
 
     <!-- Attract Screen -->
     <string name="attract_title">SnapCabin</string>
-    <string name="attract_tap_to_start">Tap anywhere to start</string>
-    <string name="attract_modes">Photo  /  Collage  /  GIF</string>
+    <string name="attract_tagline">A photo booth in the woods</string>
+    <string name="attract_tap_to_start">TAP TO START</string>
+    <string name="attract_modes">Photo  ·  Collage  ·  GIF</string>
     <string name="attract_admin_hint">Long-press for settings</string>
 
     <!-- Thank You -->
-    <string name="thankyou_title">Thank You</string>
+    <string name="thankyou_title">Thank you.</string>
     <string name="thankyou_subtitle">Your photo is ready</string>
 
     <!-- Inactivity Warning -->
@@ -29,7 +30,7 @@
     <string name="admin_pin_label">Admin PIN (min 4 digits)</string>
 
     <!-- Mode Select -->
-    <string name="mode_title">Choose Your Mode</string>
+    <string name="mode_title">Choose your mode</string>
     <string name="mode_single_photo">Single Photo</string>
     <string name="mode_single_desc">One perfect shot</string>
     <string name="mode_collage">Collage</string>
@@ -54,7 +55,7 @@
     <string name="filter_done">DONE</string>
 
     <!-- Share -->
-    <string name="share_title">SHARE YOUR PHOTO</string>
+    <string name="share_title">Share your photo</string>
     <string name="share_scan_download">Scan to download</string>
     <string name="share_save_gallery">SAVE TO GALLERY</string>
     <string name="share_button">SHARE</string>

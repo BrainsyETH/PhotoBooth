@@ -16,9 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinBackground
 import com.snapcabin.ui.theme.CabinOnBackground
+import com.snapcabin.ui.theme.Espresso
 import kotlinx.coroutines.delay
 
 @Composable
@@ -41,9 +41,9 @@ fun ThankYouScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Thank You",
+                text = "Thank you.",
                 fontSize = 64.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 color = CabinOnBackground,
                 textAlign = TextAlign.Center
             )
@@ -53,7 +53,7 @@ fun ThankYouScreen(
             Text(
                 text = "Your photo is ready",
                 fontSize = 24.sp,
-                color = CabinAccent,
+                color = Espresso.copy(alpha = 0.72f),
                 textAlign = TextAlign.Center
             )
         }
