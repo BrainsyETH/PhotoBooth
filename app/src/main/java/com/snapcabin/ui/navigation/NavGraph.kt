@@ -22,15 +22,11 @@ import com.snapcabin.ui.screens.attract.AttractScreen
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.screens.capture.CaptureScreen
 import com.snapcabin.ui.screens.capture.CaptureViewModel
-import com.snapcabin.ui.screens.collage.CollageScreen
-import com.snapcabin.ui.screens.collage.CollageViewModel
 import com.snapcabin.ui.screens.filters.FilterScreen
 import com.snapcabin.ui.screens.filters.FilterViewModel
 import com.snapcabin.ui.screens.gallery.GalleryScreen
 import com.snapcabin.ui.screens.gallery.GalleryViewModel
 import com.snapcabin.ui.screens.getready.GetReadyScreen
-import com.snapcabin.ui.screens.gif.GifScreen
-import com.snapcabin.ui.screens.gif.GifViewModel
 import com.snapcabin.ui.screens.modeselect.ModeSelectScreen
 import com.snapcabin.ui.screens.privacy.PrivacyPolicyScreen
 import com.snapcabin.ui.screens.review.ReviewScreen
@@ -45,10 +41,6 @@ object Routes {
     const val REVIEW = "review"
     const val FILTER = "filter"
     const val SHARE = "share"
-    // LEGACY: kept for potential admin access
-    const val COLLAGE = "collage"
-    // LEGACY: kept for potential admin access
-    const val GIF = "gif"
     const val ADMIN = "admin"
     const val PRIVACY = "privacy"
     const val GALLERY = "gallery"
@@ -65,7 +57,6 @@ private fun getScreenTimeout(route: String?): Long = when {
     route == Routes.REVIEW -> 30_000L
     route == Routes.FILTER -> 60_000L
     route == Routes.SHARE -> 60_000L
-    route == Routes.COLLAGE || route == Routes.GIF -> 60_000L
     route == Routes.THANK_YOU -> 5_000L
     else -> 0L
 }
@@ -241,41 +232,12 @@ fun NavGraph(settingsManager: SettingsManager) {
             }
 
             composable(Routes.SHARE) {
-                val backstack = navController.currentBackStack.collectAsState()
-                val routes = backstack.value.mapNotNull { it.destination.route }.toSet()
-
-                val hasCaptureRoute = Routes.CAPTURE in routes
-                val hasCollageRoute = Routes.COLLAGE in routes
-                val hasGifRoute = Routes.GIF in routes
-
-                val singlePhoto = if (hasCaptureRoute) {
-                    val vm: CaptureViewModel = hiltViewModel(
-                        navController.getBackStackEntry(Routes.CAPTURE)
-                    )
-                    val state by vm.uiState.collectAsState()
-                    state.capturedPhoto
-                } else null
-
-                val collagePhoto = if (hasCollageRoute) {
-                    val vm: CollageViewModel = hiltViewModel(
-                        navController.getBackStackEntry(Routes.COLLAGE)
-                    )
-                    val state by vm.uiState.collectAsState()
-                    state.previewBitmap
-                } else null
-
-                val gifPreview = if (hasGifRoute) {
-                    val vm: GifViewModel = hiltViewModel(
-                        navController.getBackStackEntry(Routes.GIF)
-                    )
-                    val state by vm.uiState.collectAsState()
-                    state.frames.firstOrNull()
-                } else null
-
-                val photo = singlePhoto ?: collagePhoto ?: gifPreview
+                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
+                val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
+                val uiState by captureViewModel.uiState.collectAsState()
 
                 ShareScreen(
-                    photo = photo,
+                    photo = uiState.capturedPhoto,
                     onDone = {
                         navController.navigate(Routes.THANK_YOU) {
                             popUpTo(Routes.ATTRACT) { inclusive = false }
@@ -289,36 +251,6 @@ fun NavGraph(settingsManager: SettingsManager) {
                     onDone = {
                         navController.popBackStack(Routes.ATTRACT, inclusive = false)
                     }
-                )
-            }
-
-            // LEGACY: kept for potential admin access
-            composable(Routes.COLLAGE) { backStackEntry ->
-                val collageViewModel: CollageViewModel = hiltViewModel(backStackEntry)
-                CollageScreen(
-                    initialPhoto = null,
-                    onTakeMore = { navController.navigate(Routes.MODE_SELECT) },
-                    onDone = { _ -> navController.navigate(Routes.SHARE) },
-                    onCancel = {
-                        collageViewModel.reset()
-                        navController.popBackStack(Routes.ATTRACT, inclusive = false)
-                    },
-                    viewModel = collageViewModel
-                )
-            }
-
-            // LEGACY: kept for potential admin access
-            composable(Routes.GIF) { backStackEntry ->
-                val gifViewModel: GifViewModel = hiltViewModel(backStackEntry)
-                GifScreen(
-                    initialFrame = null,
-                    onTakeMore = { navController.navigate(Routes.MODE_SELECT) },
-                    onDone = { _ -> navController.navigate(Routes.SHARE) },
-                    onCancel = {
-                        gifViewModel.reset()
-                        navController.popBackStack(Routes.ATTRACT, inclusive = false)
-                    },
-                    viewModel = gifViewModel
                 )
             }
         }

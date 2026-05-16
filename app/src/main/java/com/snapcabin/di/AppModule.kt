@@ -4,7 +4,6 @@ import android.content.Context
 import com.snapcabin.analytics.AnalyticsTracker
 import com.snapcabin.analytics.CrashReporter
 import com.snapcabin.camera.CameraManager
-import com.snapcabin.filter.EventBrandingRenderer
 import com.snapcabin.kiosk.KioskManager
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.share.EmailSmsSharer
@@ -63,10 +62,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideEmailSmsSharer(): EmailSmsSharer = EmailSmsSharer()
-
-    @Provides
-    @Singleton
-    fun provideEventBrandingRenderer(): EventBrandingRenderer = EventBrandingRenderer()
 
     @Provides
     @Singleton

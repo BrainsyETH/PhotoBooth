@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.snapcabin.filter.CustomBrandingRenderer
 import com.snapcabin.filter.WatermarkRenderer
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
@@ -62,13 +63,18 @@ class ShareViewModel @Inject constructor(
 
     fun setPhoto(bitmap: Bitmap, context: Context) {
         viewModelScope.launch {
-            // Apply watermark if configured
+            // Bake in admin-configured branding (border + overlay PNGs, then watermark text)
             val processedPhoto = withContext(Dispatchers.Default) {
                 val s = settings.value
+                val branded = CustomBrandingRenderer.apply(
+                    source = bitmap,
+                    borderPath = s.customBorderPath,
+                    overlayPath = s.customOverlayPath
+                )
                 if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
-                    WatermarkRenderer.apply(bitmap, s.watermarkText)
+                    WatermarkRenderer.apply(branded, s.watermarkText)
                 } else {
-                    bitmap
+                    branded
                 }
             }
 
