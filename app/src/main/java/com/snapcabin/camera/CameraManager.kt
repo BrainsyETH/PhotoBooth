@@ -9,7 +9,6 @@ import android.hardware.camera2.CameraManager as SystemCameraManager
 import android.hardware.usb.UsbManager
 import android.util.Log
 import android.view.Surface
-import android.view.WindowManager
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -134,13 +133,7 @@ class CameraManager @Inject constructor(
                 }
 
                 val capture = captureBuilder.build()
-
-                // Match capture rotation to the current display rotation so
-                // reversed-landscape (180°) doesn't flip the saved image.
-                capture.targetRotation = previewView.display?.rotation
-                    ?: (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
-                        ?.defaultDisplay?.rotation
-                    ?: Surface.ROTATION_0
+                capture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
 
                 imageCapture = capture
 
