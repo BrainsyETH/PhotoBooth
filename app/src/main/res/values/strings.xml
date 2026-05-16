@@ -50,7 +50,6 @@
 
     <!-- Filter -->
     <string name="filter_title">FILTERS</string>
-    <string name="filter_overlays">OVERLAYS</string>
     <string name="filter_back">BACK</string>
     <string name="filter_done">DONE</string>
 
@@ -135,13 +134,6 @@
     <string name="share_email">EMAIL</string>
     <string name="share_message">MESSAGE</string>
 
-    <!-- Branding -->
-    <string name="branding_title">EVENT BRANDING</string>
-    <string name="branding_event_name">Event Name</string>
-    <string name="branding_event_date">Event Date</string>
-    <string name="branding_skip">SKIP</string>
-    <string name="branding_apply">APPLY</string>
-    <string name="branding_preview_desc">Branded photo preview</string>
 
     <!-- Gallery -->
     <string name="gallery_title">GALLERY</string>

@@ -41,10 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.snapcabin.R
 import com.snapcabin.filter.PhotoFilter
-import com.snapcabin.filter.PhotoOverlay
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
-import com.snapcabin.ui.components.ChipSelectable
 import com.snapcabin.ui.components.Eyebrow
 import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinLine
@@ -126,22 +124,6 @@ fun FilterScreen(
                     }
                 }
 
-                Column {
-                    Eyebrow(text = stringResource(R.string.filter_overlays))
-                    Spacer(modifier = Modifier.height(Spacing.sm))
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = Spacing.xs),
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.s)
-                    ) {
-                        items(PhotoOverlay.entries) { overlay ->
-                            ChipSelectable(
-                                text = overlay.displayName,
-                                selected = uiState.selectedOverlay == overlay,
-                                onClick = { viewModel.selectOverlay(overlay) }
-                            )
-                        }
-                    }
-                }
             }
 
             // Action buttons

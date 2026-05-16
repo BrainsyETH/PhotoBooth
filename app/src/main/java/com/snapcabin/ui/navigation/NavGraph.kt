@@ -19,8 +19,6 @@ import com.snapcabin.ui.components.InactivityHandler
 import com.snapcabin.ui.screens.admin.AdminScreen
 import com.snapcabin.ui.screens.admin.AdminViewModel
 import com.snapcabin.ui.screens.attract.AttractScreen
-import com.snapcabin.ui.screens.branding.BrandingScreen
-import com.snapcabin.ui.screens.branding.BrandingViewModel
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.screens.capture.CaptureScreen
 import com.snapcabin.ui.screens.capture.CaptureViewModel
@@ -46,7 +44,6 @@ object Routes {
     const val CAPTURE = "capture/{mode}"
     const val REVIEW = "review"
     const val FILTER = "filter"
-    const val BRANDING = "branding"
     const val SHARE = "share"
     // LEGACY: kept for potential admin access
     const val COLLAGE = "collage"
@@ -66,7 +63,7 @@ private fun getScreenTimeout(route: String?): Long = when {
     route?.startsWith("get_ready") == true -> 60_000L
     route?.startsWith("capture") == true -> 90_000L
     route == Routes.REVIEW -> 30_000L
-    route == Routes.FILTER || route == Routes.BRANDING -> 60_000L
+    route == Routes.FILTER -> 60_000L
     route == Routes.SHARE -> 60_000L
     route == Routes.COLLAGE || route == Routes.GIF -> 60_000L
     route == Routes.THANK_YOU -> 5_000L
@@ -201,10 +198,6 @@ fun NavGraph(settingsManager: SettingsManager) {
                     mode = mode,
                     photos = photos,
                     autoAcceptSeconds = settings.reviewAutoAcceptSeconds,
-                    eventChromeEnabled = settings.eventChromeEnabled,
-                    eventName = settings.eventName,
-                    eventHashtag = settings.eventHashtag,
-                    eventMonogram = settings.eventMonogram,
                     onRetake = {
                         captureViewModel.resetCapture()
                         navController.popBackStack(Routes.CAPTURE, inclusive = false)
@@ -242,22 +235,8 @@ fun NavGraph(settingsManager: SettingsManager) {
                 FilterScreen(
                     photo = uiState.capturedPhoto,
                     onBack = { navController.popBackStack() },
-                    onDone = { navController.navigate(Routes.BRANDING) },
-                    viewModel = filterViewModel
-                )
-            }
-
-            composable(Routes.BRANDING) {
-                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
-                val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
-                val uiState by captureViewModel.uiState.collectAsState()
-                val brandingViewModel: BrandingViewModel = hiltViewModel()
-
-                BrandingScreen(
-                    photo = uiState.capturedPhoto,
                     onDone = { navController.navigate(Routes.SHARE) },
-                    onSkip = { navController.navigate(Routes.SHARE) },
-                    viewModel = brandingViewModel
+                    viewModel = filterViewModel
                 )
             }
 

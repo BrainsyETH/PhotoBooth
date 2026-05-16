@@ -4,9 +4,7 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snapcabin.filter.FilterEngine
-import com.snapcabin.filter.OverlayRenderer
 import com.snapcabin.filter.PhotoFilter
-import com.snapcabin.filter.PhotoOverlay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +18,6 @@ data class FilterUiState(
     val originalPhoto: Bitmap? = null,
     val previewPhoto: Bitmap? = null,
     val selectedFilter: PhotoFilter = PhotoFilter.NORMAL,
-    val selectedOverlay: PhotoOverlay = PhotoOverlay.NONE,
     val isProcessing: Boolean = false,
     val filterThumbnails: Map<PhotoFilter, Bitmap> = emptyMap()
 )
@@ -44,11 +41,6 @@ class FilterViewModel @Inject constructor() : ViewModel() {
         applyEffects()
     }
 
-    fun selectOverlay(overlay: PhotoOverlay) {
-        _uiState.value = _uiState.value.copy(selectedOverlay = overlay)
-        applyEffects()
-    }
-
     fun getProcessedBitmap(): Bitmap? {
         return _uiState.value.previewPhoto
     }
@@ -56,13 +48,11 @@ class FilterViewModel @Inject constructor() : ViewModel() {
     private fun applyEffects() {
         val original = _uiState.value.originalPhoto ?: return
         val filter = _uiState.value.selectedFilter
-        val overlay = _uiState.value.selectedOverlay
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isProcessing = true)
             val result = withContext(Dispatchers.Default) {
-                val filtered = FilterEngine.applyFilter(original, filter)
-                OverlayRenderer.applyOverlay(filtered, overlay)
+                FilterEngine.applyFilter(original, filter)
             }
             _uiState.value = _uiState.value.copy(
                 previewPhoto = result,
