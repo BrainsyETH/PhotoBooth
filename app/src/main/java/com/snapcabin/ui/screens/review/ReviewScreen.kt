@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.sp
 import com.snapcabin.R
 import com.snapcabin.collage.CollageLayout
 import com.snapcabin.collage.CollageRenderer
-import com.snapcabin.ui.components.EventChrome
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.Clay
@@ -76,11 +75,7 @@ fun ReviewScreen(
     photos: List<Bitmap>,
     autoAcceptSeconds: Int = 10,
     onAccept: (pickedIndex: Int) -> Unit,
-    onRetake: () -> Unit,
-    eventChromeEnabled: Boolean = true,
-    eventName: String = "",
-    eventHashtag: String = "",
-    eventMonogram: String = ""
+    onRetake: () -> Unit
 ) {
     val total = photos.size
     val initialPick = if (total > 0) total / 2 else 0
@@ -118,14 +113,6 @@ fun ReviewScreen(
                 )
             }
     ) {
-        EventChrome(
-            visible = eventChromeEnabled,
-            eventName = eventName,
-            hashtag = eventHashtag,
-            monogram = eventMonogram,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()

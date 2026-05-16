@@ -50,7 +50,6 @@
 
     <!-- Filter -->
     <string name="filter_title">FILTERS</string>
-    <string name="filter_overlays">OVERLAYS</string>
     <string name="filter_back">BACK</string>
     <string name="filter_done">DONE</string>
 
@@ -65,30 +64,6 @@
     <string name="share_photo_desc">Photo to share</string>
     <string name="share_qr_desc">QR code</string>
     <string name="share_chooser_title">Share Photo</string>
-
-    <!-- Collage -->
-    <string name="collage_layout">LAYOUT</string>
-    <string name="collage_photos_count">Photos: %1$d / %2$d</string>
-    <string name="collage_take_more">TAKE PHOTO (%1$d more)</string>
-    <string name="collage_undo">UNDO LAST</string>
-    <string name="collage_cancel">CANCEL</string>
-    <string name="collage_use">USE COLLAGE</string>
-    <string name="collage_preview_desc">Collage preview</string>
-    <string name="collage_select_prompt">Select a layout and add photos</string>
-    <string name="collage_photo_singular">%1$d photo</string>
-    <string name="collage_photo_plural">%1$d photos</string>
-
-    <!-- GIF -->
-    <string name="gif_title">CREATE GIF</string>
-    <string name="gif_frames">Frames: %1$d / %2$d</string>
-    <string name="gif_take_frame">TAKE FRAME</string>
-    <string name="gif_undo">UNDO LAST</string>
-    <string name="gif_cancel">CANCEL</string>
-    <string name="gif_create">CREATE GIF</string>
-    <string name="gif_creating">Creating GIF…</string>
-    <string name="gif_speed">Speed: %1$dms per frame</string>
-    <string name="gif_preview_desc">GIF frame preview</string>
-    <string name="gif_prompt">Take photos to create a GIF</string>
 
     <!-- Admin -->
     <string name="admin_pin_title">Admin PIN</string>
@@ -135,13 +110,6 @@
     <string name="share_email">EMAIL</string>
     <string name="share_message">MESSAGE</string>
 
-    <!-- Branding -->
-    <string name="branding_title">EVENT BRANDING</string>
-    <string name="branding_event_name">Event Name</string>
-    <string name="branding_event_date">Event Date</string>
-    <string name="branding_skip">SKIP</string>
-    <string name="branding_apply">APPLY</string>
-    <string name="branding_preview_desc">Branded photo preview</string>
 
     <!-- Gallery -->
     <string name="gallery_title">GALLERY</string>

@@ -46,7 +46,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
-import com.snapcabin.ui.components.EventChrome
 import com.snapcabin.ui.components.FramingGuide
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.theme.CabinLine
@@ -170,14 +169,6 @@ fun GetReadyScreen(
                 )
             }
         }
-
-        EventChrome(
-            visible = settings.eventChromeEnabled,
-            eventName = settings.eventName,
-            hashtag = settings.eventHashtag,
-            monogram = settings.eventMonogram,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
 
         // Bottom instructions card
         Row(

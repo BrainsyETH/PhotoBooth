@@ -41,7 +41,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.ui.components.CoachLine
-import com.snapcabin.ui.components.EventChrome
 import com.snapcabin.ui.components.FlashOverlay
 import com.snapcabin.ui.components.IndicatorMode
 import com.snapcabin.ui.components.ShotIndicator
@@ -144,14 +143,6 @@ fun CaptureScreen(
                             radius = 1400f
                         )
                     )
-            )
-
-            EventChrome(
-                visible = settings.eventChromeEnabled,
-                eventName = settings.eventName,
-                hashtag = settings.eventHashtag,
-                monogram = settings.eventMonogram,
-                modifier = Modifier.align(Alignment.TopCenter)
             )
 
             ShotIndicator(

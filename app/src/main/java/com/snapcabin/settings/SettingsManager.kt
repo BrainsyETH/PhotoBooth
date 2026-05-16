@@ -43,10 +43,6 @@ data class BoothSettings(
     // Branding
     val customBorderPath: String = "", // File path to custom border/frame image
     val customOverlayPath: String = "", // File path to custom overlay image
-    val eventChromeEnabled: Boolean = true,
-    val eventName: String = "",
-    val eventHashtag: String = "",
-    val eventMonogram: String = "",
 
     // Sharing
     val enableQrSharing: Boolean = true,
@@ -106,10 +102,6 @@ class SettingsManager @Inject constructor(
         val WATERMARK_TEXT = stringPreferencesKey("watermark_text")
         val CUSTOM_BORDER_PATH = stringPreferencesKey("custom_border_path")
         val CUSTOM_OVERLAY_PATH = stringPreferencesKey("custom_overlay_path")
-        val EVENT_CHROME_ENABLED = booleanPreferencesKey("event_chrome_enabled")
-        val EVENT_NAME = stringPreferencesKey("event_name")
-        val EVENT_HASHTAG = stringPreferencesKey("event_hashtag")
-        val EVENT_MONOGRAM = stringPreferencesKey("event_monogram")
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
         val ENABLE_SERVER = booleanPreferencesKey("enable_local_server")
         val SERVER_PORT = intPreferencesKey("server_port")
@@ -150,10 +142,6 @@ class SettingsManager @Inject constructor(
             watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
             customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
             customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
-            eventChromeEnabled = prefs[Keys.EVENT_CHROME_ENABLED] ?: true,
-            eventName = prefs[Keys.EVENT_NAME] ?: "",
-            eventHashtag = prefs[Keys.EVENT_HASHTAG] ?: "",
-            eventMonogram = prefs[Keys.EVENT_MONOGRAM] ?: "",
             enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
             enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
             serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
@@ -197,10 +185,6 @@ class SettingsManager @Inject constructor(
                 watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
                 customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
                 customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
-                eventChromeEnabled = prefs[Keys.EVENT_CHROME_ENABLED] ?: true,
-                eventName = prefs[Keys.EVENT_NAME] ?: "",
-                eventHashtag = prefs[Keys.EVENT_HASHTAG] ?: "",
-                eventMonogram = prefs[Keys.EVENT_MONOGRAM] ?: "",
                 enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
                 enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
                 serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
@@ -239,10 +223,6 @@ class SettingsManager @Inject constructor(
             prefs[Keys.WATERMARK_TEXT] = updated.watermarkText
             prefs[Keys.CUSTOM_BORDER_PATH] = updated.customBorderPath
             prefs[Keys.CUSTOM_OVERLAY_PATH] = updated.customOverlayPath
-            prefs[Keys.EVENT_CHROME_ENABLED] = updated.eventChromeEnabled
-            prefs[Keys.EVENT_NAME] = updated.eventName
-            prefs[Keys.EVENT_HASHTAG] = updated.eventHashtag
-            prefs[Keys.EVENT_MONOGRAM] = updated.eventMonogram
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
             prefs[Keys.ENABLE_SERVER] = updated.enableLocalServer
             prefs[Keys.SERVER_PORT] = updated.serverPort
