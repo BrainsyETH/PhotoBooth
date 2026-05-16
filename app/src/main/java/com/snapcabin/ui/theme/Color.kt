@@ -18,6 +18,10 @@ val Sage = Color(0xFF8FA98A)            // Soft tertiary accent
 val Espresso = Color(0xFF2A1F13)        // Primary text — ink
 val Mist = Color(0xFF9D9281)            // Muted text / hints
 
+// Share-channel accents — warmed for light theme
+val ShareDenim = Color(0xFF4A7CA1)      // Email button
+val ShareLeaf = Color(0xFF5C8C5A)       // Message button
+
 // Token aliases (kept stable across the dark → light pivot so existing
 // screen code keeps working). The names are dark-theme legacy; values are now light.
 val CabinPrimary = Pine

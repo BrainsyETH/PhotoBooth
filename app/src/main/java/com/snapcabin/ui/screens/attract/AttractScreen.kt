@@ -19,12 +19,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
@@ -33,17 +35,21 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.snapcabin.R
 import com.snapcabin.ui.theme.CabinBackground
 import com.snapcabin.ui.theme.CabinLine
-import com.snapcabin.ui.theme.CabinOnBackground
-import com.snapcabin.ui.theme.CabinOnPrimary
 import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSurface
 import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.FrankRuhlLibre
+import com.snapcabin.ui.theme.HankenGrotesk
 import com.snapcabin.ui.theme.Oat
 import com.snapcabin.ui.theme.Parchment
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Spacing
+import com.snapcabin.ui.theme.Walnut
 
 @Composable
 fun AttractScreen(
@@ -61,10 +67,9 @@ fun AttractScreen(
         label = "cta"
     )
 
-    // Cream-at-center radial fading to parchment then oat at the edges.
     val backdrop = Brush.radialGradient(
         colors = listOf(CabinSurface, Parchment, Oat),
-        radius = 1200f
+        radius = 1400f
     )
 
     Box(
@@ -84,14 +89,13 @@ fun AttractScreen(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            // Logomark sits on a cream tile w/ hairline border so the
-            // dark-background launcher icon reads cleanly on light surfaces.
+            // Logomark on cream tile w/ hairline border.
             Box(
                 modifier = Modifier
                     .size(132.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(Radii.l))
                     .background(CabinSurface)
-                    .border(1.dp, CabinLine, RoundedCornerShape(20.dp)),
+                    .border(1.dp, CabinLine, RoundedCornerShape(Radii.l)),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -101,65 +105,73 @@ fun AttractScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
 
             Text(
                 text = stringResource(R.string.app_name),
-                fontSize = 96.sp,
+                fontSize = 112.sp,
+                fontFamily = FrankRuhlLibre,
                 fontWeight = FontWeight.Bold,
-                color = CabinOnBackground,
+                color = Espresso,
                 textAlign = TextAlign.Center,
-                letterSpacing = (-1).sp
+                letterSpacing = (-0.015f).em
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
 
             Text(
                 text = stringResource(R.string.attract_tagline),
-                fontSize = 22.sp,
+                fontSize = 26.sp,
+                fontFamily = FrankRuhlLibre,
+                fontWeight = FontWeight.Medium,
                 fontStyle = FontStyle.Italic,
-                color = Espresso.copy(alpha = 0.72f),
+                color = Walnut,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(Spacing.xxl + Spacing.s))
 
-            // Pine pill — the only place a primary action becomes a pill.
+            // Pine pill CTA — breathing 0.55 → 1.0 alpha.
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
+                    .shadow(
+                        elevation = 6.dp,
+                        shape = RoundedCornerShape(Radii.full),
+                        clip = false
+                    )
+                    .clip(RoundedCornerShape(Radii.full))
                     .background(CabinPrimary.copy(alpha = ctaAlpha))
-                    .padding(horizontal = 56.dp, vertical = 24.dp)
+                    .padding(horizontal = Spacing.xl, vertical = Spacing.md)
             ) {
                 Text(
                     text = stringResource(R.string.attract_tap_to_start),
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = CabinOnPrimary,
-                    letterSpacing = 2.sp,
-                    textAlign = TextAlign.Center
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        color = androidx.compose.ui.graphics.Color.White
+                    )
                 )
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(Spacing.xl))
 
             Text(
                 text = stringResource(R.string.attract_modes),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Normal,
-                color = Espresso.copy(alpha = 0.50f),
+                fontSize = 16.sp,
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                color = Walnut,
                 textAlign = TextAlign.Center,
-                letterSpacing = 2.sp
+                letterSpacing = 0.32f.em
             )
         }
 
         Text(
             text = stringResource(R.string.attract_admin_hint),
-            fontSize = 12.sp,
+            fontSize = 14.sp,
+            fontFamily = HankenGrotesk,
             color = Espresso.copy(alpha = 0.28f),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
+                .padding(end = Spacing.lg, bottom = Spacing.lg)
         )
     }
 }

@@ -9,19 +9,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.snapcabin.ui.theme.CabinOnBackground
-import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSurface
 import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Spacing
 
 @Composable
 fun InactivityWarningDialog(
@@ -38,33 +37,32 @@ fun InactivityWarningDialog(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(Radii.m))
                 .background(CabinSurface)
-                .padding(48.dp)
+                .padding(Spacing.xxl)
         ) {
             Text(
                 text = "Still there?",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.displaySmall,
                 color = CabinOnBackground,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
 
             Text(
                 text = "Resetting in $remainingSeconds seconds",
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = CabinOnBackground.copy(alpha = 0.72f),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
 
             BigButton(
                 text = "I'M HERE",
                 onClick = onDismiss,
-                containerColor = CabinPrimary
+                variant = BigButtonVariant.Primary
             )
         }
     }

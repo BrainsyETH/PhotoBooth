@@ -31,19 +31,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.snapcabin.R
 import com.snapcabin.filter.PhotoFilter
 import com.snapcabin.filter.PhotoOverlay
 import com.snapcabin.ui.components.BigButton
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.ChipSelectable
+import com.snapcabin.ui.components.Eyebrow
 import com.snapcabin.ui.theme.CabinAccent
-import com.snapcabin.ui.theme.CabinPrimary
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinLine
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Pine
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Sidebar
+import com.snapcabin.ui.theme.Spacing
 
 @Composable
 fun FilterScreen(
@@ -63,12 +73,12 @@ fun FilterScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Left side: photo preview
+        // Left: photo preview
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp),
+                .padding(Spacing.xl),
             contentAlignment = Alignment.Center
         ) {
             uiState.previewPhoto?.let { bitmap ->
@@ -77,7 +87,8 @@ fun FilterScreen(
                     contentDescription = "Preview with filter",
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp)),
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(Radii.s))
+                        .clip(RoundedCornerShape(Radii.s)),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -87,77 +98,68 @@ fun FilterScreen(
             }
         }
 
-        // Right side: filter & overlay selectors + buttons
+        // Right: sidebar
         Column(
             modifier = Modifier
-                .width(360.dp)
+                .width(Sidebar.width)
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(CabinSurface)
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
-            Column {
-                // Filters section
-                Text(
-                    text = "FILTERS",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(PhotoFilter.entries) { filter ->
-                        FilterThumbnail(
-                            filter = filter,
-                            thumbnail = uiState.filterThumbnails[filter],
-                            isSelected = uiState.selectedFilter == filter,
-                            onClick = { viewModel.selectFilter(filter) }
-                        )
+            Column(verticalArrangement = Arrangement.spacedBy(28.dp), modifier = Modifier.weight(1f)) {
+                Column {
+                    Eyebrow(text = stringResource(R.string.filter_title))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = Spacing.xs),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.s)
+                    ) {
+                        items(PhotoFilter.entries) { filter ->
+                            FilterThumbnail(
+                                filter = filter,
+                                thumbnail = uiState.filterThumbnails[filter],
+                                isSelected = uiState.selectedFilter == filter,
+                                onClick = { viewModel.selectFilter(filter) }
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Overlays section
-                Text(
-                    text = "OVERLAYS",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(PhotoOverlay.entries) { overlay ->
-                        OverlayChip(
-                            overlay = overlay,
-                            isSelected = uiState.selectedOverlay == overlay,
-                            onClick = { viewModel.selectOverlay(overlay) }
-                        )
+                Column {
+                    Eyebrow(text = stringResource(R.string.filter_overlays))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = Spacing.xs),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.s)
+                    ) {
+                        items(PhotoOverlay.entries) { overlay ->
+                            ChipSelectable(
+                                text = overlay.displayName,
+                                selected = uiState.selectedOverlay == overlay,
+                                onClick = { viewModel.selectOverlay(overlay) }
+                            )
+                        }
                     }
                 }
             }
 
             // Action buttons
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 BigButton(
-                    text = "BACK",
+                    text = stringResource(R.string.filter_back),
                     onClick = onBack,
-                    containerColor = MaterialTheme.colorScheme.surface
+                    variant = BigButtonVariant.Surface,
+                    modifier = Modifier.weight(1f)
                 )
                 BigButton(
-                    text = "DONE",
+                    text = stringResource(R.string.filter_done),
                     onClick = onDone,
-                    containerColor = CabinSecondary
+                    variant = BigButtonVariant.Secondary,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -171,21 +173,20 @@ private fun FilterThumbnail(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    // Selection ring is pine on the light theme — higher contrast than amber.
-    val borderColor = if (isSelected) CabinPrimary else Color.Transparent
+    val borderColor = if (isSelected) Pine else Color.Transparent
     val borderWidth = if (isSelected) 3.dp else 0.dp
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(4.dp)
+            .padding(Spacing.xs)
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .border(borderWidth, borderColor, RoundedCornerShape(8.dp))
+                .size(84.dp)
+                .clip(RoundedCornerShape(Radii.xs))
+                .border(borderWidth, borderColor, RoundedCornerShape(Radii.xs))
                 .background(MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
@@ -198,38 +199,12 @@ private fun FilterThumbnail(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(Spacing.xs))
         Text(
             text = filter.displayName,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-            fontSize = 11.sp
-        )
-    }
-}
-
-@Composable
-private fun OverlayChip(
-    overlay: PhotoOverlay,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val bgColor = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface
-    val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(bgColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = overlay.displayName,
-            style = MaterialTheme.typography.bodyMedium,
-            color = textColor
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSelected) Pine else Espresso.copy(alpha = 0.72f),
+            textAlign = TextAlign.Center
         )
     }
 }

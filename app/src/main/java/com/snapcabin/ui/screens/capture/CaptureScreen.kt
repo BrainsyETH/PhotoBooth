@@ -4,11 +4,18 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
+import com.snapcabin.R
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Spacing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -27,7 +34,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.CountdownOverlay
 import com.snapcabin.ui.components.FlashOverlay
-import com.snapcabin.ui.theme.CabinSecondary
 
 @Composable
 fun CaptureScreen(
@@ -80,6 +86,21 @@ fun CaptureScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
+            // Vignette — soft espresso radial fade so light overlays read against any backdrop.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Espresso.copy(alpha = 0f),
+                                Espresso.copy(alpha = 0.55f)
+                            ),
+                            radius = 1400f
+                        )
+                    )
+            )
+
             // Flash effect overlay
             FlashOverlay(trigger = uiState.showFlash)
 
@@ -91,12 +112,12 @@ fun CaptureScreen(
             // Capture button
             if (!uiState.isCountingDown && !uiState.isCapturing && uiState.capturedPhoto == null) {
                 BigButton(
-                    text = "TAKE PHOTO",
+                    text = stringResource(R.string.capture_take_photo),
                     onClick = { viewModel.startCountdown() },
-                    containerColor = CabinSecondary,
+                    variant = BigButtonVariant.Secondary,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 48.dp)
+                        .padding(bottom = Spacing.xxl)
                 )
             }
 
