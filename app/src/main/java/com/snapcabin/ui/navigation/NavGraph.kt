@@ -96,6 +96,7 @@ fun NavGraph(settingsManager: SettingsManager) {
         timeoutMs = timeoutMs,
         warningMs = warningMs,
         enabled = timeoutEnabled,
+        resetKey = currentRoute,
         onTimeout = {
             navController.popBackStack(Routes.ATTRACT, inclusive = false)
         }

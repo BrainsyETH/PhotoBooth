@@ -1,6 +1,5 @@
 package com.snapcabin.ui.components
 
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -12,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.delay
 
@@ -19,12 +19,16 @@ import kotlinx.coroutines.delay
  * Wraps content and monitors for user inactivity.
  * Shows a warning dialog [warningMs] before the timeout fires.
  * Calls [onTimeout] when no touch events occur for [timeoutMs].
+ *
+ * Pass a stable [resetKey] (e.g. the current route) to restart the
+ * timer whenever it changes.
  */
 @Composable
 fun InactivityHandler(
     timeoutMs: Long,
     warningMs: Long = 15_000L,
     enabled: Boolean = true,
+    resetKey: Any? = Unit,
     onTimeout: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -37,18 +41,21 @@ fun InactivityHandler(
         showWarning = false
     }
 
-    // Reset on any touch
+    // Restart timer when the caller-supplied key changes (e.g. on route change).
+    LaunchedEffect(resetKey) { resetTimer() }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Observe pointer events on the Initial pass so we see every touch,
+            // even ones that children (buttons, sliders) consume.
             .pointerInput(enabled) {
-                if (enabled) {
-                    detectTapGestures(
-                        onPress = {
-                            resetTimer()
-                            tryAwaitRelease()
-                        }
-                    )
+                if (!enabled) return@pointerInput
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial)
+                        resetTimer()
+                    }
                 }
             }
     ) {
@@ -62,7 +69,6 @@ fun InactivityHandler(
         }
     }
 
-    // Timeout checker
     LaunchedEffect(enabled, timeoutMs, warningMs) {
         if (!enabled || timeoutMs <= 0) return@LaunchedEffect
         val effectiveWarningMs = warningMs.coerceAtMost(timeoutMs - 1000L).coerceAtLeast(0L)
