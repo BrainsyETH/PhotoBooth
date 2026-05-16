@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,15 +40,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.CabinAccent
-import com.snapcabin.ui.theme.CabinPrimary
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.Eyebrow
+import com.snapcabin.ui.theme.CabinLine
+import com.snapcabin.ui.theme.CabinLineStrong
+import com.snapcabin.ui.theme.Clay
+import com.snapcabin.ui.theme.Cream
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.FrankRuhlLibre
+import com.snapcabin.ui.theme.Honey
+import com.snapcabin.ui.theme.Mist
+import com.snapcabin.ui.theme.Oat
+import com.snapcabin.ui.theme.Parchment
+import com.snapcabin.ui.theme.Pine
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Spacing
 
 @Composable
 fun AdminScreen(
@@ -63,7 +78,7 @@ fun AdminScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Parchment)
     ) {
         if (!pinVerified) {
             PinEntry(
@@ -71,567 +86,584 @@ fun AdminScreen(
                 onCancel = onDismiss
             )
         } else {
-            Row(modifier = Modifier.fillMaxSize()) {
-                // Settings list
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // --- CAMERA SECTION ---
-                    item { SectionHeader("Camera") }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s)
+            ) {
+                item {
+                    Text(
+                        text = "Settings",
+                        fontSize = 36.sp,
+                        fontFamily = FrankRuhlLibre,
+                        fontWeight = FontWeight.Bold,
+                        color = Espresso,
+                        modifier = Modifier.padding(bottom = Spacing.md)
+                    )
+                }
 
-                    item {
-                        SettingRow("Use Front Camera") {
-                            Switch(
-                                checked = settings.useFrontCamera,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(useFrontCamera = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
+                // CAMERA
+                item { AdminEyebrow("CAMERA") }
+
+                item {
+                    SettingRow("Use Front Camera") {
+                        Switch(
+                            checked = settings.useFrontCamera,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(useFrontCamera = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
                     }
+                }
 
-                    item {
-                        SettingRow("Mirror Front Camera") {
-                            Switch(
-                                checked = settings.mirrorFrontCamera,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(mirrorFrontCamera = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
+                item {
+                    SettingRow("Mirror Front Camera") {
+                        Switch(
+                            checked = settings.mirrorFrontCamera,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(mirrorFrontCamera = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
                     }
+                }
 
-                    // Camera selector
-                    if (cameras.isNotEmpty()) {
-                        item {
-                            Column {
-                                Text(
-                                    "Available Cameras",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                                cameras.forEach { cam ->
-                                    val isSelected = settings.cameraId == cam.id ||
-                                        (settings.cameraId.isEmpty() && !cam.isExternal && (
-                                            (settings.useFrontCamera && cam.facing == "Front") ||
+                if (cameras.isNotEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(Radii.s))
+                                .background(Cream)
+                                .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                                .padding(Spacing.md)
+                        ) {
+                            Text(
+                                "Available Cameras",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Espresso.copy(alpha = 0.72f),
+                                modifier = Modifier.padding(bottom = Spacing.s)
+                            )
+                            cameras.forEach { cam ->
+                                val isSelected = settings.cameraId == cam.id ||
+                                    (settings.cameraId.isEmpty() && !cam.isExternal && (
+                                        (settings.useFrontCamera && cam.facing == "Front") ||
                                             (!settings.useFrontCamera && cam.facing == "Back")
                                         ))
-                                    val label = "${cam.facing} (ID: ${cam.id})${if (cam.isExternal) " - External" else ""}"
+                                val label = "${cam.facing} (ID: ${cam.id})${if (cam.isExternal) " — External" else ""}"
 
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        BigButton(
-                                            text = if (isSelected) "● $label" else "○ $label",
-                                            onClick = {
-                                                viewModel.updateSetting { copy(cameraId = cam.id) }
-                                            },
-                                            containerColor = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
+                                BigButton(
+                                    text = if (isSelected) "● $label" else "○ $label",
+                                    onClick = {
+                                        viewModel.updateSetting { copy(cameraId = cam.id) }
+                                    },
+                                    variant = if (isSelected) BigButtonVariant.Primary else BigButtonVariant.Surface,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Spacing.xs)
+                                )
                             }
                         }
                     }
+                }
 
-                    item {
-                        Column {
-                            Text(
-                                "Photo Resolution",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PhotoResolution.entries.forEach { res ->
-                                    BigButton(
-                                        text = res.label,
-                                        onClick = {
-                                            viewModel.updateSetting { copy(photoResolution = res) }
-                                        },
-                                        containerColor = if (settings.photoResolution == res) CabinAccent else MaterialTheme.colorScheme.surface
-                                    )
-                                }
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Radii.s))
+                            .background(Cream)
+                            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                            .padding(Spacing.md)
+                    ) {
+                        Text(
+                            "Photo Resolution",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Espresso
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.s))
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            PhotoResolution.entries.forEach { res ->
+                                BigButton(
+                                    text = res.label,
+                                    onClick = {
+                                        viewModel.updateSetting { copy(photoResolution = res) }
+                                    },
+                                    variant = if (settings.photoResolution == res) BigButtonVariant.Accent else BigButtonVariant.Surface
+                                )
                             }
                         }
                     }
+                }
 
-                    // --- MODES SECTION ---
-                    item { SectionHeader("Modes") }
+                // MODES
+                item { AdminEyebrow("MODES") }
 
-                    item {
-                        val enabledCount = listOf(
-                            settings.enableSinglePhotoMode,
-                            settings.enableCollageMode,
-                            settings.enableGifMode
-                        ).count { it }
+                item {
+                    val enabledCount = listOf(
+                        settings.enableSinglePhotoMode,
+                        settings.enableCollageMode,
+                        settings.enableGifMode
+                    ).count { it }
 
-                        SettingRow("Single Photo Mode") {
-                            Switch(
-                                checked = settings.enableSinglePhotoMode,
-                                onCheckedChange = { v ->
-                                    if (v || enabledCount > 1) {
-                                        viewModel.updateSetting { copy(enableSinglePhotoMode = v) }
-                                    }
-                                },
-                                colors = switchColors(),
-                                enabled = !settings.enableSinglePhotoMode || enabledCount > 1
-                            )
-                        }
-                    }
-
-                    item {
-                        val enabledCount = listOf(
-                            settings.enableSinglePhotoMode,
-                            settings.enableCollageMode,
-                            settings.enableGifMode
-                        ).count { it }
-
-                        SettingRow("Collage Mode") {
-                            Switch(
-                                checked = settings.enableCollageMode,
-                                onCheckedChange = { v ->
-                                    if (v || enabledCount > 1) {
-                                        viewModel.updateSetting { copy(enableCollageMode = v) }
-                                    }
-                                },
-                                colors = switchColors(),
-                                enabled = !settings.enableCollageMode || enabledCount > 1
-                            )
-                        }
-                    }
-
-                    item {
-                        val enabledCount = listOf(
-                            settings.enableSinglePhotoMode,
-                            settings.enableCollageMode,
-                            settings.enableGifMode
-                        ).count { it }
-
-                        SettingRow("GIF Mode") {
-                            Switch(
-                                checked = settings.enableGifMode,
-                                onCheckedChange = { v ->
-                                    if (v || enabledCount > 1) {
-                                        viewModel.updateSetting { copy(enableGifMode = v) }
-                                    }
-                                },
-                                colors = switchColors(),
-                                enabled = !settings.enableGifMode || enabledCount > 1
-                            )
-                        }
-                    }
-
-                    // --- CAPTURE SECTION ---
-                    item { SectionHeader("Capture") }
-
-                    item {
-                        SettingRow("Countdown: ${settings.countdownSeconds}s") {
-                            Slider(
-                                value = settings.countdownSeconds.toFloat(),
-                                onValueChange = { v ->
-                                    viewModel.updateSetting { copy(countdownSeconds = v.toInt()) }
-                                },
-                                valueRange = 1f..10f,
-                                steps = 8,
-                                modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("Flash Effect") {
-                            Switch(
-                                checked = settings.showFlashEffect,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(showFlashEffect = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("Review Auto-Accept: ${if (settings.reviewAutoAcceptSeconds == 0) "Off" else "${settings.reviewAutoAcceptSeconds}s"}") {
-                            Slider(
-                                value = settings.reviewAutoAcceptSeconds.toFloat(),
-                                onValueChange = { v ->
-                                    viewModel.updateSetting { copy(reviewAutoAcceptSeconds = v.toInt()) }
-                                },
-                                valueRange = 0f..30f,
-                                steps = 29,
-                                modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
-                            )
-                        }
-                    }
-
-                    // --- SOUND SECTION ---
-                    item { SectionHeader("Sound") }
-
-                    item {
-                        SettingRow("Sound Enabled") {
-                            Switch(
-                                checked = settings.soundEnabled,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(soundEnabled = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("Shutter Sound") {
-                            Switch(
-                                checked = settings.shutterSoundEnabled,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(shutterSoundEnabled = v) }
-                                },
-                                colors = switchColors(),
-                                enabled = settings.soundEnabled
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("Countdown Beep") {
-                            Switch(
-                                checked = settings.countdownBeepEnabled,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(countdownBeepEnabled = v) }
-                                },
-                                colors = switchColors(),
-                                enabled = settings.soundEnabled
-                            )
-                        }
-                    }
-
-                    // --- SHARING SECTION ---
-                    item { SectionHeader("Sharing") }
-
-                    item {
-                        SettingRow("Auto-Save to Gallery") {
-                            Switch(
-                                checked = settings.autoSaveToGallery,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(autoSaveToGallery = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("QR Code Sharing") {
-                            Switch(
-                                checked = settings.enableQrSharing,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(enableQrSharing = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("JPEG Quality: ${settings.outputQuality}%") {
-                            Slider(
-                                value = settings.outputQuality.toFloat(),
-                                onValueChange = { v ->
-                                    viewModel.updateSetting { copy(outputQuality = v.toInt()) }
-                                },
-                                valueRange = 50f..100f,
-                                steps = 9,
-                                modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
-                            )
-                        }
-                    }
-
-                    // --- KIOSK SECTION ---
-                    item { SectionHeader("Kiosk") }
-
-                    item {
-                        var pinText by remember { mutableStateOf(settings.adminPin) }
-                        OutlinedTextField(
-                            value = pinText,
-                            onValueChange = { newPin ->
-                                pinText = newPin.filter { c -> c.isDigit() }.take(8)
-                                if (pinText.length >= 4) {
-                                    viewModel.updateSetting { copy(adminPin = pinText) }
+                    SettingRow("Single Photo Mode") {
+                        Switch(
+                            checked = settings.enableSinglePhotoMode,
+                            onCheckedChange = { v ->
+                                if (v || enabledCount > 1) {
+                                    viewModel.updateSetting { copy(enableSinglePhotoMode = v) }
                                 }
                             },
-                            label = { Text("Admin PIN (min 4 digits)") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            colors = adminSwitchColors(),
+                            enabled = !settings.enableSinglePhotoMode || enabledCount > 1
+                        )
+                    }
+                }
+
+                item {
+                    val enabledCount = listOf(
+                        settings.enableSinglePhotoMode,
+                        settings.enableCollageMode,
+                        settings.enableGifMode
+                    ).count { it }
+
+                    SettingRow("Collage Mode") {
+                        Switch(
+                            checked = settings.enableCollageMode,
+                            onCheckedChange = { v ->
+                                if (v || enabledCount > 1) {
+                                    viewModel.updateSetting { copy(enableCollageMode = v) }
+                                }
+                            },
+                            colors = adminSwitchColors(),
+                            enabled = !settings.enableCollageMode || enabledCount > 1
+                        )
+                    }
+                }
+
+                item {
+                    val enabledCount = listOf(
+                        settings.enableSinglePhotoMode,
+                        settings.enableCollageMode,
+                        settings.enableGifMode
+                    ).count { it }
+
+                    SettingRow("GIF Mode") {
+                        Switch(
+                            checked = settings.enableGifMode,
+                            onCheckedChange = { v ->
+                                if (v || enabledCount > 1) {
+                                    viewModel.updateSetting { copy(enableGifMode = v) }
+                                }
+                            },
+                            colors = adminSwitchColors(),
+                            enabled = !settings.enableGifMode || enabledCount > 1
+                        )
+                    }
+                }
+
+                // CAPTURE
+                item { AdminEyebrow("CAPTURE") }
+
+                item {
+                    SettingRow("Countdown: ${settings.countdownSeconds}s") {
+                        Slider(
+                            value = settings.countdownSeconds.toFloat(),
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(countdownSeconds = v.toInt()) }
+                            },
+                            valueRange = 1f..10f,
+                            steps = 8,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Flash Effect") {
+                        Switch(
+                            checked = settings.showFlashEffect,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(showFlashEffect = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Review Auto-Accept: ${if (settings.reviewAutoAcceptSeconds == 0) "Off" else "${settings.reviewAutoAcceptSeconds}s"}") {
+                        Slider(
+                            value = settings.reviewAutoAcceptSeconds.toFloat(),
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(reviewAutoAcceptSeconds = v.toInt()) }
+                            },
+                            valueRange = 0f..30f,
+                            steps = 29,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                // SOUND
+                item { AdminEyebrow("SOUND") }
+
+                item {
+                    SettingRow("Sound Enabled") {
+                        Switch(
+                            checked = settings.soundEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(soundEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Shutter Sound") {
+                        Switch(
+                            checked = settings.shutterSoundEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(shutterSoundEnabled = v) }
+                            },
+                            colors = adminSwitchColors(),
+                            enabled = settings.soundEnabled
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Countdown Beep") {
+                        Switch(
+                            checked = settings.countdownBeepEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(countdownBeepEnabled = v) }
+                            },
+                            colors = adminSwitchColors(),
+                            enabled = settings.soundEnabled
+                        )
+                    }
+                }
+
+                // SHARING
+                item { AdminEyebrow("SHARING") }
+
+                item {
+                    SettingRow("Auto-Save to Gallery") {
+                        Switch(
+                            checked = settings.autoSaveToGallery,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(autoSaveToGallery = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("QR Code Sharing") {
+                        Switch(
+                            checked = settings.enableQrSharing,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(enableQrSharing = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("JPEG Quality: ${settings.outputQuality}%") {
+                        Slider(
+                            value = settings.outputQuality.toFloat(),
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(outputQuality = v.toInt()) }
+                            },
+                            valueRange = 50f..100f,
+                            steps = 9,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                // KIOSK
+                item { AdminEyebrow("KIOSK") }
+
+                item {
+                    var pinText by remember { mutableStateOf(settings.adminPin) }
+                    OutlinedTextField(
+                        value = pinText,
+                        onValueChange = { newPin ->
+                            pinText = newPin.filter { c -> c.isDigit() }.take(8)
+                            if (pinText.length >= 4) {
+                                viewModel.updateSetting { copy(adminPin = pinText) }
+                            }
+                        },
+                        label = { Text("Admin PIN (min 4 digits)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                }
+
+                item {
+                    SettingRow("Kiosk Mode") {
+                        Switch(
+                            checked = settings.kioskModeEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(kioskModeEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Idle Timeout: ${settings.inactivityTimeoutSeconds}s") {
+                        Slider(
+                            value = settings.inactivityTimeoutSeconds.toFloat(),
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(inactivityTimeoutSeconds = v.toInt()) }
+                            },
+                            valueRange = 15f..300f,
+                            steps = 18,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Screen Brightness: ${(settings.screenBrightness * 100).toInt()}%") {
+                        Slider(
+                            value = settings.screenBrightness,
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(screenBrightness = v) }
+                            },
+                            valueRange = 0.1f..1f,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                // BRANDING
+                item { AdminEyebrow("BRANDING") }
+
+                item {
+                    SettingRow("Watermark") {
+                        Switch(
+                            checked = settings.watermarkEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(watermarkEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                if (settings.watermarkEnabled) {
+                    item {
+                        var text by remember { mutableStateOf(settings.watermarkText) }
+                        OutlinedTextField(
+                            value = text,
+                            onValueChange = {
+                                text = it
+                                viewModel.updateSetting { copy(watermarkText = it) }
+                            },
+                            label = { Text("Watermark Text") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CabinAccent,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedLabelColor = CabinAccent,
-                                unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                                cursorColor = CabinAccent
-                            )
+                            shape = RoundedCornerShape(Radii.s),
+                            colors = adminTextFieldColors()
                         )
                     }
+                }
 
-                    item {
-                        SettingRow("Kiosk Mode") {
-                            Switch(
-                                checked = settings.kioskModeEnabled,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(kioskModeEnabled = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("Idle Timeout: ${settings.inactivityTimeoutSeconds}s") {
-                            Slider(
-                                value = settings.inactivityTimeoutSeconds.toFloat(),
-                                onValueChange = { v ->
-                                    viewModel.updateSetting { copy(inactivityTimeoutSeconds = v.toInt()) }
-                                },
-                                valueRange = 15f..300f,
-                                steps = 18,
-                                modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
-                            )
-                        }
-                    }
-
-                    item {
-                        SettingRow("Screen Brightness: ${(settings.screenBrightness * 100).toInt()}%") {
-                            Slider(
-                                value = settings.screenBrightness,
-                                onValueChange = { v ->
-                                    viewModel.updateSetting { copy(screenBrightness = v) }
-                                },
-                                valueRange = 0.1f..1f,
-                                modifier = Modifier.width(200.dp),
-                                colors = SliderDefaults.colors(thumbColor = CabinAccent, activeTrackColor = CabinPrimary)
-                            )
-                        }
-                    }
-
-                    // --- BRANDING SECTION ---
-                    item { SectionHeader("Branding") }
-
-                    item {
-                        SettingRow("Watermark") {
-                            Switch(
-                                checked = settings.watermarkEnabled,
-                                onCheckedChange = { v ->
-                                    viewModel.updateSetting { copy(watermarkEnabled = v) }
-                                },
-                                colors = switchColors()
-                            )
-                        }
-                    }
-
-                    if (settings.watermarkEnabled) {
-                        item {
-                            var text by remember { mutableStateOf(settings.watermarkText) }
-                            OutlinedTextField(
-                                value = text,
-                                onValueChange = {
-                                    text = it
-                                    viewModel.updateSetting { copy(watermarkText = it) }
-                                },
-                                label = { Text("Watermark Text") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = CabinAccent,
-                                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedLabelColor = CabinAccent,
-                                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                                    cursorColor = CabinAccent
-                                )
-                            )
-                        }
-                    }
-
-                    // Custom border image
-                    item {
-                        val context = LocalContext.current
-                        val borderLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.GetContent()
-                        ) { uri: Uri? ->
-                            uri?.let {
-                                val file = copyUriToInternal(context, it, "custom_border.png")
-                                file?.let { f ->
-                                    viewModel.updateSetting { copy(customBorderPath = f.absolutePath) }
-                                }
-                            }
-                        }
-
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "Custom Border / Frame",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color.White,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                BigButton(
-                                    text = if (settings.customBorderPath.isNotEmpty()) "CHANGE" else "UPLOAD",
-                                    onClick = { borderLauncher.launch("image/*") },
-                                    containerColor = CabinPrimary
-                                )
-                            }
-                            if (settings.customBorderPath.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(
-                                            model = java.io.File(settings.customBorderPath)
-                                        ),
-                                        contentDescription = "Custom border preview",
-                                        modifier = Modifier
-                                            .size(80.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                    )
-                                    BigButton(
-                                        text = "REMOVE",
-                                        onClick = {
-                                            viewModel.updateSetting { copy(customBorderPath = "") }
-                                        },
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    )
-                                }
+                // Custom border image
+                item {
+                    val context = LocalContext.current
+                    val borderLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.GetContent()
+                    ) { uri: Uri? ->
+                        uri?.let {
+                            val file = copyUriToInternal(context, it, "custom_border.png")
+                            file?.let { f ->
+                                viewModel.updateSetting { copy(customBorderPath = f.absolutePath) }
                             }
                         }
                     }
 
-                    // Custom overlay image
-                    item {
-                        val context = LocalContext.current
-                        val overlayLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.GetContent()
-                        ) { uri: Uri? ->
-                            uri?.let {
-                                val file = copyUriToInternal(context, it, "custom_overlay.png")
-                                file?.let { f ->
-                                    viewModel.updateSetting { copy(customOverlayPath = f.absolutePath) }
-                                }
-                            }
-                        }
-
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "Custom Overlay / Logo",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color.White,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                BigButton(
-                                    text = if (settings.customOverlayPath.isNotEmpty()) "CHANGE" else "UPLOAD",
-                                    onClick = { overlayLauncher.launch("image/*") },
-                                    containerColor = CabinPrimary
-                                )
-                            }
-                            if (settings.customOverlayPath.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(
-                                            model = java.io.File(settings.customOverlayPath)
-                                        ),
-                                        contentDescription = "Custom overlay preview",
-                                        modifier = Modifier
-                                            .size(80.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                    )
-                                    BigButton(
-                                        text = "REMOVE",
-                                        onClick = {
-                                            viewModel.updateSetting { copy(customOverlayPath = "") }
-                                        },
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // --- TOOLS ---
-                    item { SectionHeader("Tools") }
-
-                    item {
-                        BigButton(
-                            text = "PHOTO GALLERY",
-                            onClick = onGallery,
-                            containerColor = CabinPrimary,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // --- ABOUT / PRIVACY ---
-                    item { SectionHeader("About") }
-
-                    item {
-                        BigButton(
-                            text = "PRIVACY POLICY",
-                            onClick = onPrivacyPolicy,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    item {
-                        SettingRow("Version") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Radii.s))
+                            .background(Cream)
+                            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                            .padding(Spacing.md)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Text(
-                                text = "1.0.0",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.7f)
+                                "Custom Border / Frame",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Espresso,
+                                modifier = Modifier.weight(1f)
                             )
+                            BigButton(
+                                text = if (settings.customBorderPath.isNotEmpty()) "CHANGE" else "UPLOAD",
+                                onClick = { borderLauncher.launch("image/*") },
+                                variant = BigButtonVariant.Primary
+                            )
+                        }
+                        if (settings.customBorderPath.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(Spacing.s))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.s)
+                            ) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(
+                                        model = java.io.File(settings.customBorderPath)
+                                    ),
+                                    contentDescription = "Custom border preview",
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(Radii.xs))
+                                )
+                                BigButton(
+                                    text = "REMOVE",
+                                    onClick = {
+                                        viewModel.updateSetting { copy(customBorderPath = "") }
+                                    },
+                                    variant = BigButtonVariant.Surface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Custom overlay image
+                item {
+                    val context = LocalContext.current
+                    val overlayLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.GetContent()
+                    ) { uri: Uri? ->
+                        uri?.let {
+                            val file = copyUriToInternal(context, it, "custom_overlay.png")
+                            file?.let { f ->
+                                viewModel.updateSetting { copy(customOverlayPath = f.absolutePath) }
+                            }
                         }
                     }
 
-                    // Close button
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        BigButton(
-                            text = "CLOSE SETTINGS",
-                            onClick = onDismiss,
-                            containerColor = CabinSecondary,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(32.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Radii.s))
+                            .background(Cream)
+                            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                            .padding(Spacing.md)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "Custom Overlay / Logo",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Espresso,
+                                modifier = Modifier.weight(1f)
+                            )
+                            BigButton(
+                                text = if (settings.customOverlayPath.isNotEmpty()) "CHANGE" else "UPLOAD",
+                                onClick = { overlayLauncher.launch("image/*") },
+                                variant = BigButtonVariant.Primary
+                            )
+                        }
+                        if (settings.customOverlayPath.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(Spacing.s))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.s)
+                            ) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(
+                                        model = java.io.File(settings.customOverlayPath)
+                                    ),
+                                    contentDescription = "Custom overlay preview",
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(Radii.xs))
+                                )
+                                BigButton(
+                                    text = "REMOVE",
+                                    onClick = {
+                                        viewModel.updateSetting { copy(customOverlayPath = "") }
+                                    },
+                                    variant = BigButtonVariant.Surface
+                                )
+                            }
+                        }
                     }
+                }
+
+                // TOOLS
+                item { AdminEyebrow("TOOLS") }
+
+                item {
+                    BigButton(
+                        text = "PHOTO GALLERY",
+                        onClick = onGallery,
+                        variant = BigButtonVariant.Primary,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // ABOUT
+                item { AdminEyebrow("ABOUT") }
+
+                item {
+                    BigButton(
+                        text = "PRIVACY POLICY",
+                        onClick = onPrivacyPolicy,
+                        variant = BigButtonVariant.Surface,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                item {
+                    SettingRow("Version") {
+                        Text(
+                            text = "1.0.0",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Espresso.copy(alpha = 0.72f)
+                        )
+                    }
+                }
+
+                // CLOSE
+                item {
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    BigButton(
+                        text = "CLOSE SETTINGS",
+                        onClick = onDismiss,
+                        variant = BigButtonVariant.Secondary,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.xl))
                 }
             }
         }
@@ -653,16 +685,19 @@ private fun PinEntry(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(48.dp)
+                .clip(RoundedCornerShape(Radii.xl))
+                .background(Cream)
+                .border(1.dp, CabinLine, RoundedCornerShape(Radii.xl))
+                .padding(Spacing.xxl)
         ) {
             Text(
                 text = "Admin PIN",
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White
+                fontSize = 36.sp,
+                fontFamily = FrankRuhlLibre,
+                fontWeight = FontWeight.Bold,
+                color = Espresso
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
 
             OutlinedTextField(
                 value = pin,
@@ -675,33 +710,26 @@ private fun PinEntry(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 isError = error,
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = CabinAccent,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedLabelColor = CabinAccent,
-                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                    cursorColor = CabinAccent
-                )
+                shape = RoundedCornerShape(Radii.s),
+                colors = adminTextFieldColors()
             )
 
             if (error) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
                     text = "Incorrect PIN",
-                    color = MaterialTheme.colorScheme.error,
+                    color = Clay,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 BigButton(
                     text = "CANCEL",
                     onClick = onCancel,
-                    containerColor = MaterialTheme.colorScheme.surface
+                    variant = BigButtonVariant.Surface
                 )
                 BigButton(
                     text = "ENTER",
@@ -711,7 +739,7 @@ private fun PinEntry(
                             pin = ""
                         }
                     },
-                    containerColor = CabinPrimary
+                    variant = BigButtonVariant.Primary
                 )
             }
         }
@@ -719,13 +747,10 @@ private fun PinEntry(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.titleMedium,
-        color = CabinAccent,
-        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
-    )
+private fun AdminEyebrow(text: String) {
+    Spacer(modifier = Modifier.height(Spacing.s))
+    Eyebrow(text = text, color = Honey)
+    Spacer(modifier = Modifier.height(Spacing.xs))
 }
 
 @Composable
@@ -736,16 +761,17 @@ private fun SettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.White,
+            color = Espresso,
             modifier = Modifier.weight(1f)
         )
         content()
@@ -753,11 +779,35 @@ private fun SettingRow(
 }
 
 @Composable
-private fun switchColors() = SwitchDefaults.colors(
-    checkedThumbColor = CabinAccent,
-    checkedTrackColor = CabinPrimary,
-    uncheckedThumbColor = Color.Gray,
-    uncheckedTrackColor = Color.DarkGray
+private fun adminSwitchColors() = SwitchDefaults.colors(
+    checkedThumbColor = Color.White,
+    checkedTrackColor = Pine,
+    checkedBorderColor = Color.Transparent,
+    uncheckedThumbColor = Mist,
+    uncheckedTrackColor = Oat,
+    uncheckedBorderColor = CabinLineStrong
+)
+
+@Composable
+private fun adminSliderColors() = SliderDefaults.colors(
+    thumbColor = Honey,
+    activeTrackColor = Pine,
+    inactiveTrackColor = Oat
+)
+
+@Composable
+private fun adminTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Pine,
+    unfocusedBorderColor = CabinLineStrong,
+    focusedTextColor = Espresso,
+    unfocusedTextColor = Espresso,
+    focusedLabelColor = Pine,
+    unfocusedLabelColor = Espresso.copy(alpha = 0.72f),
+    cursorColor = Pine,
+    focusedContainerColor = Cream,
+    unfocusedContainerColor = Cream,
+    errorBorderColor = Clay,
+    errorLabelColor = Clay
 )
 
 /**

@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,9 +47,18 @@ import androidx.lifecycle.viewModelScope
 import com.snapcabin.filter.EventBrandingRenderer
 import com.snapcabin.filter.EventTemplate
 import com.snapcabin.ui.components.BigButton
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.Eyebrow
 import com.snapcabin.ui.theme.CabinAccent
-import com.snapcabin.ui.theme.CabinPrimary
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinLineStrong
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Cream
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Honey
+import com.snapcabin.ui.theme.Pine
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Sidebar
+import com.snapcabin.ui.theme.Spacing
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -141,7 +151,7 @@ fun BrandingScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp),
+                .padding(Spacing.xl),
             contentAlignment = Alignment.Center
         ) {
             val preview = uiState.previewBitmap
@@ -151,7 +161,8 @@ fun BrandingScreen(
                     contentDescription = "Branded photo preview",
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp)),
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(Radii.s))
+                        .clip(RoundedCornerShape(Radii.s)),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -163,61 +174,72 @@ fun BrandingScreen(
         // Right: template picker + text inputs
         Column(
             modifier = Modifier
-                .width(360.dp)
+                .width(Sidebar.width)
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(CabinSurface)
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "EVENT BRANDING",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
-                )
+                Eyebrow(text = "EVENT BRANDING")
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
 
                 // Template list
                 LazyColumn(
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(vertical = Spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.s),
                     modifier = Modifier.weight(1f)
                 ) {
                     items(EventTemplate.entries) { template ->
                         val isSelected = uiState.selectedTemplate == template
+                        val bg = if (isSelected) Pine else Cream
+                        val outline = if (isSelected) Pine else CabinLineStrong
+                        val textColor = if (isSelected) Color.White else Espresso
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface)
-                                .border(
-                                    width = if (isSelected) 2.dp else 0.dp,
-                                    color = if (isSelected) CabinAccent else Color.Transparent,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
+                                .clip(RoundedCornerShape(Radii.s))
+                                .background(bg)
+                                .border(1.dp, outline, RoundedCornerShape(Radii.s))
                                 .clickable { viewModel.selectTemplate(template) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs)
                         ) {
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .padding(2.dp)
+                                        .border(
+                                            width = 2.dp,
+                                            color = Honey,
+                                            shape = RoundedCornerShape(Radii.s - 2.dp)
+                                        )
+                                )
+                            }
                             Text(
                                 text = template.displayName,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = Color.White
+                                color = textColor
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
 
-                // Event name input
+                // Event-detail text inputs on cream sidebar background
                 val textFieldColors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = CabinAccent,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedLabelColor = CabinAccent,
-                    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-                    cursorColor = CabinAccent
+                    focusedBorderColor = Pine,
+                    unfocusedBorderColor = CabinLineStrong,
+                    focusedTextColor = Espresso,
+                    unfocusedTextColor = Espresso,
+                    focusedLabelColor = Pine,
+                    unfocusedLabelColor = Espresso.copy(alpha = 0.72f),
+                    cursorColor = Pine,
+                    focusedContainerColor = Cream,
+                    unfocusedContainerColor = Cream
                 )
 
                 var nameText by remember { mutableStateOf(uiState.eventName) }
@@ -231,10 +253,11 @@ fun BrandingScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors,
+                    shape = RoundedCornerShape(Radii.s),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.s))
 
                 var dateText by remember { mutableStateOf(uiState.eventDate) }
                 OutlinedTextField(
@@ -247,26 +270,26 @@ fun BrandingScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = textFieldColors,
+                    shape = RoundedCornerShape(Radii.s),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
                 )
             }
 
-            // Bottom buttons
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 BigButton(
                     text = "SKIP",
                     onClick = onSkip,
-                    containerColor = MaterialTheme.colorScheme.surface
+                    variant = BigButtonVariant.Surface,
+                    modifier = Modifier.weight(1f)
                 )
                 BigButton(
                     text = "APPLY",
                     onClick = { onDone(viewModel.getResultBitmap()) },
-                    containerColor = CabinSecondary
+                    variant = BigButtonVariant.Secondary,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }

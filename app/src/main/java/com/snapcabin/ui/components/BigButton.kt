@@ -1,6 +1,7 @@
 package com.snapcabin.ui.components
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,31 +14,56 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import com.snapcabin.ui.theme.CabinAccent
+import com.snapcabin.ui.theme.CabinLineStrong
+import com.snapcabin.ui.theme.CabinPrimary
+import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Spacing
+import com.snapcabin.ui.theme.Tap
+
+enum class BigButtonVariant { Primary, Secondary, Accent, Surface }
 
 @Composable
 fun BigButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.primary,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimary,
+    variant: BigButtonVariant = BigButtonVariant.Primary,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
     enabled: Boolean = true
 ) {
     val view = LocalView.current
+
+    val (defaultContainer, defaultContent) = when (variant) {
+        BigButtonVariant.Primary -> CabinPrimary to Color.White
+        BigButtonVariant.Secondary -> CabinSecondary to Color.White
+        BigButtonVariant.Accent -> CabinAccent to Espresso
+        BigButtonVariant.Surface -> CabinSurface to Espresso
+    }
+    val resolvedContainer = containerColor ?: defaultContainer
+    val resolvedContent = contentColor ?: defaultContent
+    val border = if (variant == BigButtonVariant.Surface && containerColor == null) {
+        BorderStroke(1.dp, CabinLineStrong)
+    } else null
 
     Button(
         onClick = {
             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             onClick()
         },
-        modifier = modifier.height(80.dp),
+        modifier = modifier.height(Tap.primary),
         enabled = enabled,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(Radii.m),
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
+            containerColor = resolvedContainer,
+            contentColor = resolvedContent
         ),
-        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp)
+        border = border,
+        contentPadding = PaddingValues(horizontal = Spacing.xxl, vertical = Spacing.md)
     ) {
         Text(
             text = text,

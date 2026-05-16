@@ -30,6 +30,7 @@ fun SnapCabinTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = LightColorScheme,
         typography = CabinTypography,
+        shapes = CabinShapes,
         content = content
     )
 }

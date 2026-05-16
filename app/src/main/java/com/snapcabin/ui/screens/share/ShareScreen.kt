@@ -3,6 +3,7 @@ package com.snapcabin.ui.screens.share
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,18 +29,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.CabinAccent
-import com.snapcabin.ui.theme.CabinPrimary
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.theme.CabinLine
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.FrankRuhlLibre
+import com.snapcabin.ui.theme.HoneyDeep
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.ShareDenim
+import com.snapcabin.ui.theme.ShareLeaf
+import com.snapcabin.ui.theme.Sidebar
+import com.snapcabin.ui.theme.Spacing
 import kotlinx.coroutines.delay
 
 @Composable
@@ -55,7 +67,6 @@ fun ShareScreen(
         photo?.let { viewModel.setPhoto(it, context) }
     }
 
-    // Auto-dismiss message
     LaunchedEffect(uiState.message) {
         if (uiState.message != null) {
             delay(2000)
@@ -73,7 +84,7 @@ fun ShareScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp),
+                .padding(Spacing.xl),
             contentAlignment = Alignment.Center
         ) {
             photo?.let { bitmap ->
@@ -82,120 +93,122 @@ fun ShareScreen(
                     contentDescription = stringResource(R.string.share_photo_desc),
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp)),
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(Radii.s))
+                        .clip(RoundedCornerShape(Radii.s)),
                     contentScale = ContentScale.Fit
                 )
             }
         }
 
-        // Right: share options (scrollable for all the buttons)
+        // Right: sidebar
         Column(
             modifier = Modifier
-                .width(360.dp)
+                .width(Sidebar.width)
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(CabinSurface)
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .fillMaxWidth()
                     .weight(1f)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
                     text = stringResource(R.string.share_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground
+                    fontSize = 34.sp,
+                    fontFamily = FrankRuhlLibre,
+                    fontWeight = FontWeight.Bold,
+                    color = Espresso
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // QR Code
+                // QR Code block
                 uiState.qrCodeBitmap?.let { qr ->
                     Text(
                         text = stringResource(R.string.share_scan_download),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        color = Espresso.copy(alpha = 0.72f)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Image(
-                        bitmap = qr.asImageBitmap(),
-                        contentDescription = stringResource(R.string.share_qr_desc),
+                    Box(
                         modifier = Modifier
-                            .size(160.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(8.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                            .size(172.dp)
+                            .shadow(elevation = 1.dp, shape = RoundedCornerShape(Radii.s))
+                            .clip(RoundedCornerShape(Radii.s))
+                            .background(Color.White)
+                            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                            .padding(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            bitmap = qr.asImageBitmap(),
+                            contentDescription = stringResource(R.string.share_qr_desc),
+                            modifier = Modifier.size(144.dp)
+                        )
+                    }
                     uiState.shareUrl?.let { url ->
                         Text(
                             text = url,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = CabinAccent
+                            style = MaterialTheme.typography.labelSmall,
+                            color = HoneyDeep
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 // Primary actions
                 BigButton(
                     text = stringResource(R.string.share_save_gallery),
                     onClick = { viewModel.saveToGallery(context) },
-                    containerColor = CabinPrimary,
+                    variant = BigButtonVariant.Primary,
                     enabled = !uiState.isSaving,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
-
                 BigButton(
                     text = stringResource(R.string.share_button),
                     onClick = { viewModel.shareViaIntent(context) },
-                    containerColor = CabinSecondary,
+                    variant = BigButtonVariant.Secondary,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                BigButton(
-                    text = stringResource(R.string.share_print),
-                    onClick = { viewModel.printPhoto(context) },
-                    containerColor = Color(0xFF6B4F35), // walnut
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                BigButton(
-                    text = stringResource(R.string.share_email),
-                    onClick = { viewModel.shareViaEmail(context) },
-                    containerColor = Color(0xFF4A7CA1), // soft denim
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                BigButton(
-                    text = stringResource(R.string.share_message),
-                    onClick = { viewModel.shareViaSms(context) },
-                    containerColor = Color(0xFF5C8C5A), // leaf
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
+                // Tertiary share buttons in a tight row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s)
+                ) {
+                    BigButton(
+                        text = stringResource(R.string.share_print),
+                        onClick = { viewModel.printPhoto(context) },
+                        variant = BigButtonVariant.Secondary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BigButton(
+                        text = stringResource(R.string.share_email),
+                        onClick = { viewModel.shareViaEmail(context) },
+                        containerColor = ShareDenim,
+                        contentColor = Color.White,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BigButton(
+                        text = stringResource(R.string.share_message),
+                        onClick = { viewModel.shareViaSms(context) },
+                        containerColor = ShareLeaf,
+                        contentColor = Color.White,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
-            // Done button + message
+            // Done + message
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 uiState.message?.let { msg ->
                     Snackbar(
-                        modifier = Modifier.padding(bottom = 8.dp),
-                        shape = RoundedCornerShape(8.dp)
+                        modifier = Modifier.padding(bottom = Spacing.s),
+                        shape = RoundedCornerShape(Radii.xs)
                     ) {
                         Text(text = msg)
                     }
@@ -204,7 +217,7 @@ fun ShareScreen(
                 BigButton(
                     text = stringResource(R.string.share_done),
                     onClick = onDone,
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    variant = BigButtonVariant.Surface,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
