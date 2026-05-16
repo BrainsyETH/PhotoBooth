@@ -84,7 +84,6 @@ fun ModeSelectScreen(
                 if (singlePhotoEnabled) {
                     ModeCard(
                         title = stringResource(R.string.mode_single_photo),
-                        description = stringResource(R.string.mode_single_desc),
                         accentColor = CabinSecondary,
                         glyph = ModeGlyph.Camera,
                         onClick = onSinglePhoto
@@ -93,7 +92,6 @@ fun ModeSelectScreen(
                 if (collageEnabled) {
                     ModeCard(
                         title = stringResource(R.string.mode_collage),
-                        description = stringResource(R.string.mode_collage_desc),
                         accentColor = CabinPrimary,
                         glyph = ModeGlyph.Grid,
                         onClick = onCollage
@@ -102,7 +100,6 @@ fun ModeSelectScreen(
                 if (gifEnabled) {
                     ModeCard(
                         title = stringResource(R.string.mode_gif),
-                        description = stringResource(R.string.mode_gif_desc),
                         accentColor = HoneyDeep,
                         glyph = ModeGlyph.FilmStrip,
                         onClick = onGif
@@ -116,7 +113,6 @@ fun ModeSelectScreen(
 @Composable
 private fun ModeCard(
     title: String,
-    description: String,
     accentColor: Color,
     glyph: ModeGlyph,
     onClick: () -> Unit
@@ -151,16 +147,6 @@ private fun ModeCard(
             fontFamily = FrankRuhlLibre,
             fontWeight = FontWeight.Bold,
             color = Espresso,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(Spacing.s))
-
-        Text(
-            text = description,
-            fontSize = 19.sp,
-            fontFamily = HankenGrotesk,
-            color = Espresso.copy(alpha = 0.72f),
             textAlign = TextAlign.Center
         )
 

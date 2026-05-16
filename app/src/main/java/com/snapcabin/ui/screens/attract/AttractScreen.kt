@@ -54,7 +54,8 @@ import com.snapcabin.ui.theme.Walnut
 @Composable
 fun AttractScreen(
     onTap: () -> Unit,
-    onAdminLongPress: () -> Unit = {}
+    onAdminLongPress: () -> Unit = {},
+    eventName: String = ""
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "attract")
     val ctaAlpha by infiniteTransition.animateFloat(
@@ -151,17 +152,17 @@ fun AttractScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(Spacing.xl))
-
-            Text(
-                text = stringResource(R.string.attract_modes),
-                fontSize = 16.sp,
-                fontFamily = HankenGrotesk,
-                fontWeight = FontWeight.Bold,
-                color = Walnut,
-                textAlign = TextAlign.Center,
-                letterSpacing = 0.32f.em
-            )
+            if (eventName.isNotBlank()) {
+                Spacer(modifier = Modifier.height(Spacing.xl))
+                Text(
+                    text = eventName,
+                    fontSize = 22.sp,
+                    fontFamily = FrankRuhlLibre,
+                    fontWeight = FontWeight.Medium,
+                    color = Walnut,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         Text(

@@ -71,7 +71,7 @@ class CaptureViewModel @Inject constructor(
         val s = settings.value
         val coachingOn = s.coachingEnabled
         val totalShots = when (mode) {
-            CaptureMode.Single -> s.singleShotBurstCount.coerceAtLeast(1)
+            CaptureMode.Single -> 1
             CaptureMode.Collage -> s.collageShotCount.coerceAtLeast(1)
             CaptureMode.Gif -> s.gifFrameCount.coerceAtLeast(2)
         }

@@ -6,7 +6,6 @@
     <string name="attract_title">SnapCabin</string>
     <string name="attract_tagline">A photo booth in the woods</string>
     <string name="attract_tap_to_start">TAP TO START</string>
-    <string name="attract_modes">Photo  ·  Collage  ·  GIF</string>
     <string name="attract_admin_hint">Long-press for settings</string>
 
     <!-- Thank You -->
@@ -32,11 +31,8 @@
     <!-- Mode Select -->
     <string name="mode_title">Choose your mode</string>
     <string name="mode_single_photo">Single Photo</string>
-    <string name="mode_single_desc">One perfect shot</string>
     <string name="mode_collage">Collage</string>
-    <string name="mode_collage_desc">Multiple photos, one layout</string>
     <string name="mode_gif">GIF</string>
-    <string name="mode_gif_desc">Animated sequence</string>
     <string name="mode_start">START</string>
 
     <!-- Capture -->
@@ -47,11 +43,6 @@
     <!-- Review -->
     <string name="review_retake">RETAKE</string>
     <string name="review_accept">ACCEPT</string>
-
-    <!-- Filter -->
-    <string name="filter_title">FILTERS</string>
-    <string name="filter_back">BACK</string>
-    <string name="filter_done">DONE</string>
 
     <!-- Share -->
     <string name="share_title">Share your photo</string>
@@ -132,7 +123,7 @@
     <string name="getready_card_eyebrow_collage">COLLAGE</string>
     <string name="getready_card_eyebrow_gif">GIF</string>
     <string name="getready_card_headline">Looking good.</string>
-    <string name="getready_card_body_single">%1$d quick shots — you\'ll pick your favorite. Tap anywhere when you\'re ready.</string>
+    <string name="getready_card_body_single">One shot. Tap anywhere when you\'re ready.</string>
     <string name="getready_card_body_collage">%1$d photos, slotted into one layout. Tap anywhere when you\'re ready.</string>
     <string name="getready_card_body_gif">%1$d frames in a few seconds — stay loose. Tap anywhere when you\'re ready.</string>
     <string name="getready_ready">Ready</string>

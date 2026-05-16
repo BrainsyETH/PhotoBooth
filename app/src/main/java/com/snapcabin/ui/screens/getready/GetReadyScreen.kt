@@ -84,10 +84,7 @@ fun GetReadyScreen(
         CaptureMode.Gif -> stringResource(R.string.getready_card_eyebrow_gif)
     }
     val body = when (mode) {
-        CaptureMode.Single -> stringResource(
-            R.string.getready_card_body_single,
-            settings.singleShotBurstCount
-        )
+        CaptureMode.Single -> stringResource(R.string.getready_card_body_single)
         CaptureMode.Collage -> stringResource(
             R.string.getready_card_body_collage,
             settings.collageShotCount
