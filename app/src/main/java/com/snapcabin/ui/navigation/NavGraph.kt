@@ -22,8 +22,6 @@ import com.snapcabin.ui.screens.attract.AttractScreen
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.screens.capture.CaptureScreen
 import com.snapcabin.ui.screens.capture.CaptureViewModel
-import com.snapcabin.ui.screens.filters.FilterScreen
-import com.snapcabin.ui.screens.filters.FilterViewModel
 import com.snapcabin.ui.screens.gallery.GalleryScreen
 import com.snapcabin.ui.screens.gallery.GalleryViewModel
 import com.snapcabin.ui.screens.getready.GetReadyScreen
@@ -39,7 +37,6 @@ object Routes {
     const val GET_READY = "get_ready/{mode}"
     const val CAPTURE = "capture/{mode}"
     const val REVIEW = "review"
-    const val FILTER = "filter"
     const val SHARE = "share"
     const val ADMIN = "admin"
     const val PRIVACY = "privacy"
@@ -55,7 +52,6 @@ private fun getScreenTimeout(route: String?): Long = when {
     route?.startsWith("get_ready") == true -> 60_000L
     route?.startsWith("capture") == true -> 90_000L
     route == Routes.REVIEW -> 30_000L
-    route == Routes.FILTER -> 60_000L
     route == Routes.SHARE -> 60_000L
     route == Routes.THANK_YOU -> 5_000L
     else -> 0L
@@ -109,7 +105,8 @@ fun NavGraph(settingsManager: SettingsManager) {
                         val route = getStartRoute(settings)
                         navController.navigate(route)
                     },
-                    onAdminLongPress = { navController.navigate(Routes.ADMIN) }
+                    onAdminLongPress = { navController.navigate(Routes.ADMIN) },
+                    eventName = settings.eventName
                 )
             }
 
@@ -199,12 +196,12 @@ fun NavGraph(settingsManager: SettingsManager) {
                                 photos.getOrNull(pickedIndex)?.let { bmp ->
                                     captureViewModel.setActiveSinglePhoto(bmp)
                                 }
-                                navController.navigate(Routes.FILTER)
+                                navController.navigate(Routes.SHARE)
                             }
                             CaptureMode.Collage -> {
                                 val assembled = CollageRenderer.render(photos, CollageLayout.GRID_2X2)
                                 captureViewModel.setActiveSinglePhoto(assembled)
-                                navController.navigate(Routes.FILTER)
+                                navController.navigate(Routes.SHARE)
                             }
                             CaptureMode.Gif -> {
                                 photos.firstOrNull()?.let { bmp ->
@@ -214,20 +211,6 @@ fun NavGraph(settingsManager: SettingsManager) {
                             }
                         }
                     }
-                )
-            }
-
-            composable(Routes.FILTER) {
-                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
-                val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
-                val uiState by captureViewModel.uiState.collectAsState()
-                val filterViewModel: FilterViewModel = hiltViewModel()
-
-                FilterScreen(
-                    photo = uiState.capturedPhoto,
-                    onBack = { navController.popBackStack() },
-                    onDone = { navController.navigate(Routes.SHARE) },
-                    viewModel = filterViewModel
                 )
             }
 

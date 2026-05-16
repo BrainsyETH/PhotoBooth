@@ -26,7 +26,6 @@ data class BoothSettings(
     // Capture
     val countdownSeconds: Int = 3,
     val autoCapture: Boolean = false, // Auto-capture after countdown (no button press)
-    val singleShotBurstCount: Int = 3,
     val collageShotCount: Int = 4,
     val gifFrameCount: Int = 6,
     val gifFrameDelayMs: Int = 250,
@@ -43,6 +42,7 @@ data class BoothSettings(
     // Branding
     val customBorderPath: String = "", // File path to custom border/frame image
     val customOverlayPath: String = "", // File path to custom overlay image
+    val eventName: String = "",        // Shown on Attract under "Tap to start"
 
     // Sharing
     val enableQrSharing: Boolean = true,
@@ -89,7 +89,6 @@ class SettingsManager @Inject constructor(
         val PHOTO_RESOLUTION = stringPreferencesKey("photo_resolution")
         val COUNTDOWN_SECONDS = intPreferencesKey("countdown_seconds")
         val AUTO_CAPTURE = booleanPreferencesKey("auto_capture")
-        val SINGLE_SHOT_BURST_COUNT = intPreferencesKey("single_shot_burst_count")
         val COLLAGE_SHOT_COUNT = intPreferencesKey("collage_shot_count")
         val GIF_FRAME_COUNT = intPreferencesKey("gif_frame_count")
         val GIF_FRAME_DELAY_MS = intPreferencesKey("gif_frame_delay_ms")
@@ -102,6 +101,7 @@ class SettingsManager @Inject constructor(
         val WATERMARK_TEXT = stringPreferencesKey("watermark_text")
         val CUSTOM_BORDER_PATH = stringPreferencesKey("custom_border_path")
         val CUSTOM_OVERLAY_PATH = stringPreferencesKey("custom_overlay_path")
+        val EVENT_NAME = stringPreferencesKey("event_name")
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
         val ENABLE_SERVER = booleanPreferencesKey("enable_local_server")
         val SERVER_PORT = intPreferencesKey("server_port")
@@ -129,7 +129,6 @@ class SettingsManager @Inject constructor(
             } ?: PhotoResolution.FULL,
             countdownSeconds = prefs[Keys.COUNTDOWN_SECONDS] ?: 3,
             autoCapture = prefs[Keys.AUTO_CAPTURE] ?: false,
-            singleShotBurstCount = prefs[Keys.SINGLE_SHOT_BURST_COUNT] ?: 3,
             collageShotCount = prefs[Keys.COLLAGE_SHOT_COUNT] ?: 4,
             gifFrameCount = prefs[Keys.GIF_FRAME_COUNT] ?: 6,
             gifFrameDelayMs = prefs[Keys.GIF_FRAME_DELAY_MS] ?: 250,
@@ -142,6 +141,7 @@ class SettingsManager @Inject constructor(
             watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
             customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
             customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
+            eventName = prefs[Keys.EVENT_NAME] ?: "",
             enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
             enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
             serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
@@ -172,7 +172,6 @@ class SettingsManager @Inject constructor(
                 } ?: PhotoResolution.FULL,
                 countdownSeconds = prefs[Keys.COUNTDOWN_SECONDS] ?: 3,
                 autoCapture = prefs[Keys.AUTO_CAPTURE] ?: false,
-                singleShotBurstCount = prefs[Keys.SINGLE_SHOT_BURST_COUNT] ?: 3,
                 collageShotCount = prefs[Keys.COLLAGE_SHOT_COUNT] ?: 4,
                 gifFrameCount = prefs[Keys.GIF_FRAME_COUNT] ?: 6,
                 gifFrameDelayMs = prefs[Keys.GIF_FRAME_DELAY_MS] ?: 250,
@@ -185,6 +184,7 @@ class SettingsManager @Inject constructor(
                 watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
                 customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
                 customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
+                eventName = prefs[Keys.EVENT_NAME] ?: "",
                 enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
                 enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
                 serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
@@ -210,7 +210,6 @@ class SettingsManager @Inject constructor(
             prefs[Keys.PHOTO_RESOLUTION] = updated.photoResolution.name
             prefs[Keys.COUNTDOWN_SECONDS] = updated.countdownSeconds
             prefs[Keys.AUTO_CAPTURE] = updated.autoCapture
-            prefs[Keys.SINGLE_SHOT_BURST_COUNT] = updated.singleShotBurstCount
             prefs[Keys.COLLAGE_SHOT_COUNT] = updated.collageShotCount
             prefs[Keys.GIF_FRAME_COUNT] = updated.gifFrameCount
             prefs[Keys.GIF_FRAME_DELAY_MS] = updated.gifFrameDelayMs
@@ -223,6 +222,7 @@ class SettingsManager @Inject constructor(
             prefs[Keys.WATERMARK_TEXT] = updated.watermarkText
             prefs[Keys.CUSTOM_BORDER_PATH] = updated.customBorderPath
             prefs[Keys.CUSTOM_OVERLAY_PATH] = updated.customOverlayPath
+            prefs[Keys.EVENT_NAME] = updated.eventName
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
             prefs[Keys.ENABLE_SERVER] = updated.enableLocalServer
             prefs[Keys.SERVER_PORT] = updated.serverPort

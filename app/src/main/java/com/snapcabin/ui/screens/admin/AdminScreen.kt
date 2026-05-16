@@ -282,21 +282,6 @@ fun AdminScreen(
                 }
 
                 item {
-                    SettingRow("Single Burst Shots: ${settings.singleShotBurstCount}") {
-                        Slider(
-                            value = settings.singleShotBurstCount.toFloat(),
-                            onValueChange = { v ->
-                                viewModel.updateSetting { copy(singleShotBurstCount = v.toInt()) }
-                            },
-                            valueRange = 1f..6f,
-                            steps = 4,
-                            modifier = Modifier.width(200.dp),
-                            colors = adminSliderColors()
-                        )
-                    }
-                }
-
-                item {
                     SettingRow("Collage Shots: ${settings.collageShotCount}") {
                         Slider(
                             value = settings.collageShotCount.toFloat(),
@@ -561,6 +546,22 @@ fun AdminScreen(
 
                 // BRANDING
                 item { AdminEyebrow("BRANDING") }
+
+                item {
+                    var name by remember { mutableStateOf(settings.eventName) }
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = {
+                            name = it
+                            viewModel.updateSetting { copy(eventName = it) }
+                        },
+                        label = { Text("Event Name (shown on Attract)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                }
 
                 item {
                     SettingRow("Watermark") {
