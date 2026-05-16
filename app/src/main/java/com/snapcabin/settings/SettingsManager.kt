@@ -42,7 +42,8 @@ data class BoothSettings(
     // Branding
     val customBorderPath: String = "", // File path to custom border/frame image
     val customOverlayPath: String = "", // File path to custom overlay image
-    val eventName: String = "",        // Shown on Attract under "Tap to start"
+    val eventName: String = "",        // Shown as the Attract headline
+    val attractSubtext: String = "A photo booth in the woods", // Tagline under the event name
 
     // Sharing
     val enableQrSharing: Boolean = true,
@@ -107,6 +108,7 @@ class SettingsManager @Inject constructor(
         val CUSTOM_BORDER_PATH = stringPreferencesKey("custom_border_path")
         val CUSTOM_OVERLAY_PATH = stringPreferencesKey("custom_overlay_path")
         val EVENT_NAME = stringPreferencesKey("event_name")
+        val ATTRACT_SUBTEXT = stringPreferencesKey("attract_subtext")
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
         val ENABLE_SERVER = booleanPreferencesKey("enable_local_server")
         val ENABLE_SAVE_GALLERY = booleanPreferencesKey("enable_save_gallery")
@@ -152,6 +154,7 @@ class SettingsManager @Inject constructor(
             customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
             customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
             eventName = prefs[Keys.EVENT_NAME] ?: "",
+            attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
             enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
             enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
             enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
@@ -200,6 +203,7 @@ class SettingsManager @Inject constructor(
                 customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
                 customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
                 eventName = prefs[Keys.EVENT_NAME] ?: "",
+                attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
                 enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
                 enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
                 enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
@@ -243,6 +247,7 @@ class SettingsManager @Inject constructor(
             prefs[Keys.CUSTOM_BORDER_PATH] = updated.customBorderPath
             prefs[Keys.CUSTOM_OVERLAY_PATH] = updated.customOverlayPath
             prefs[Keys.EVENT_NAME] = updated.eventName
+            prefs[Keys.ATTRACT_SUBTEXT] = updated.attractSubtext
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
             prefs[Keys.ENABLE_SERVER] = updated.enableLocalServer
             prefs[Keys.ENABLE_SAVE_GALLERY] = updated.enableSaveToGallery

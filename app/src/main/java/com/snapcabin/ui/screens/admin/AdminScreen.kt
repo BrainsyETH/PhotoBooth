@@ -615,7 +615,23 @@ fun AdminScreen(
                             name = it
                             viewModel.updateSetting { copy(eventName = it) }
                         },
-                        label = { Text("Event Name (shown on Attract)") },
+                        label = { Text("Event Name (Attract headline)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                }
+
+                item {
+                    var sub by remember { mutableStateOf(settings.attractSubtext) }
+                    OutlinedTextField(
+                        value = sub,
+                        onValueChange = {
+                            sub = it
+                            viewModel.updateSetting { copy(attractSubtext = it) }
+                        },
+                        label = { Text("Attract Subtext (tagline)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(Radii.s),
