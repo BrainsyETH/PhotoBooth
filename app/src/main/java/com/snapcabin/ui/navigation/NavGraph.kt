@@ -106,7 +106,8 @@ fun NavGraph(settingsManager: SettingsManager) {
                         navController.navigate(route)
                     },
                     onAdminLongPress = { navController.navigate(Routes.ADMIN) },
-                    eventName = settings.eventName
+                    eventName = settings.eventName,
+                    subtext = settings.attractSubtext
                 )
             }
 

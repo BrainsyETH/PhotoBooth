@@ -3,8 +3,6 @@
     <string name="app_name">SnapCabin</string>
 
     <!-- Attract Screen -->
-    <string name="attract_title">SnapCabin</string>
-    <string name="attract_tagline">A photo booth in the woods</string>
     <string name="attract_tap_to_start">TAP TO START</string>
     <string name="attract_admin_hint">Long-press for settings</string>
 

@@ -8,7 +8,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +38,6 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.snapcabin.R
 import com.snapcabin.ui.theme.CabinBackground
-import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSurface
 import com.snapcabin.ui.theme.Espresso
@@ -55,7 +53,8 @@ import com.snapcabin.ui.theme.Walnut
 fun AttractScreen(
     onTap: () -> Unit,
     onAdminLongPress: () -> Unit = {},
-    eventName: String = ""
+    eventName: String = "",
+    subtext: String = ""
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "attract")
     val ctaAlpha by infiniteTransition.animateFloat(
@@ -90,45 +89,38 @@ fun AttractScreen(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            // Logomark on cream tile w/ hairline border.
-            Box(
-                modifier = Modifier
-                    .size(132.dp)
-                    .clip(RoundedCornerShape(Radii.l))
-                    .background(CabinSurface)
-                    .border(1.dp, CabinLine, RoundedCornerShape(Radii.l)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier.size(112.dp)
-                )
-            }
+            Image(
+                painter = painterResource(id = R.drawable.snapcabin_logo),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(280.dp)
+            )
 
             Spacer(modifier = Modifier.height(Spacing.lg))
 
+            val headline = if (eventName.isNotBlank()) eventName else stringResource(R.string.app_name)
             Text(
-                text = stringResource(R.string.app_name),
-                fontSize = 112.sp,
+                text = headline,
+                fontSize = if (headline.length > 16) 72.sp else 96.sp,
                 fontFamily = FrankRuhlLibre,
                 fontWeight = FontWeight.Bold,
                 color = Espresso,
                 textAlign = TextAlign.Center,
-                letterSpacing = (-0.015f).em
+                letterSpacing = (-0.015f).em,
+                maxLines = 2
             )
 
-            Spacer(modifier = Modifier.height(Spacing.md))
-
-            Text(
-                text = stringResource(R.string.attract_tagline),
-                fontSize = 26.sp,
-                fontFamily = FrankRuhlLibre,
-                fontWeight = FontWeight.Medium,
-                fontStyle = FontStyle.Italic,
-                color = Walnut,
-                textAlign = TextAlign.Center
-            )
+            if (subtext.isNotBlank()) {
+                Spacer(modifier = Modifier.height(Spacing.md))
+                Text(
+                    text = subtext,
+                    fontSize = 26.sp,
+                    fontFamily = FrankRuhlLibre,
+                    fontWeight = FontWeight.Medium,
+                    fontStyle = FontStyle.Italic,
+                    color = Walnut,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Spacer(modifier = Modifier.height(Spacing.xxl + Spacing.s))
 
@@ -149,18 +141,6 @@ fun AttractScreen(
                     style = MaterialTheme.typography.labelLarge.copy(
                         color = androidx.compose.ui.graphics.Color.White
                     )
-                )
-            }
-
-            if (eventName.isNotBlank()) {
-                Spacer(modifier = Modifier.height(Spacing.xl))
-                Text(
-                    text = eventName,
-                    fontSize = 22.sp,
-                    fontFamily = FrankRuhlLibre,
-                    fontWeight = FontWeight.Medium,
-                    color = Walnut,
-                    textAlign = TextAlign.Center
                 )
             }
         }
