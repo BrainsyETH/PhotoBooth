@@ -1,6 +1,7 @@
 package com.snapcabin.ui.screens.modeselect
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,10 +29,12 @@ import androidx.compose.ui.unit.sp
 import com.snapcabin.R
 import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinBackground
+import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.CabinOnBackground
 import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSecondary
 import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
 
 @Composable
 fun ModeSelectScreen(
@@ -53,8 +56,8 @@ fun ModeSelectScreen(
         ) {
             Text(
                 text = stringResource(R.string.mode_title),
-                fontSize = 36.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Medium,
                 color = CabinOnBackground,
                 textAlign = TextAlign.Center
             )
@@ -103,11 +106,12 @@ private fun ModeCard(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .width(220.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(CabinSurface)
+            .border(1.dp, CabinLine, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 36.dp, vertical = 32.dp)
-            .width(180.dp)
+            .padding(horizontal = 32.dp, vertical = 32.dp)
     ) {
         Box(
             modifier = Modifier
@@ -128,17 +132,18 @@ private fun ModeCard(
 
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
             color = CabinOnBackground,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = description,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.5f),
+            color = Espresso.copy(alpha = 0.72f),
             textAlign = TextAlign.Center
         )
     }

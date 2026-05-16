@@ -171,7 +171,8 @@ private fun FilterThumbnail(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) CabinAccent else Color.Transparent
+    // Selection ring is pine on the light theme — higher contrast than amber.
+    val borderColor = if (isSelected) CabinPrimary else Color.Transparent
     val borderWidth = if (isSelected) 3.dp else 0.dp
 
     Column(
@@ -201,7 +202,7 @@ private fun FilterThumbnail(
         Text(
             text = filter.displayName,
             style = MaterialTheme.typography.bodySmall,
-            color = if (isSelected) CabinAccent else MaterialTheme.colorScheme.onBackground,
+            color = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
             fontSize = 11.sp
         )

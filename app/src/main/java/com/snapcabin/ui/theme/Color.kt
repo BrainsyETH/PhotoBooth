@@ -2,13 +2,34 @@ package com.snapcabin.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Natural cabin / outdoors palette
-val CabinPrimary = Color(0xFF2E7D32)        // Forest green
-val CabinPrimaryVariant = Color(0xFF1B5E20) // Deep forest green
-val CabinSecondary = Color(0xFF8D6E63)      // Warm wood brown
-val CabinBackground = Color(0xFF1A1A17)     // Dark charcoal with warm tint
-val CabinSurface = Color(0xFF2C2C26)        // Warm dark surface
+// Light farmhouse parlor palette
+// Parchment & cream backgrounds, pine + walnut + honey actions, espresso ink.
+val Parchment = Color(0xFFF6EFE0)       // Page background — warm cream
+val Cream = Color(0xFFFBF6EA)           // Elevated card / panel surface
+val Oat = Color(0xFFEBE2CC)             // Recessed surface, slider tracks
+val Pine = Color(0xFF3F5A3E)            // Primary action — deep moss green
+val PineDeep = Color(0xFF2D4530)        // Pressed primary
+val Walnut = Color(0xFF6B4F35)          // Secondary action — warm wood
+val WalnutDeep = Color(0xFF4D3924)      // Secondary text / pressed
+val Honey = Color(0xFFD4A24A)           // Accent — selection / amber pop
+val HoneyDeep = Color(0xFFB27F1E)       // High-contrast amber on light
+val Clay = Color(0xFFB8633F)            // Warm pop — error / clay CTA
+val Sage = Color(0xFF8FA98A)            // Soft tertiary accent
+val Espresso = Color(0xFF2A1F13)        // Primary text — ink
+val Mist = Color(0xFF9D9281)            // Muted text / hints
+
+// Token aliases (kept stable across the dark → light pivot so existing
+// screen code keeps working). The names are dark-theme legacy; values are now light.
+val CabinPrimary = Pine
+val CabinPrimaryVariant = PineDeep
+val CabinSecondary = Walnut
+val CabinBackground = Parchment
+val CabinSurface = Cream
+val CabinSurfaceRecessed = Oat
 val CabinOnPrimary = Color.White
-val CabinOnBackground = Color(0xFFF5F0E8)   // Warm off-white
-val CabinOnSurface = Color(0xFFF5F0E8)      // Warm off-white
-val CabinAccent = Color(0xFFC8A96E)         // Golden amber
+val CabinOnBackground = Espresso
+val CabinOnSurface = Espresso
+val CabinAccent = Honey
+val CabinMuted = Mist
+val CabinLine = Color(0x1A2A1F13)       // espresso @ 10% — hairline border
+val CabinLineStrong = Color(0x382A1F13) // espresso @ 22%
