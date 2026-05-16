@@ -135,8 +135,12 @@ class CameraManager @Inject constructor(
 
                 val capture = captureBuilder.build()
 
-                // Set target rotation to landscape — activity is locked to landscape
-                capture.targetRotation = Surface.ROTATION_0
+                // Match capture rotation to the current display rotation so
+                // reversed-landscape (180°) doesn't flip the saved image.
+                capture.targetRotation = previewView.display?.rotation
+                    ?: (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
+                        ?.defaultDisplay?.rotation
+                    ?: Surface.ROTATION_0
 
                 imageCapture = capture
 
