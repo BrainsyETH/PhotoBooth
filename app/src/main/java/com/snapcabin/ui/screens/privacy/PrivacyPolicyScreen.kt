@@ -15,10 +15,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.FrankRuhlLibre
+import com.snapcabin.ui.theme.Spacing
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun PrivacyPolicyScreen(
@@ -28,31 +32,33 @@ fun PrivacyPolicyScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(32.dp)
+            .padding(Spacing.xl)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = stringResource(R.string.privacy_title),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
+            fontSize = 48.sp,
+            fontFamily = FrankRuhlLibre,
+            fontWeight = FontWeight.Medium,
+            color = Espresso
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
 
         Text(
             text = stringResource(R.string.privacy_body),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
+            color = Espresso.copy(alpha = 0.85f),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Spacing.xl))
 
         BigButton(
             text = "CLOSE",
             onClick = onDismiss,
-            containerColor = CabinSecondary
+            variant = BigButtonVariant.Secondary
         )
     }
 }

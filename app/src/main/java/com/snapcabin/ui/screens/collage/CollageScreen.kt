@@ -30,15 +30,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.snapcabin.collage.CollageLayout
 import com.snapcabin.ui.components.BigButton
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.Eyebrow
 import com.snapcabin.ui.theme.CabinAccent
-import com.snapcabin.ui.theme.CabinPrimary
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinLineStrong
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Cream
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Honey
+import com.snapcabin.ui.theme.Pine
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Sidebar
+import com.snapcabin.ui.theme.Spacing
 
 @Composable
 fun CollageScreen(
@@ -61,12 +71,11 @@ fun CollageScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Left: collage preview
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp),
+                .padding(Spacing.xl),
             contentAlignment = Alignment.Center
         ) {
             if (uiState.previewBitmap != null) {
@@ -75,14 +84,15 @@ fun CollageScreen(
                     contentDescription = "Collage preview",
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp)),
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(Radii.s))
+                        .clip(RoundedCornerShape(Radii.s)),
                     contentScale = ContentScale.Fit
                 )
             } else {
                 Text(
                     text = "Select a layout and add photos",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    color = Espresso.copy(alpha = 0.5f)
                 )
             }
 
@@ -91,25 +101,21 @@ fun CollageScreen(
             }
         }
 
-        // Right: layout selector + controls
         Column(
             modifier = Modifier
-                .width(360.dp)
+                .width(Sidebar.width)
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(CabinSurface)
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Column {
-                Text(
-                    text = "LAYOUT",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+            Column(modifier = Modifier.weight(1f)) {
+                Eyebrow(text = "LAYOUT")
+                Spacer(modifier = Modifier.height(Spacing.sm))
 
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(horizontal = Spacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s)
                 ) {
                     items(CollageLayout.entries) { layout ->
                         LayoutChip(
@@ -120,54 +126,52 @@ fun CollageScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
 
-                // Photo count indicator
                 Text(
                     text = "Photos: ${uiState.photos.size} / ${uiState.selectedLayout.photoCount}",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = Espresso
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
                 if (viewModel.needsMorePhotos()) {
                     BigButton(
                         text = "TAKE PHOTO (${uiState.selectedLayout.photoCount - uiState.photos.size} more)",
                         onClick = onTakeMore,
-                        containerColor = CabinAccent,
+                        variant = BigButtonVariant.Accent,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
                 if (uiState.photos.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.s))
                     BigButton(
                         text = "UNDO LAST",
                         onClick = { viewModel.removeLastPhoto() },
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        variant = BigButtonVariant.Surface,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
 
-            // Bottom buttons
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 BigButton(
                     text = "CANCEL",
                     onClick = onCancel,
-                    containerColor = MaterialTheme.colorScheme.surface
+                    variant = BigButtonVariant.Surface,
+                    modifier = Modifier.weight(1f)
                 )
                 BigButton(
                     text = "USE COLLAGE",
                     onClick = { onDone(viewModel.getCollageBitmap()) },
-                    containerColor = CabinSecondary,
-                    enabled = uiState.previewBitmap != null
+                    variant = BigButtonVariant.Secondary,
+                    enabled = uiState.previewBitmap != null,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -180,28 +184,41 @@ private fun LayoutChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) CabinPrimary else MaterialTheme.colorScheme.surface
-    val borderColor = if (isSelected) CabinAccent else Color.Transparent
+    val bgColor = if (isSelected) Pine else Cream
+    val outline = if (isSelected) Pine else CabinLineStrong
+    val textColor = if (isSelected) Color.White else Espresso
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(Radii.s))
             .background(bgColor)
-            .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+            .border(1.dp, outline, RoundedCornerShape(Radii.s))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
         contentAlignment = Alignment.Center
     ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(2.dp)
+                    .border(
+                        width = 2.dp,
+                        color = Honey,
+                        shape = RoundedCornerShape(Radii.s - 2.dp)
+                    )
+            )
+        }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = layout.displayName,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White
+                color = textColor
             )
             Text(
                 text = "${layout.photoCount} photo${if (layout.photoCount > 1) "s" else ""}",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.7f)
+                style = MaterialTheme.typography.labelSmall,
+                color = textColor.copy(alpha = 0.7f)
             )
         }
     }

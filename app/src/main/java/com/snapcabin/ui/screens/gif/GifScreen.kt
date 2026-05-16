@@ -27,14 +27,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.snapcabin.ui.components.BigButton
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.Eyebrow
 import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinPrimary
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Oat
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Sidebar
+import com.snapcabin.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -55,7 +63,6 @@ fun GifScreen(
         }
     }
 
-    // Animate preview
     LaunchedEffect(uiState.frames.size) {
         while (uiState.frames.size >= 2) {
             delay(uiState.delayMs.toLong())
@@ -68,12 +75,11 @@ fun GifScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Left: frame preview
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp),
+                .padding(Spacing.xl),
             contentAlignment = Alignment.Center
         ) {
             val frameToShow = uiState.frames.getOrNull(uiState.previewFrameIndex)
@@ -83,14 +89,15 @@ fun GifScreen(
                     contentDescription = "GIF frame preview",
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp)),
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(Radii.s))
+                        .clip(RoundedCornerShape(Radii.s)),
                     contentScale = ContentScale.Fit
                 )
             } else {
                 Text(
                     text = "Take photos to create a GIF",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    color = Espresso.copy(alpha = 0.5f)
                 )
             }
 
@@ -103,64 +110,59 @@ fun GifScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = CabinAccent)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Creating GIF...", color = MaterialTheme.colorScheme.onBackground)
+                        Spacer(modifier = Modifier.height(Spacing.s))
+                        Text("Creating GIF...", color = Espresso)
                     }
                 }
             }
         }
 
-        // Right: controls
         Column(
             modifier = Modifier
-                .width(360.dp)
+                .width(Sidebar.width)
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(CabinSurface)
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Column {
-                Text(
-                    text = "CREATE GIF",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+            Column(modifier = Modifier.weight(1f)) {
+                Eyebrow(text = "CREATE GIF")
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
                 Text(
                     text = "Frames: ${uiState.frames.size} / ${uiState.maxFrames}",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = Espresso
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
                 if (uiState.frames.size < uiState.maxFrames) {
                     BigButton(
                         text = "TAKE FRAME",
                         onClick = onTakeMore,
-                        containerColor = CabinAccent,
+                        variant = BigButtonVariant.Accent,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.s))
                 }
 
                 if (uiState.frames.isNotEmpty()) {
                     BigButton(
                         text = "UNDO LAST",
                         onClick = { viewModel.removeLastFrame() },
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        variant = BigButtonVariant.Surface,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
 
-                // Speed control
                 Text(
                     text = "Speed: ${uiState.delayMs}ms per frame",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = Espresso
                 )
                 Slider(
                     value = uiState.delayMs.toFloat(),
@@ -169,35 +171,33 @@ fun GifScreen(
                     steps = 18,
                     colors = SliderDefaults.colors(
                         thumbColor = CabinAccent,
-                        activeTrackColor = CabinPrimary
+                        activeTrackColor = CabinPrimary,
+                        inactiveTrackColor = Oat
                     )
                 )
             }
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 BigButton(
                     text = "CANCEL",
                     onClick = onCancel,
-                    containerColor = MaterialTheme.colorScheme.surface
+                    variant = BigButtonVariant.Surface,
+                    modifier = Modifier.weight(1f)
                 )
                 BigButton(
                     text = "CREATE GIF",
-                    onClick = {
-                        viewModel.encodeGif(context)
-                    },
-                    containerColor = CabinSecondary,
-                    enabled = uiState.frames.size >= 2 && !uiState.isEncoding
+                    onClick = { viewModel.encodeGif(context) },
+                    variant = BigButtonVariant.Secondary,
+                    enabled = uiState.frames.size >= 2 && !uiState.isEncoding,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
     }
 
-    // When GIF is ready, notify parent
     LaunchedEffect(uiState.gifFile) {
         uiState.gifFile?.let { onDone(it) }
     }

@@ -32,16 +32,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.snapcabin.ui.components.BigButton
+import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.Eyebrow
 import com.snapcabin.ui.theme.CabinAccent
-import com.snapcabin.ui.theme.CabinPrimary
-import com.snapcabin.ui.theme.CabinSecondary
+import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Radii
+import com.snapcabin.ui.theme.Sidebar
+import com.snapcabin.ui.theme.Spacing
 
 @Composable
 fun GalleryScreen(
@@ -61,22 +66,21 @@ fun GalleryScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Left: photo grid or selected photo
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp),
+                .padding(Spacing.xl),
             contentAlignment = Alignment.Center
         ) {
             if (uiState.selectedPhoto != null && uiState.fullBitmap != null) {
-                // Full photo view
                 Image(
                     bitmap = uiState.fullBitmap!!.asImageBitmap(),
                     contentDescription = "Selected photo",
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp)),
+                        .shadow(elevation = 6.dp, shape = RoundedCornerShape(Radii.s))
+                        .clip(RoundedCornerShape(Radii.s)),
                     contentScale = ContentScale.Fit
                 )
             } else if (uiState.isLoading) {
@@ -85,14 +89,14 @@ fun GalleryScreen(
                 Text(
                     text = "No photos yet",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.5f)
+                    color = Espresso.copy(alpha = 0.5f)
                 )
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 150.dp),
-                    contentPadding = PaddingValues(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    contentPadding = PaddingValues(Spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
                 ) {
                     items(uiState.photos) { photo ->
                         AsyncImage(
@@ -100,7 +104,7 @@ fun GalleryScreen(
                             contentDescription = "Photo from ${DateUtils.getRelativeTimeSpanString(photo.timestamp * 1000)}",
                             modifier = Modifier
                                 .aspectRatio(4f / 3f)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(Radii.xs))
                                 .clickable { viewModel.selectPhoto(photo) },
                             contentScale = ContentScale.Crop
                         )
@@ -109,52 +113,46 @@ fun GalleryScreen(
             }
         }
 
-        // Right: controls
         Column(
             modifier = Modifier
-                .width(300.dp)
+                .width(Sidebar.width)
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(CabinSurface)
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Column {
-                Text(
-                    text = "GALLERY",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Eyebrow(text = "GALLERY")
+                Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
                     text = "${uiState.photos.size} photos",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Espresso.copy(alpha = 0.72f)
                 )
             }
 
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 if (uiState.selectedPhoto != null) {
                     BigButton(
                         text = "USE THIS PHOTO",
                         onClick = {
                             uiState.fullBitmap?.let { onPhotoSelected(it) }
                         },
-                        containerColor = CabinAccent,
+                        variant = BigButtonVariant.Accent,
                         enabled = uiState.fullBitmap != null,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                     BigButton(
                         text = "BACK TO GRID",
                         onClick = { viewModel.clearSelection() },
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        variant = BigButtonVariant.Surface,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
                 BigButton(
                     text = "CLOSE",
                     onClick = onDismiss,
-                    containerColor = CabinSecondary,
+                    variant = BigButtonVariant.Secondary,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
