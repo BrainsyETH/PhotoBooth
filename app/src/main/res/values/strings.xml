@@ -159,6 +159,28 @@
     <string name="admin_privacy_policy">PRIVACY POLICY</string>
     <string name="admin_version">Version</string>
 
+    <!-- Get Ready -->
+    <string name="getready_card_eyebrow_single">SINGLE PHOTO</string>
+    <string name="getready_card_eyebrow_collage">COLLAGE</string>
+    <string name="getready_card_eyebrow_gif">GIF</string>
+    <string name="getready_card_headline">Looking good.</string>
+    <string name="getready_card_body_single">%1$d quick shots — you\'ll pick your favorite. Tap anywhere when you\'re ready.</string>
+    <string name="getready_card_body_collage">%1$d photos, slotted into one layout. Tap anywhere when you\'re ready.</string>
+    <string name="getready_card_body_gif">%1$d frames in a few seconds — stay loose. Tap anywhere when you\'re ready.</string>
+    <string name="getready_ready">Ready</string>
+    <string name="getready_change_mode">← Change mode</string>
+    <string name="getready_framing_ok">You\'re in frame</string>
+
+    <!-- Capture (burst) -->
+    <string name="capture_skip">Skip</string>
+
+    <!-- Review (burst) -->
+    <string name="review_use_this">Use this one</string>
+    <string name="review_retake_all">← Retake all</string>
+    <string name="review_caption_single">Tap a shot above to choose your favorite</string>
+    <string name="review_caption_collage">Looks great. Take one home?</string>
+    <string name="review_caption_gif">Looping at 8 fps</string>
+
     <!-- Privacy -->
     <string name="privacy_title">Privacy Policy</string>
     <string name="privacy_body">SnapCabin captures photos using your device camera. Photos are stored locally on your device and are never uploaded to external servers unless you explicitly choose to share them.\n\nThe QR code sharing feature runs a temporary local server on your WiFi network. No data leaves your local network.\n\nWe do not collect analytics, personal information, or usage data.\n\nFor questions, contact: support@snapcabin.app</string>

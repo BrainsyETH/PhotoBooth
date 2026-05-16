@@ -14,15 +14,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.snapcabin.ui.theme.Cream
 import kotlinx.coroutines.delay
 
 /**
- * Shows a brief white flash effect to simulate a camera flash.
- * Set [trigger] to true to fire the flash.
+ * Shows a brief flash effect to simulate a camera flash.
+ * Set [trigger] to true to fire the flash. [color] tints the sheet — cream by default.
  */
 @Composable
 fun FlashOverlay(
     trigger: Boolean,
+    color: Color = Cream,
     onFlashComplete: () -> Unit = {}
 ) {
     var showFlash by remember { mutableStateOf(false) }
@@ -44,7 +46,7 @@ fun FlashOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(color)
         )
     }
 }

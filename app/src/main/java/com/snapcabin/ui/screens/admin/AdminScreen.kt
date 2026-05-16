@@ -282,6 +282,110 @@ fun AdminScreen(
                 }
 
                 item {
+                    SettingRow("Single Burst Shots: ${settings.singleShotBurstCount}") {
+                        Slider(
+                            value = settings.singleShotBurstCount.toFloat(),
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(singleShotBurstCount = v.toInt()) }
+                            },
+                            valueRange = 1f..6f,
+                            steps = 4,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Collage Shots: ${settings.collageShotCount}") {
+                        Slider(
+                            value = settings.collageShotCount.toFloat(),
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(collageShotCount = v.toInt()) }
+                            },
+                            valueRange = 2f..6f,
+                            steps = 3,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("GIF Frames: ${settings.gifFrameCount}") {
+                        Slider(
+                            value = settings.gifFrameCount.toFloat(),
+                            onValueChange = { v ->
+                                viewModel.updateSetting { copy(gifFrameCount = v.toInt()) }
+                            },
+                            valueRange = 4f..12f,
+                            steps = 7,
+                            modifier = Modifier.width(200.dp),
+                            colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Coaching microcopy") {
+                        Switch(
+                            checked = settings.coachingEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(coachingEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    SettingRow("Framing guide") {
+                        Switch(
+                            checked = settings.framingGuideEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(framingGuideEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Radii.s))
+                            .background(Cream)
+                            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                            .padding(Spacing.md)
+                    ) {
+                        Text(
+                            "Flash Color",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Espresso
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.s))
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            val flashOptions = listOf(
+                                "Cream" to "#FBF6EA",
+                                "Honey" to "#D4A24A",
+                                "White" to "#FFFFFF"
+                            )
+                            flashOptions.forEach { (label, hex) ->
+                                val isSel = settings.flashColor.equals(hex, ignoreCase = true)
+                                BigButton(
+                                    text = label,
+                                    onClick = {
+                                        viewModel.updateSetting { copy(flashColor = hex) }
+                                    },
+                                    variant = if (isSel) BigButtonVariant.Accent else BigButtonVariant.Surface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
                     SettingRow("Flash Effect") {
                         Switch(
                             checked = settings.showFlashEffect,
@@ -306,6 +410,70 @@ fun AdminScreen(
                             colors = adminSliderColors()
                         )
                     }
+                }
+
+                // EVENT BRANDING
+                item { AdminEyebrow("EVENT BRANDING") }
+
+                item {
+                    SettingRow("Event branding strip") {
+                        Switch(
+                            checked = settings.eventChromeEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(eventChromeEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                item {
+                    var name by remember { mutableStateOf(settings.eventName) }
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = {
+                            name = it
+                            viewModel.updateSetting { copy(eventName = it) }
+                        },
+                        label = { Text("Event Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                }
+
+                item {
+                    var tag by remember { mutableStateOf(settings.eventHashtag) }
+                    OutlinedTextField(
+                        value = tag,
+                        onValueChange = {
+                            tag = it
+                            viewModel.updateSetting { copy(eventHashtag = it) }
+                        },
+                        label = { Text("Hashtag") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                }
+
+                item {
+                    var mono by remember { mutableStateOf(settings.eventMonogram) }
+                    OutlinedTextField(
+                        value = mono,
+                        onValueChange = {
+                            val trimmed = it.take(1)
+                            mono = trimmed
+                            viewModel.updateSetting { copy(eventMonogram = trimmed) }
+                        },
+                        label = { Text("Monogram (1 char)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
                 }
 
                 // SOUND

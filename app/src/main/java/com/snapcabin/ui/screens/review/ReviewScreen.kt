@@ -1,15 +1,31 @@
 package com.snapcabin.ui.screens.review
 
 import android.graphics.Bitmap
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,100 +33,476 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import com.snapcabin.R
-import com.snapcabin.ui.components.AutoAcceptPill
-import com.snapcabin.ui.components.BigButton
-import com.snapcabin.ui.components.BigButtonVariant
-import com.snapcabin.ui.theme.Spacing
+import com.snapcabin.collage.CollageLayout
+import com.snapcabin.collage.CollageRenderer
+import com.snapcabin.ui.components.EventChrome
+import com.snapcabin.ui.screens.capture.CaptureMode
+import com.snapcabin.ui.theme.CabinLine
+import com.snapcabin.ui.theme.Clay
+import com.snapcabin.ui.theme.Cream
+import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.HankenGrotesk
+import com.snapcabin.ui.theme.Honey
+import com.snapcabin.ui.theme.Parchment
+import com.snapcabin.ui.theme.Pine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ReviewScreen(
-    photo: Bitmap?,
+    mode: CaptureMode,
+    photos: List<Bitmap>,
     autoAcceptSeconds: Int = 10,
+    onAccept: (pickedIndex: Int) -> Unit,
     onRetake: () -> Unit,
-    onAccept: () -> Unit
+    eventChromeEnabled: Boolean = true,
+    eventName: String = "",
+    eventHashtag: String = "",
+    eventMonogram: String = ""
 ) {
-    var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var countdown by remember { mutableIntStateOf(autoAcceptSeconds) }
+    val total = photos.size
+    val initialPick = if (total > 0) total / 2 else 0
+    var picked by remember { mutableIntStateOf(initialPick) }
 
-    LaunchedEffect(autoAcceptSeconds, lastInteraction) {
-        if (autoAcceptSeconds <= 0) return@LaunchedEffect
-        countdown = autoAcceptSeconds
-        while (countdown > 0) {
-            delay(1000)
-            val elapsed = (System.currentTimeMillis() - lastInteraction) / 1000
-            countdown = (autoAcceptSeconds - elapsed.toInt()).coerceAtLeast(0)
+    var remaining by remember { mutableStateOf(autoAcceptSeconds.toFloat()) }
+    var paused by remember { mutableStateOf(false) }
+    var startTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(autoAcceptSeconds, paused) {
+        if (paused || autoAcceptSeconds <= 0) return@LaunchedEffect
+        startTime = System.currentTimeMillis()
+        while (!paused && remaining > 0f) {
+            delay(100)
+            val elapsed = (System.currentTimeMillis() - startTime) / 1000f
+            remaining = (autoAcceptSeconds - elapsed).coerceAtLeast(0f)
         }
-        onAccept()
+        if (!paused && remaining <= 0f) {
+            onAccept(picked)
+        }
     }
+
+    val pauseTimer: () -> Unit = { paused = true }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Parchment)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
-                        lastInteraction = System.currentTimeMillis()
+                        pauseTimer()
                         tryAwaitRelease()
                     }
                 )
             }
     ) {
+        EventChrome(
+            visible = eventChromeEnabled,
+            eventName = eventName,
+            hashtag = eventHashtag,
+            monogram = eventMonogram,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 72.dp, start = 56.dp, end = 56.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Preview area
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                when (mode) {
+                    CaptureMode.Single -> SinglePreview(photos = photos, picked = picked)
+                    CaptureMode.Collage -> CollagePreview(photos = photos)
+                    CaptureMode.Gif -> GifPreview(photos = photos)
+                }
+            }
+
+            // Triptych row only for Single
+            if (mode == CaptureMode.Single && photos.size > 1) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    photos.forEachIndexed { i, bmp ->
+                        ShotThumb(
+                            bitmap = bmp,
+                            index = i,
+                            selected = i == picked,
+                            onClick = {
+                                picked = i
+                                pauseTimer()
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Action row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(84.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Left: Retake all
+                Box(modifier = Modifier.weight(1f)) {
+                    RetakeButton(onClick = onRetake)
+                }
+
+                // Center caption
+                val caption = when (mode) {
+                    CaptureMode.Single -> stringResource(R.string.review_caption_single)
+                    CaptureMode.Collage -> stringResource(R.string.review_caption_collage)
+                    CaptureMode.Gif -> stringResource(R.string.review_caption_gif)
+                }
+                Text(
+                    text = caption,
+                    fontFamily = HankenGrotesk,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    letterSpacing = 0.04f.em,
+                    color = Espresso.copy(alpha = 0.72f),
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                // Right: Use this one
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    UseThisButton(
+                        onClick = { onAccept(picked) },
+                        progress = if (paused || autoAcceptSeconds <= 0) null
+                            else ((autoAcceptSeconds - remaining) / autoAcceptSeconds).coerceIn(0f, 1f),
+                        remainingSeconds = remaining
+                    )
+                }
+            }
+        }
+
+        if (photos.isEmpty()) {
+            Text(
+                text = "No photos captured",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Espresso,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SinglePreview(photos: List<Bitmap>, picked: Int) {
+    val photo = photos.getOrNull(picked)
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .aspectRatio(4f / 3f)
+            .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Black)
+            .border(3.dp, Pine, RoundedCornerShape(16.dp))
+    ) {
         if (photo != null) {
             Image(
                 bitmap = photo.asImageBitmap(),
-                contentDescription = "Captured photo",
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(12.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Pine.copy(alpha = 0.92f))
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "SHOT ${picked + 1}",
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                letterSpacing = 0.22f.em,
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun CollagePreview(photos: List<Bitmap>) {
+    var rendered by remember { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(photos) {
+        rendered = null
+        if (photos.size >= 2) {
+            rendered = withContext(Dispatchers.Default) {
+                CollageRenderer.render(photos, CollageLayout.GRID_2X2)
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .aspectRatio(4f / 3f)
+            .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(16.dp))
+            .padding(16.dp)
+    ) {
+        val bmp = rendered
+        if (bmp != null) {
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
         } else {
             Text(
-                text = "No photo captured",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                text = "Assembling…",
+                fontFamily = HankenGrotesk,
+                fontSize = 16.sp,
+                color = Espresso.copy(alpha = 0.6f),
                 modifier = Modifier.align(Alignment.Center)
             )
         }
+    }
+}
 
-        if (autoAcceptSeconds > 0 && countdown > 0) {
-            AutoAcceptPill(
-                secondsRemaining = countdown,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = Spacing.lg)
+@Composable
+private fun GifPreview(photos: List<Bitmap>) {
+    var frame by remember { mutableIntStateOf(0) }
+    LaunchedEffect(photos) {
+        if (photos.isEmpty()) return@LaunchedEffect
+        while (true) {
+            delay(125) // ~8fps
+            frame = (frame + 1) % photos.size
+        }
+    }
+
+    val infinite = rememberInfiniteTransition(label = "gif-rec")
+    val pulseAlpha by infinite.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gif-rec-alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .aspectRatio(4f / 3f)
+            .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Black)
+            .border(3.dp, Pine, RoundedCornerShape(16.dp))
+    ) {
+        photos.getOrNull(frame)?.let { bmp ->
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
         }
 
         Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(Spacing.xxl),
-            horizontalArrangement = Arrangement.Center
+                .align(Alignment.TopStart)
+                .padding(12.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Honey.copy(alpha = 0.92f))
+                .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
-            BigButton(
-                text = stringResource(R.string.review_retake),
-                onClick = onRetake,
-                variant = BigButtonVariant.Surface
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(Clay.copy(alpha = pulseAlpha))
             )
-            androidx.compose.foundation.layout.Spacer(
-                modifier = Modifier.padding(start = Spacing.lg)
+            Text(
+                text = "PLAYING · ${frame + 1} / ${photos.size}",
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                letterSpacing = 0.22f.em,
+                color = Espresso
             )
-            BigButton(
-                text = stringResource(R.string.review_accept),
-                onClick = onAccept,
-                variant = BigButtonVariant.Secondary
+        }
+    }
+}
+
+@Composable
+private fun ShotThumb(
+    bitmap: Bitmap,
+    index: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val offsetY = if (selected) (-4).dp else 0.dp
+    Box(
+        modifier = Modifier
+            .offset(y = offsetY)
+            .size(width = 200.dp, height = 150.dp)
+            .shadow(
+                elevation = if (selected) 6.dp else 2.dp,
+                shape = RoundedCornerShape(12.dp)
             )
+            .clip(RoundedCornerShape(12.dp))
+            .background(Cream)
+            .border(
+                width = if (selected) 3.dp else 1.dp,
+                color = if (selected) Pine else CabinLine,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+    ) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(8.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (selected) Pine else Espresso.copy(alpha = 0.78f))
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = if (selected) "PICK · SHOT ${index + 1}" else "SHOT ${index + 1}",
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp,
+                letterSpacing = 0.22f.em,
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun RetakeButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .height(84.dp)
+            .shadow(elevation = 1.dp, shape = RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = stringResource(R.string.review_retake_all).uppercase(),
+            fontFamily = HankenGrotesk,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            letterSpacing = 0.08f.em,
+            color = Espresso
+        )
+    }
+}
+
+@Composable
+private fun UseThisButton(
+    onClick: () -> Unit,
+    progress: Float?,
+    remainingSeconds: Float
+) {
+    Box(
+        modifier = Modifier
+            .height(84.dp)
+            .shadow(elevation = 2.dp, shape = RoundedCornerShape(999.dp))
+            .clip(RoundedCornerShape(999.dp))
+            .background(Pine)
+            .clickable(onClick = onClick)
+            .drawBehind {
+                if (progress != null) {
+                    val sweepWidth = size.width * progress
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Honey.copy(alpha = 0f),
+                                Honey.copy(alpha = 0.28f)
+                            ),
+                            startX = 0f,
+                            endX = sweepWidth.coerceAtLeast(1f)
+                        ),
+                        topLeft = Offset(0f, 0f),
+                        size = Size(sweepWidth, size.height)
+                    )
+                }
+            }
+            .padding(horizontal = 48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.review_use_this).uppercase(),
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                letterSpacing = 0.08f.em,
+                color = Color.White
+            )
+            if (progress != null && remainingSeconds > 0f) {
+                Text(
+                    text = "${kotlin.math.ceil(remainingSeconds.toDouble()).toInt()}s",
+                    fontFamily = HankenGrotesk,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    letterSpacing = 0.08f.em,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }
