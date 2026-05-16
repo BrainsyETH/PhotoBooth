@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinLineStrong
@@ -63,11 +64,14 @@ fun BigButton(
             contentColor = resolvedContent
         ),
         border = border,
-        contentPadding = PaddingValues(horizontal = Spacing.xxl, vertical = Spacing.md)
+        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.md)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

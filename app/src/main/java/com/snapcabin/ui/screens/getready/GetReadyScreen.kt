@@ -112,7 +112,7 @@ fun GetReadyScreen(
                             previewView = previewView,
                             useFront = settings.useFrontCamera,
                             cameraId = settings.cameraId,
-                            mirror = settings.mirrorFrontCamera,
+                            mirror = settings.mirrorImage,
                             maxResolution = settings.photoResolution.maxDimension
                         )
                     }

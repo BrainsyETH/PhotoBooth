@@ -9,7 +9,9 @@ import android.hardware.camera2.CameraManager as SystemCameraManager
 import android.hardware.usb.UsbManager
 import android.util.Log
 import android.view.Surface
+import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -156,27 +158,24 @@ class CameraManager @Inject constructor(
     }
 
     /**
-     * Build a CameraSelector — tries specific camera ID first, then falls back to front/back
+     * Build a CameraSelector. If [cameraId] is set, bind to that specific Camera2 ID
+     * (handles external/USB cameras). Otherwise default to front/back per [useFront].
      */
+    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
     private fun buildCameraSelector(
         provider: ProcessCameraProvider,
         cameraId: String,
         useFront: Boolean
     ): CameraSelector {
-        // If a specific camera ID is provided, use it
         if (cameraId.isNotEmpty()) {
             try {
                 val selector = CameraSelector.Builder()
                     .addCameraFilter { cameraInfos ->
                         cameraInfos.filter { info ->
-                            // Match by camera ID through CameraX info
-                            val systemCameraManager = context.getSystemService(Context.CAMERA_SERVICE) as SystemCameraManager
-                            systemCameraManager.cameraIdList.any { id -> id == cameraId }
+                            Camera2CameraInfo.from(info).cameraId == cameraId
                         }
                     }
                     .build()
-
-                // Verify this selector has available cameras
                 if (provider.hasCamera(selector)) {
                     return selector
                 }
@@ -185,7 +184,6 @@ class CameraManager @Inject constructor(
             }
         }
 
-        // Standard front/back selector
         return if (useFront) {
             CameraSelector.DEFAULT_FRONT_CAMERA
         } else {
@@ -194,41 +192,50 @@ class CameraManager @Inject constructor(
     }
 
     /**
-     * If primary camera fails, try any available camera
+     * If the primary bind failed, walk the fallback chain:
+     * 1) the opposite built-in (back if we tried front, etc.)
+     * 2) any external camera that's available
      */
+    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
     private fun tryFallbackCamera(
         provider: ProcessCameraProvider,
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView
     ) {
-        try {
-            val preview = Preview.Builder().build()
-                .also { it.surfaceProvider = previewView.surfaceProvider }
-
-            imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                .build()
-
-            // Try back camera if front failed, or vice versa
-            val fallbackSelector = if (useFrontCamera) {
-                CameraSelector.DEFAULT_BACK_CAMERA
-            } else {
-                CameraSelector.DEFAULT_FRONT_CAMERA
-            }
-
-            provider.unbindAll()
-            camera = provider.bindToLifecycle(
-                lifecycleOwner,
-                fallbackSelector,
-                preview,
-                imageCapture
+        val candidates = buildList {
+            add(if (useFrontCamera) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA)
+            // External camera selector — matches any LENS_FACING_EXTERNAL info
+            add(
+                CameraSelector.Builder()
+                    .addCameraFilter { infos ->
+                        infos.filter { info ->
+                            try {
+                                Camera2CameraInfo.from(info)
+                                    .getCameraCharacteristic(CameraCharacteristics.LENS_FACING) ==
+                                    CameraCharacteristics.LENS_FACING_EXTERNAL
+                            } catch (e: Exception) { false }
+                        }
+                    }
+                    .build()
             )
-            // Update state so mirroring is correct
-            useFrontCamera = !useFrontCamera
-            Log.i(TAG, "Fallback camera bound. Front=$useFrontCamera")
-        } catch (e: Exception) {
-            Log.e(TAG, "No cameras available", e)
         }
+
+        for (selector in candidates) {
+            try {
+                if (!provider.hasCamera(selector)) continue
+                val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+                imageCapture = ImageCapture.Builder()
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .build()
+                provider.unbindAll()
+                camera = provider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture)
+                Log.i(TAG, "Fallback camera bound via $selector")
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "Fallback candidate failed", e)
+            }
+        }
+        Log.e(TAG, "No usable cameras available")
     }
 
     suspend fun takePhoto(): Bitmap = suspendCancellableCoroutine { continuation ->
@@ -276,7 +283,7 @@ class CameraManager @Inject constructor(
                     if (exifRotation != 0f) {
                         matrix.postRotate(exifRotation)
                     }
-                    if (useFrontCamera && mirrorImage) {
+                    if (mirrorImage) {
                         matrix.preScale(-1f, 1f)
                     }
 

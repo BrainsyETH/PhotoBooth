@@ -172,32 +172,27 @@ fun ShareScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Tertiary share buttons in a tight row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.s)
-                ) {
-                    BigButton(
-                        text = stringResource(R.string.share_print),
-                        onClick = { viewModel.printPhoto(context) },
-                        variant = BigButtonVariant.Secondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    BigButton(
-                        text = stringResource(R.string.share_email),
-                        onClick = { viewModel.shareViaEmail(context) },
-                        containerColor = ShareDenim,
-                        contentColor = Color.White,
-                        modifier = Modifier.weight(1f)
-                    )
-                    BigButton(
-                        text = stringResource(R.string.share_message),
-                        onClick = { viewModel.shareViaSms(context) },
-                        containerColor = ShareLeaf,
-                        contentColor = Color.White,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                // Tertiary share channels — stacked so labels always fit
+                BigButton(
+                    text = stringResource(R.string.share_print),
+                    onClick = { viewModel.printPhoto(context) },
+                    variant = BigButtonVariant.Secondary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                BigButton(
+                    text = stringResource(R.string.share_email),
+                    onClick = { viewModel.shareViaEmail(context) },
+                    containerColor = ShareDenim,
+                    contentColor = Color.White,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                BigButton(
+                    text = stringResource(R.string.share_message),
+                    onClick = { viewModel.shareViaSms(context) },
+                    containerColor = ShareLeaf,
+                    contentColor = Color.White,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             // Done + message

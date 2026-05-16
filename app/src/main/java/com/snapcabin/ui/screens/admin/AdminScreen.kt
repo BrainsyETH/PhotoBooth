@@ -118,11 +118,11 @@ fun AdminScreen(
                 }
 
                 item {
-                    SettingRow("Mirror Front Camera") {
+                    SettingRow("Mirror Image") {
                         Switch(
-                            checked = settings.mirrorFrontCamera,
+                            checked = settings.mirrorImage,
                             onCheckedChange = { v ->
-                                viewModel.updateSetting { copy(mirrorFrontCamera = v) }
+                                viewModel.updateSetting { copy(mirrorImage = v) }
                             },
                             colors = adminSwitchColors()
                         )
