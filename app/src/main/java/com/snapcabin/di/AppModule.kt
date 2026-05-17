@@ -11,6 +11,7 @@ import com.snapcabin.share.LocalPhotoServer
 import com.snapcabin.share.PhotoPrinter
 import com.snapcabin.share.PhotoSaver
 import com.snapcabin.share.QrCodeGenerator
+import com.snapcabin.share.TwilioSmsSender
 import com.snapcabin.ui.components.SoundManager
 import dagger.Module
 import dagger.Provides
@@ -62,6 +63,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideEmailSmsSharer(): EmailSmsSharer = EmailSmsSharer()
+
+    @Provides
+    @Singleton
+    fun provideTwilioSmsSender(): TwilioSmsSender = TwilioSmsSender()
 
     @Provides
     @Singleton

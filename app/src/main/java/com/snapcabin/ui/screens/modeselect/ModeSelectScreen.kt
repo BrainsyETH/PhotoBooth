@@ -1,6 +1,5 @@
 package com.snapcabin.ui.screens.modeselect
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,10 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.snapcabin.R
+import com.snapcabin.ui.components.AnimatedMode
+import com.snapcabin.ui.components.AnimatedModePreview
 import com.snapcabin.ui.theme.CabinAccent
 import com.snapcabin.ui.theme.CabinBackground
 import com.snapcabin.ui.theme.CabinLine
@@ -47,6 +45,12 @@ import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
 
 private enum class ModeGlyph { Camera, Grid, FilmStrip }
+
+private fun ModeGlyph.toAnimated(): AnimatedMode = when (this) {
+    ModeGlyph.Camera -> AnimatedMode.Single
+    ModeGlyph.Grid -> AnimatedMode.Collage
+    ModeGlyph.FilmStrip -> AnimatedMode.Gif
+}
 
 @Composable
 fun ModeSelectScreen(
@@ -136,7 +140,11 @@ private fun ModeCard(
                 .background(accentColor.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center
         ) {
-            GlyphCanvas(glyph = glyph, color = accentColor)
+            AnimatedModePreview(
+                mode = glyph.toAnimated(),
+                color = accentColor,
+                size = 56.dp
+            )
         }
 
         Spacer(modifier = Modifier.height(Spacing.lg))
@@ -165,68 +173,3 @@ private fun ModeCard(
     }
 }
 
-@Composable
-private fun GlyphCanvas(glyph: ModeGlyph, color: Color) {
-    Canvas(modifier = Modifier.size(40.dp)) {
-        val stroke = 2.5f * density
-        when (glyph) {
-            ModeGlyph.Camera -> {
-                // Camera body
-                drawRoundRect(
-                    color = color,
-                    topLeft = Offset(0f, size.height * 0.18f),
-                    size = Size(size.width, size.height * 0.7f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f * density, 4f * density),
-                    style = Stroke(width = stroke)
-                )
-                // Lens
-                drawCircle(
-                    color = color,
-                    radius = size.minDimension * 0.22f,
-                    center = Offset(size.width / 2, size.height * 0.55f),
-                    style = Stroke(width = stroke)
-                )
-            }
-            ModeGlyph.Grid -> {
-                // 2x2 grid
-                val w = size.width
-                val h = size.height
-                val gap = 3f * density
-                val cellW = (w - gap) / 2
-                val cellH = (h - gap) / 2
-                listOf(
-                    Offset(0f, 0f),
-                    Offset(cellW + gap, 0f),
-                    Offset(0f, cellH + gap),
-                    Offset(cellW + gap, cellH + gap)
-                ).forEach { offset ->
-                    drawRoundRect(
-                        color = color,
-                        topLeft = offset,
-                        size = Size(cellW, cellH),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f * density, 2f * density)
-                    )
-                }
-            }
-            ModeGlyph.FilmStrip -> {
-                // Film body
-                drawRoundRect(
-                    color = color,
-                    topLeft = Offset(size.width * 0.05f, size.height * 0.12f),
-                    size = Size(size.width * 0.9f, size.height * 0.76f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f * density, 3f * density),
-                    style = Stroke(width = stroke)
-                )
-                // Perforations (4 dots top, 4 bottom)
-                val dotR = 1.6f * density
-                val perfTop = size.height * 0.24f
-                val perfBot = size.height * 0.76f
-                for (i in 0..3) {
-                    val x = size.width * (0.22f + i * 0.19f)
-                    drawCircle(color = color, radius = dotR, center = Offset(x, perfTop))
-                    drawCircle(color = color, radius = dotR, center = Offset(x, perfBot))
-                }
-            }
-        }
-    }
-}
