@@ -90,7 +90,7 @@ fun AttractScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             Image(
-                painter = painterResource(id = R.drawable.snapcabin_logo),
+                painter = painterResource(id = R.drawable.snapcabin_logov2),
                 contentDescription = stringResource(R.string.app_name),
                 modifier = Modifier.size(280.dp)
             )
