@@ -397,6 +397,69 @@ fun AdminScreen(
                     }
                 }
 
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Radii.s))
+                            .background(Cream)
+                            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                            .padding(Spacing.md)
+                    ) {
+                        Text(
+                            "Camera lens position (\"Look here\" hint)",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Espresso
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.s))
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            listOf("Top", "Bottom", "Left", "Right", "None").forEach { pos ->
+                                val key = pos.lowercase()
+                                val sel = settings.cameraLensPosition.equals(key, ignoreCase = true)
+                                BigButton(
+                                    text = pos,
+                                    onClick = { viewModel.updateSetting { copy(cameraLensPosition = key) } },
+                                    variant = if (sel) BigButtonVariant.Accent else BigButtonVariant.Surface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    var prompts by remember { mutableStateOf(settings.posePromptsCollage) }
+                    OutlinedTextField(
+                        value = prompts,
+                        onValueChange = {
+                            prompts = it
+                            viewModel.updateSetting { copy(posePromptsCollage = it) }
+                        },
+                        label = { Text("Collage pose prompts (separate with ||)") },
+                        placeholder = { Text("Group hug! || Goofy face || Strike a pose") },
+                        singleLine = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                }
+
+                item {
+                    var prompts by remember { mutableStateOf(settings.posePromptsGif) }
+                    OutlinedTextField(
+                        value = prompts,
+                        onValueChange = {
+                            prompts = it
+                            viewModel.updateSetting { copy(posePromptsGif = it) }
+                        },
+                        label = { Text("GIF frame prompts (separate with ||)") },
+                        placeholder = { Text("Wave! || Dance! || Surprised face") },
+                        singleLine = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                }
+
                 // SOUND
                 item { AdminEyebrow("SOUND") }
 
@@ -536,6 +599,113 @@ fun AdminScreen(
                             steps = 9,
                             modifier = Modifier.width(200.dp),
                             colors = adminSliderColors()
+                        )
+                    }
+                }
+
+                // TWILIO SMS
+                item { AdminEyebrow("TWILIO SMS") }
+
+                item {
+                    SettingRow("Enable Twilio SMS sending") {
+                        Switch(
+                            checked = settings.twilioEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(twilioEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                if (settings.twilioEnabled) {
+                    item {
+                        var sid by remember { mutableStateOf(settings.twilioAccountSid) }
+                        OutlinedTextField(
+                            value = sid,
+                            onValueChange = {
+                                sid = it.trim()
+                                viewModel.updateSetting { copy(twilioAccountSid = sid) }
+                            },
+                            label = { Text("Account SID (starts with AC...)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radii.s),
+                            colors = adminTextFieldColors()
+                        )
+                    }
+
+                    item {
+                        var token by remember { mutableStateOf(settings.twilioAuthToken) }
+                        OutlinedTextField(
+                            value = token,
+                            onValueChange = {
+                                token = it.trim()
+                                viewModel.updateSetting { copy(twilioAuthToken = token) }
+                            },
+                            label = { Text("Auth Token") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radii.s),
+                            colors = adminTextFieldColors()
+                        )
+                    }
+
+                    item {
+                        var from by remember { mutableStateOf(settings.twilioFromNumber) }
+                        OutlinedTextField(
+                            value = from,
+                            onValueChange = {
+                                from = it.trim()
+                                viewModel.updateSetting { copy(twilioFromNumber = from) }
+                            },
+                            label = { Text("From number (E.164, e.g. +15551234567)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radii.s),
+                            colors = adminTextFieldColors()
+                        )
+                    }
+
+                    item {
+                        var urlBase by remember { mutableStateOf(settings.twilioPhotoUrlBase) }
+                        OutlinedTextField(
+                            value = urlBase,
+                            onValueChange = {
+                                urlBase = it.trim()
+                                viewModel.updateSetting { copy(twilioPhotoUrlBase = urlBase) }
+                            },
+                            label = { Text("Photo host base URL (optional, public)") },
+                            placeholder = { Text("https://your-bucket.example.com") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radii.s),
+                            colors = adminTextFieldColors()
+                        )
+                    }
+
+                    item {
+                        SettingRow("Max SMS per session: ${settings.twilioMaxPerSession}") {
+                            Slider(
+                                value = settings.twilioMaxPerSession.toFloat(),
+                                onValueChange = { v ->
+                                    viewModel.updateSetting { copy(twilioMaxPerSession = v.toInt()) }
+                                },
+                                valueRange = 1f..50f,
+                                steps = 48,
+                                modifier = Modifier.width(200.dp),
+                                colors = adminSliderColors()
+                            )
+                        }
+                    }
+
+                    item {
+                        Text(
+                            text = "Without a public photo host, the SMS will include the kiosk's local IP URL — guests must be on the same WiFi to open it. Provide a public host (S3, R2, Firebase Storage) to deliver as MMS over cellular.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Espresso.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(horizontal = Spacing.xs)
                         )
                     }
                 }

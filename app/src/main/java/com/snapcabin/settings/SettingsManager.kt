@@ -32,6 +32,9 @@ data class BoothSettings(
     val coachingEnabled: Boolean = true,
     val framingGuideEnabled: Boolean = true,
     val flashColor: String = "#FDFAF1",
+    val cameraLensPosition: String = "top", // top | bottom | left | right | none
+    val posePromptsCollage: String = "",    // ||-delimited; empty = use defaults
+    val posePromptsGif: String = "",        // ||-delimited; empty = use defaults
 
     // Output
     val autoSaveToGallery: Boolean = false,
@@ -54,6 +57,14 @@ data class BoothSettings(
     val enableEmail: Boolean = true,
     val enableSms: Boolean = true,
     val serverPort: Int = 8080,
+
+    // Twilio SMS (optional — disabled by default)
+    val twilioEnabled: Boolean = false,
+    val twilioAccountSid: String = "",
+    val twilioAuthToken: String = "",
+    val twilioFromNumber: String = "",
+    val twilioPhotoUrlBase: String = "",     // optional public URL prefix; falls back to LAN URL
+    val twilioMaxPerSession: Int = 10,       // rate limit to prevent abuse
 
     // Modes
     val enableSinglePhotoMode: Boolean = true,
@@ -101,6 +112,15 @@ class SettingsManager @Inject constructor(
         val COACHING_ENABLED = booleanPreferencesKey("coaching_enabled")
         val FRAMING_GUIDE_ENABLED = booleanPreferencesKey("framing_guide_enabled")
         val FLASH_COLOR = stringPreferencesKey("flash_color")
+        val CAMERA_LENS_POSITION = stringPreferencesKey("camera_lens_position")
+        val POSE_PROMPTS_COLLAGE = stringPreferencesKey("pose_prompts_collage")
+        val POSE_PROMPTS_GIF = stringPreferencesKey("pose_prompts_gif")
+        val TWILIO_ENABLED = booleanPreferencesKey("twilio_enabled")
+        val TWILIO_ACCOUNT_SID = stringPreferencesKey("twilio_account_sid")
+        val TWILIO_AUTH_TOKEN = stringPreferencesKey("twilio_auth_token")
+        val TWILIO_FROM_NUMBER = stringPreferencesKey("twilio_from_number")
+        val TWILIO_PHOTO_URL_BASE = stringPreferencesKey("twilio_photo_url_base")
+        val TWILIO_MAX_PER_SESSION = intPreferencesKey("twilio_max_per_session")
         val AUTO_SAVE = booleanPreferencesKey("auto_save_gallery")
         val OUTPUT_QUALITY = intPreferencesKey("output_quality")
         val WATERMARK_ENABLED = booleanPreferencesKey("watermark_enabled")
@@ -147,6 +167,9 @@ class SettingsManager @Inject constructor(
             coachingEnabled = prefs[Keys.COACHING_ENABLED] ?: true,
             framingGuideEnabled = prefs[Keys.FRAMING_GUIDE_ENABLED] ?: true,
             flashColor = prefs[Keys.FLASH_COLOR] ?: "#FDFAF1",
+            cameraLensPosition = prefs[Keys.CAMERA_LENS_POSITION] ?: "top",
+            posePromptsCollage = prefs[Keys.POSE_PROMPTS_COLLAGE] ?: "",
+            posePromptsGif = prefs[Keys.POSE_PROMPTS_GIF] ?: "",
             autoSaveToGallery = prefs[Keys.AUTO_SAVE] ?: false,
             outputQuality = prefs[Keys.OUTPUT_QUALITY] ?: 95,
             watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
@@ -163,6 +186,12 @@ class SettingsManager @Inject constructor(
             enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
             enableSms = prefs[Keys.ENABLE_SMS] ?: true,
             serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
+            twilioEnabled = prefs[Keys.TWILIO_ENABLED] ?: false,
+            twilioAccountSid = prefs[Keys.TWILIO_ACCOUNT_SID] ?: "",
+            twilioAuthToken = prefs[Keys.TWILIO_AUTH_TOKEN] ?: "",
+            twilioFromNumber = prefs[Keys.TWILIO_FROM_NUMBER] ?: "",
+            twilioPhotoUrlBase = prefs[Keys.TWILIO_PHOTO_URL_BASE] ?: "",
+            twilioMaxPerSession = prefs[Keys.TWILIO_MAX_PER_SESSION] ?: 10,
             enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
             enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
             enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
@@ -196,6 +225,9 @@ class SettingsManager @Inject constructor(
                 coachingEnabled = prefs[Keys.COACHING_ENABLED] ?: true,
                 framingGuideEnabled = prefs[Keys.FRAMING_GUIDE_ENABLED] ?: true,
                 flashColor = prefs[Keys.FLASH_COLOR] ?: "#FDFAF1",
+            cameraLensPosition = prefs[Keys.CAMERA_LENS_POSITION] ?: "top",
+            posePromptsCollage = prefs[Keys.POSE_PROMPTS_COLLAGE] ?: "",
+            posePromptsGif = prefs[Keys.POSE_PROMPTS_GIF] ?: "",
                 autoSaveToGallery = prefs[Keys.AUTO_SAVE] ?: false,
                 outputQuality = prefs[Keys.OUTPUT_QUALITY] ?: 95,
                 watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
@@ -240,6 +272,15 @@ class SettingsManager @Inject constructor(
             prefs[Keys.COACHING_ENABLED] = updated.coachingEnabled
             prefs[Keys.FRAMING_GUIDE_ENABLED] = updated.framingGuideEnabled
             prefs[Keys.FLASH_COLOR] = updated.flashColor
+            prefs[Keys.CAMERA_LENS_POSITION] = updated.cameraLensPosition
+            prefs[Keys.POSE_PROMPTS_COLLAGE] = updated.posePromptsCollage
+            prefs[Keys.POSE_PROMPTS_GIF] = updated.posePromptsGif
+            prefs[Keys.TWILIO_ENABLED] = updated.twilioEnabled
+            prefs[Keys.TWILIO_ACCOUNT_SID] = updated.twilioAccountSid
+            prefs[Keys.TWILIO_AUTH_TOKEN] = updated.twilioAuthToken
+            prefs[Keys.TWILIO_FROM_NUMBER] = updated.twilioFromNumber
+            prefs[Keys.TWILIO_PHOTO_URL_BASE] = updated.twilioPhotoUrlBase
+            prefs[Keys.TWILIO_MAX_PER_SESSION] = updated.twilioMaxPerSession
             prefs[Keys.AUTO_SAVE] = updated.autoSaveToGallery
             prefs[Keys.OUTPUT_QUALITY] = updated.outputQuality
             prefs[Keys.WATERMARK_ENABLED] = updated.watermarkEnabled

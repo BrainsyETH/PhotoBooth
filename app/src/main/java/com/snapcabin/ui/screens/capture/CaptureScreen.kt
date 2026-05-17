@@ -42,6 +42,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.ui.components.CoachLine
 import com.snapcabin.ui.components.FlashOverlay
+import com.snapcabin.ui.components.LookHereIndicator
+import com.snapcabin.ui.components.lensPositionFrom
 import com.snapcabin.ui.components.IndicatorMode
 import com.snapcabin.ui.components.ShotIndicator
 import com.snapcabin.ui.theme.Cream
@@ -154,6 +156,14 @@ fun CaptureScreen(
                     .align(Alignment.TopEnd)
                     .padding(top = 80.dp, end = 24.dp)
             )
+
+            // "Look here" lens pointer — only during the count so it doesn't
+            // distract while the guest is just framing.
+            if (step is CaptureStep.Count) {
+                LookHereIndicator(
+                    position = lensPositionFrom(settings.cameraLensPosition)
+                )
+            }
 
             // Center stage — content varies per step
             Box(

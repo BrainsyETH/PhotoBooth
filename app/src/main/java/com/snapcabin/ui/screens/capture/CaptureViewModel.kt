@@ -85,7 +85,9 @@ class CaptureViewModel @Inject constructor(
             error = null
         )
 
-        val steps = buildSteps(mode, totalShots, coachingOn)
+        val collagePrompts = parsePrompts(s.posePromptsCollage)
+        val gifPrompts = parsePrompts(s.posePromptsGif)
+        val steps = buildSteps(mode, totalShots, coachingOn, collagePrompts, gifPrompts)
 
         burstJob = viewModelScope.launch {
             try {
@@ -168,19 +170,46 @@ class CaptureViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(capturedPhoto = bitmap)
     }
 
-    private fun buildSteps(mode: CaptureMode, totalShots: Int, coachingOn: Boolean): List<CaptureStep> {
+    private fun parsePrompts(raw: String): List<String> =
+        raw.split("||").map { it.trim() }.filter { it.isNotEmpty() }
+
+    private val defaultCollagePrompts = listOf(
+        "Group hug!",
+        "Goofy face 😜",
+        "Strike a pose"
+    )
+    private val defaultGifPrompts = listOf(
+        "Wave!",
+        "Dance!",
+        "Surprised face",
+        "High five",
+        "Big smile"
+    )
+
+    private fun buildSteps(
+        mode: CaptureMode,
+        totalShots: Int,
+        coachingOn: Boolean,
+        collagePrompts: List<String>,
+        gifPrompts: List<String>
+    ): List<CaptureStep> {
         fun coach(s: String): String = if (coachingOn) s else ""
 
         val steps = mutableListOf<CaptureStep>()
 
         if (mode == CaptureMode.Gif) {
+            val prompts = gifPrompts.ifEmpty { defaultGifPrompts }
             steps += CaptureStep.Intro(coach("Stay loose — we're rolling"), 900)
             steps += CaptureStep.Count(3, coach("Recording in"), 700)
             steps += CaptureStep.Count(2, "", 700)
             steps += CaptureStep.Count(1, "", 700)
             for (i in 1..totalShots) {
                 steps += CaptureStep.Flash(i, 220)
-                val between = if (i < totalShots) "" else coach("That's a wrap.")
+                val between = when {
+                    i == totalShots -> coach("That's a wrap.")
+                    prompts.isNotEmpty() -> coach(prompts[(i - 1) % prompts.size])
+                    else -> ""
+                }
                 steps += CaptureStep.Between(between, 360)
             }
             steps += CaptureStep.Done
@@ -196,6 +225,8 @@ class CaptureViewModel @Inject constructor(
         val intro = if (mode == CaptureMode.Collage) coach("Building your collage.") else coach("Here we go.")
         steps += CaptureStep.Intro(intro, 950)
 
+        val collagePromptList = collagePrompts.ifEmpty { defaultCollagePrompts }
+
         for (s in 0 until totalShots) {
             val line = lines.getOrElse(s) { lines[0] }
             steps += CaptureStep.Count(3, coach(line[0]), 850)
@@ -203,8 +234,8 @@ class CaptureViewModel @Inject constructor(
             steps += CaptureStep.Count(1, coach(line[2]), 850)
             steps += CaptureStep.Flash(s + 1, 320)
             if (s < totalShots - 1) {
-                val between = if (mode == CaptureMode.Collage) {
-                    coach("Frame ${s + 2} of $totalShots.")
+                val between = if (mode == CaptureMode.Collage && collagePromptList.isNotEmpty()) {
+                    coach(collagePromptList[s % collagePromptList.size])
                 } else {
                     coach("Lovely. One more.")
                 }

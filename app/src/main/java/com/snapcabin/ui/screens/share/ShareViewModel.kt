@@ -20,6 +20,7 @@ import com.snapcabin.share.LocalPhotoServer
 import com.snapcabin.share.PhotoPrinter
 import com.snapcabin.share.PhotoSaver
 import com.snapcabin.share.QrCodeGenerator
+import com.snapcabin.share.TwilioSmsSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +49,8 @@ class ShareViewModel @Inject constructor(
     private val localPhotoServer: LocalPhotoServer,
     private val settingsManager: SettingsManager,
     private val photoPrinter: PhotoPrinter,
-    private val emailSmsSharer: EmailSmsSharer
+    private val emailSmsSharer: EmailSmsSharer,
+    private val twilioSmsSender: TwilioSmsSender
 ) : ViewModel() {
 
     companion object {
@@ -198,6 +200,83 @@ class ShareViewModel @Inject constructor(
     fun shareViaSms(context: Context) {
         val photo = _uiState.value.photo ?: return
         emailSmsSharer.shareViaSms(context, photo)
+    }
+
+    // ────── Twilio SMS ──────
+    private var twilioSendsThisSession: Int = 0
+
+    fun sendViaTwilio(rawPhoneNumber: String) {
+        val s = settings.value
+        if (!s.twilioEnabled) {
+            _uiState.value = _uiState.value.copy(message = "Twilio SMS isn't enabled.")
+            return
+        }
+        if (twilioSendsThisSession >= s.twilioMaxPerSession.coerceAtLeast(1)) {
+            _uiState.value = _uiState.value.copy(message = "SMS limit reached for this session.")
+            return
+        }
+        val to = normalizeToE164(rawPhoneNumber)
+        if (to == null) {
+            _uiState.value = _uiState.value.copy(message = "Enter a valid phone number (e.g. +15551234567).")
+            return
+        }
+
+        viewModelScope.launch {
+            val photoUrl = buildPhotoUrl(s)
+            val body = buildString {
+                append("Your photo is ready")
+                if (s.eventName.isNotBlank()) append(" — ").append(s.eventName)
+                append("!")
+                if (photoUrl != null) append(" ").append(photoUrl)
+            }
+            // Only attach as MMS if the URL is publicly reachable (admin set a public base).
+            val mediaUrl = if (s.twilioPhotoUrlBase.isNotBlank()) photoUrl else null
+
+            val result = twilioSmsSender.send(
+                accountSid = s.twilioAccountSid,
+                authToken = s.twilioAuthToken,
+                fromE164 = s.twilioFromNumber,
+                toE164 = to,
+                body = body,
+                mediaUrl = mediaUrl
+            )
+            when (result) {
+                is TwilioSmsSender.Result.Ok -> {
+                    twilioSendsThisSession++
+                    _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
+                }
+                is TwilioSmsSender.Result.Err -> {
+                    _uiState.value = _uiState.value.copy(message = result.message)
+                }
+            }
+        }
+    }
+
+    /** Loose normalization: keep "+" + digits, prepend "+1" for 10-digit US-style input. */
+    private fun normalizeToE164(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        // Already E.164
+        if (trimmed.startsWith("+")) {
+            val digits = trimmed.drop(1).filter { it.isDigit() }
+            val candidate = "+$digits"
+            return if (twilioSmsSender.isValidE164(candidate)) candidate else null
+        }
+        // US 10-digit fallback
+        val digits = trimmed.filter { it.isDigit() }
+        val candidate = when (digits.length) {
+            10 -> "+1$digits"
+            11 -> if (digits.startsWith("1")) "+$digits" else null
+            else -> null
+        }
+        return if (candidate != null && twilioSmsSender.isValidE164(candidate)) candidate else null
+    }
+
+    private fun buildPhotoUrl(s: BoothSettings): String? {
+        val base = s.twilioPhotoUrlBase.trim().trimEnd('/')
+        if (base.isNotEmpty()) return "$base/photo.jpg"
+        // Fall back to LAN URL — works only if recipient is on same WiFi.
+        return _uiState.value.shareUrl
     }
 
     fun clearMessage() {

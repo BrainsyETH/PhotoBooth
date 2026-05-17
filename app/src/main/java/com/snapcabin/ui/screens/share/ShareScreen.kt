@@ -23,9 +23,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +72,8 @@ fun ShareScreen(
     val uiState by viewModel.uiState.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
+    var showSmsDialog by remember { mutableStateOf(false) }
+    var smsPhoneInput by remember { mutableStateOf("") }
 
     LaunchedEffect(photo) {
         photo?.let { viewModel.setPhoto(it, context) }
@@ -195,10 +206,10 @@ fun ShareScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                if (settings.enableSms) {
+                if (settings.enableSms && settings.twilioEnabled) {
                     BigButton(
                         text = stringResource(R.string.share_message),
-                        onClick = { viewModel.shareViaSms(context) },
+                        onClick = { showSmsDialog = true },
                         containerColor = ShareLeaf,
                         contentColor = Color.White,
                         modifier = Modifier.fillMaxWidth()
@@ -228,5 +239,55 @@ fun ShareScreen(
                 )
             }
         }
+    }
+
+    if (showSmsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSmsDialog = false },
+            title = { Text("Text me my photo") },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter your mobile number. Standard message rates may apply.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Espresso.copy(alpha = 0.72f)
+                    )
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(Spacing.s))
+                    OutlinedTextField(
+                        value = smsPhoneInput,
+                        onValueChange = { input ->
+                            // Allow only digits, +, spaces, dashes, parens; cap length
+                            smsPhoneInput = input.filter { c ->
+                                c.isDigit() || c == '+' || c == ' ' || c == '-' || c == '(' || c == ')'
+                            }.take(20)
+                        },
+                        label = { Text("Phone (e.g. +15551234567)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ShareLeaf,
+                            unfocusedBorderColor = CabinLine,
+                            focusedLabelColor = ShareLeaf,
+                            cursorColor = ShareLeaf
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.sendViaTwilio(smsPhoneInput)
+                        smsPhoneInput = ""
+                        showSmsDialog = false
+                    },
+                    enabled = smsPhoneInput.isNotBlank()
+                ) { Text("SEND") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSmsDialog = false }) { Text("CANCEL") }
+            }
+        )
     }
 }
