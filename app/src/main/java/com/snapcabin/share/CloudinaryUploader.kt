@@ -19,7 +19,7 @@ import javax.inject.Singleton
  * Security:
  *  - "Unsigned" means no API secret is shipped in the app. The cloud_name +
  *    upload_preset are the only credentials; mitigations belong on Cloudinary's
- *    side (preset configured as Unsigned, restricted to image/*, max file size,
+ *    side (preset configured as Unsigned, restricted to image formats, max file size,
  *    folder, allowed formats, etc.).
  *  - HTTPS-only (api.cloudinary.com is hardcoded).
  *  - No credential bytes are logged.
