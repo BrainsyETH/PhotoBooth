@@ -41,8 +41,10 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
-The repo's `vercel.json` points Vercel at `web/` so the Android source
-above doesn't get fed into the web build.
+For Vercel deployment, set the project's **Root Directory** to `web` in
+the Vercel dashboard (Settings → General → Root Directory). That points
+the build at the Next.js subproject so the Android source above doesn't
+get fed into the web build. See [web/README.md](./web/README.md).
 
 ## Releasing
 

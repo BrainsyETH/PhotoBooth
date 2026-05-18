@@ -8,21 +8,35 @@ public privacy policy referenced from inside the Android app
 
 ```
 cd web
-pnpm install   # or npm/yarn
-pnpm dev
+npm install
+npm run dev
 ```
 
 Visit `http://localhost:3000` and `http://localhost:3000/privacy`.
 
-## Deploying
+## Vercel setup — one-time
 
-Vercel auto-deploys from the repo. The repo root has a `vercel.json` that
-sets `web/` as the project root so the Android source above doesn't confuse
-the build. The `snapcabin.app` domain points to this project.
+Because this repo is a monorepo (Android app at the root, web app in `/web`),
+you must point Vercel at the `web/` subdirectory:
 
-## Editing the privacy policy
+1. Vercel Dashboard → your project → **Settings → General → Root Directory**
+2. Click **Edit**, set the value to: `web`
+3. Save.
+
+After that, Vercel auto-detects Next.js, runs `npm install` + `next build`
+inside `web/`, and deploys. No `vercel.json` is required.
+
+The `snapcabin.app` domain points to this project.
+
+## Updating the privacy policy
 
 The hosted policy lives at `app/privacy/page.tsx`. Any material change there
 should be mirrored in the in-app summary at
 `../app/src/main/res/values/strings.xml` (`privacy_body`) and the
-"Last updated" date bumped.
+`LAST_UPDATED` constant in `app/privacy/page.tsx` bumped.
+
+## Keeping Next.js patched
+
+Run `npm audit` periodically. If a Next.js CVE drops, bump the version in
+`package.json` and redeploy. The current pin (`^15.5.5`) covers
+CVE-2025-66478.
