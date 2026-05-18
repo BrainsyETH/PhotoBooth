@@ -64,6 +64,7 @@ import com.snapcabin.ui.theme.Clay
 import com.snapcabin.ui.theme.Cream
 import com.snapcabin.ui.theme.Espresso
 import com.snapcabin.ui.theme.FrankRuhlLibre
+import com.snapcabin.ui.theme.HankenGrotesk
 import com.snapcabin.ui.theme.Honey
 import com.snapcabin.ui.theme.Mist
 import com.snapcabin.ui.theme.Oat
@@ -71,6 +72,7 @@ import com.snapcabin.ui.theme.Parchment
 import com.snapcabin.ui.theme.Pine
 import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
+import com.snapcabin.ui.theme.Walnut
 
 @Composable
 fun AdminScreen(
