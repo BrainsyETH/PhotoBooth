@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -71,6 +72,13 @@ data class BoothSettings(
     val cloudinaryCloudName: String = "",
     val cloudinaryUploadPreset: String = "",
 
+    // Event lifecycle — each event scopes Cloudinary folder + audit + rate limits
+    val currentEventName: String = "",
+    val currentEventSlug: String = "",
+    val currentEventStartedAt: Long = 0L,
+    val twilioMaxPerNumber: Int = 3,         // per-phone SMS cap (anti-spam, per event)
+    val sendLogJson: String = "[]",          // capped at 500 entries; auditable from admin
+
     // Modes
     val enableSinglePhotoMode: Boolean = true,
     val enableCollageMode: Boolean = true,
@@ -129,6 +137,11 @@ class SettingsManager @Inject constructor(
         val CLOUDINARY_ENABLED = booleanPreferencesKey("cloudinary_enabled")
         val CLOUDINARY_CLOUD_NAME = stringPreferencesKey("cloudinary_cloud_name")
         val CLOUDINARY_UPLOAD_PRESET = stringPreferencesKey("cloudinary_upload_preset")
+        val CURRENT_EVENT_NAME = stringPreferencesKey("current_event_name")
+        val CURRENT_EVENT_SLUG = stringPreferencesKey("current_event_slug")
+        val CURRENT_EVENT_STARTED_AT = longPreferencesKey("current_event_started_at")
+        val TWILIO_MAX_PER_NUMBER = intPreferencesKey("twilio_max_per_number")
+        val SEND_LOG_JSON = stringPreferencesKey("send_log_json")
         val AUTO_SAVE = booleanPreferencesKey("auto_save_gallery")
         val OUTPUT_QUALITY = intPreferencesKey("output_quality")
         val WATERMARK_ENABLED = booleanPreferencesKey("watermark_enabled")
@@ -203,6 +216,11 @@ class SettingsManager @Inject constructor(
             cloudinaryEnabled = prefs[Keys.CLOUDINARY_ENABLED] ?: false,
             cloudinaryCloudName = prefs[Keys.CLOUDINARY_CLOUD_NAME] ?: "",
             cloudinaryUploadPreset = prefs[Keys.CLOUDINARY_UPLOAD_PRESET] ?: "",
+            currentEventName = prefs[Keys.CURRENT_EVENT_NAME] ?: "",
+            currentEventSlug = prefs[Keys.CURRENT_EVENT_SLUG] ?: "",
+            currentEventStartedAt = prefs[Keys.CURRENT_EVENT_STARTED_AT] ?: 0L,
+            twilioMaxPerNumber = prefs[Keys.TWILIO_MAX_PER_NUMBER] ?: 3,
+            sendLogJson = prefs[Keys.SEND_LOG_JSON] ?: "[]",
             enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
             enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
             enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
@@ -295,6 +313,11 @@ class SettingsManager @Inject constructor(
             prefs[Keys.CLOUDINARY_ENABLED] = updated.cloudinaryEnabled
             prefs[Keys.CLOUDINARY_CLOUD_NAME] = updated.cloudinaryCloudName
             prefs[Keys.CLOUDINARY_UPLOAD_PRESET] = updated.cloudinaryUploadPreset
+            prefs[Keys.CURRENT_EVENT_NAME] = updated.currentEventName
+            prefs[Keys.CURRENT_EVENT_SLUG] = updated.currentEventSlug
+            prefs[Keys.CURRENT_EVENT_STARTED_AT] = updated.currentEventStartedAt
+            prefs[Keys.TWILIO_MAX_PER_NUMBER] = updated.twilioMaxPerNumber
+            prefs[Keys.SEND_LOG_JSON] = updated.sendLogJson
             prefs[Keys.AUTO_SAVE] = updated.autoSaveToGallery
             prefs[Keys.OUTPUT_QUALITY] = updated.outputQuality
             prefs[Keys.WATERMARK_ENABLED] = updated.watermarkEnabled

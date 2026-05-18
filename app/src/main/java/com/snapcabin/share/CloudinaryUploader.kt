@@ -41,7 +41,8 @@ class CloudinaryUploader @Inject constructor() {
     suspend fun upload(
         cloudName: String,
         uploadPreset: String,
-        bitmap: Bitmap
+        bitmap: Bitmap,
+        folder: String? = null
     ): Result = withContext(Dispatchers.IO) {
         if (cloudName.isBlank() || uploadPreset.isBlank()) {
             return@withContext Result.Err("Cloudinary isn't configured.")
@@ -69,6 +70,9 @@ class CloudinaryUploader @Inject constructor() {
 
             DataOutputStream(conn.outputStream).use { out ->
                 writeFormField(out, boundary, "upload_preset", uploadPreset)
+                if (!folder.isNullOrBlank()) {
+                    writeFormField(out, boundary, "folder", folder)
+                }
                 writeFileField(out, boundary, "file", "photo.jpg", "image/jpeg", jpegBytes)
                 out.writeBytes("--$boundary--\r\n")
                 out.flush()

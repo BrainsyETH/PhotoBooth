@@ -11,6 +11,8 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.snapcabin.event.SendLog
+import com.snapcabin.event.SendLogEntry
 import com.snapcabin.filter.CustomBrandingRenderer
 import com.snapcabin.filter.WatermarkRenderer
 import com.snapcabin.settings.BoothSettings
@@ -211,6 +213,9 @@ class ShareViewModel @Inject constructor(
     private var twilioSendsThisSession: Int = 0
     /** Cached Cloudinary URL for the current photo so we don't re-upload per SMS. */
     private var cachedPublicUrl: String? = null
+    /** Per-event count of SMS sent to each phone number. Resets when the current event changes. */
+    private val perPhoneSendCounts: MutableMap<String, Int> = mutableMapOf()
+    private var perPhoneCountsForEvent: String = ""
 
     fun sendViaTwilio(rawPhoneNumber: String) {
         val s = settings.value
@@ -225,6 +230,18 @@ class ShareViewModel @Inject constructor(
         val to = normalizeToE164(rawPhoneNumber)
         if (to == null) {
             _uiState.value = _uiState.value.copy(message = "Enter a valid phone number (e.g. +15551234567).")
+            return
+        }
+        // Reset per-phone counters if the event changed (or first run).
+        if (perPhoneCountsForEvent != s.currentEventSlug) {
+            perPhoneSendCounts.clear()
+            perPhoneCountsForEvent = s.currentEventSlug
+        }
+        val alreadySentToThisNumber = perPhoneSendCounts[to] ?: 0
+        if (alreadySentToThisNumber >= s.twilioMaxPerNumber.coerceAtLeast(1)) {
+            _uiState.value = _uiState.value.copy(
+                message = "Already sent ${alreadySentToThisNumber} times to that number this event."
+            )
             return
         }
 
@@ -257,11 +274,37 @@ class ShareViewModel @Inject constructor(
             when (result) {
                 is TwilioSmsSender.Result.Ok -> {
                     twilioSendsThisSession++
+                    perPhoneSendCounts[to] = (perPhoneSendCounts[to] ?: 0) + 1
+                    appendToSendLog(s, "sms", SendLog.maskPhone(to), "ok", note = "")
                     _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
                 }
                 is TwilioSmsSender.Result.Err -> {
+                    appendToSendLog(s, "sms", SendLog.maskPhone(to), "err", note = result.message)
                     _uiState.value = _uiState.value.copy(message = result.message)
                 }
+            }
+        }
+    }
+
+    /** Append-only audit log of every send. Capped at SendLog.MAX_ENTRIES. */
+    private fun appendToSendLog(
+        s: BoothSettings,
+        channel: String,
+        recipientMasked: String,
+        status: String,
+        note: String
+    ) {
+        val entry = SendLogEntry(
+            timestampMs = System.currentTimeMillis(),
+            eventSlug = s.currentEventSlug.ifEmpty { "unassigned" },
+            channel = channel,
+            recipientMasked = recipientMasked,
+            status = status,
+            note = note
+        )
+        viewModelScope.launch {
+            settingsManager.update {
+                copy(sendLogJson = SendLog.append(sendLogJson, entry))
             }
         }
     }
@@ -278,7 +321,8 @@ class ShareViewModel @Inject constructor(
                 val result = cloudinaryUploader.upload(
                     cloudName = s.cloudinaryCloudName,
                     uploadPreset = s.cloudinaryUploadPreset,
-                    bitmap = photo
+                    bitmap = photo,
+                    folder = s.currentEventSlug.takeIf { it.isNotBlank() }?.let { "events/$it" }
                 )
                 when (result) {
                     is CloudinaryUploader.Result.Ok -> {

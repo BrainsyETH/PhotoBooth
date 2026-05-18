@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -29,6 +30,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,6 +48,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
+import com.snapcabin.event.EventSlug
+import com.snapcabin.event.SendLog
+import com.snapcabin.settings.BoothSettings
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
@@ -100,6 +108,39 @@ fun AdminScreen(
                         color = Espresso,
                         modifier = Modifier.padding(bottom = Spacing.md)
                     )
+                }
+
+                // EVENT (active event scopes Cloudinary folder, audit log, rate limits)
+                item { AdminEyebrow("EVENT") }
+
+                item { EventBlock(settings = settings, viewModel = viewModel) }
+
+                // Default-PIN warning — surfaces only if the host hasn't changed it.
+                if (settings.adminPin == "1234") {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(Radii.s))
+                                .background(Clay.copy(alpha = 0.15f))
+                                .border(1.dp, Clay, RoundedCornerShape(Radii.s))
+                                .padding(Spacing.md)
+                        ) {
+                            Text(
+                                text = "Admin PIN is still the default (1234).",
+                                fontFamily = HankenGrotesk,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Clay
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.xs))
+                            Text(
+                                text = "Change it under KIOSK before deploying. Anyone tapping the corner long-press can reach this screen with 1234.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Espresso.copy(alpha = 0.72f)
+                            )
+                        }
+                    }
                 }
 
                 // CAMERA
@@ -1030,6 +1071,11 @@ fun AdminScreen(
                 }
 
                 // TOOLS
+                // AUDIT LOG (last 500 sends)
+                item { AdminEyebrow("AUDIT LOG") }
+
+                item { SendLogBlock(settings = settings, viewModel = viewModel) }
+
                 item { AdminEyebrow("TOOLS") }
 
                 item {
@@ -1239,5 +1285,259 @@ private fun copyUriToInternal(
         destFile
     } catch (e: Exception) {
         null
+    }
+}
+
+@Composable
+private fun EventBlock(
+    settings: BoothSettings,
+    viewModel: AdminViewModel
+) {
+    var showStartDialog by remember { mutableStateOf(false) }
+    var newEventName by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+            .padding(Spacing.md)
+    ) {
+        if (settings.currentEventName.isNotBlank()) {
+            Text(
+                text = settings.currentEventName,
+                fontFamily = FrankRuhlLibre,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                color = Espresso
+            )
+            Spacer(modifier = Modifier.height(Spacing.xs))
+            Text(
+                text = "Slug: ${settings.currentEventSlug}",
+                fontFamily = HankenGrotesk,
+                fontSize = 13.sp,
+                color = Espresso.copy(alpha = 0.72f)
+            )
+            if (settings.currentEventStartedAt > 0L) {
+                val started = SimpleDateFormat("MMM d, yyyy h:mm a", Locale.US)
+                    .format(Date(settings.currentEventStartedAt))
+                Text(
+                    text = "Started $started",
+                    fontFamily = HankenGrotesk,
+                    fontSize = 13.sp,
+                    color = Espresso.copy(alpha = 0.72f)
+                )
+            }
+            Spacer(modifier = Modifier.height(Spacing.s))
+            Text(
+                text = "Photos upload to Cloudinary folder events/${settings.currentEventSlug}/",
+                fontFamily = HankenGrotesk,
+                fontSize = 12.sp,
+                color = Espresso.copy(alpha = 0.6f)
+            )
+        } else {
+            Text(
+                text = "No active event",
+                fontFamily = FrankRuhlLibre,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                fontSize = 22.sp,
+                color = Espresso.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(Spacing.xs))
+            Text(
+                text = "Photos will upload to events/unassigned/.",
+                fontFamily = HankenGrotesk,
+                fontSize = 12.sp,
+                color = Espresso.copy(alpha = 0.6f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(Spacing.s))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            BigButton(
+                text = if (settings.currentEventName.isBlank()) "START EVENT" else "START NEW EVENT",
+                onClick = {
+                    newEventName = ""
+                    showStartDialog = true
+                },
+                variant = BigButtonVariant.Primary
+            )
+            if (settings.currentEventName.isNotBlank()) {
+                BigButton(
+                    text = "END EVENT",
+                    onClick = {
+                        viewModel.updateSetting {
+                            copy(
+                                currentEventName = "",
+                                currentEventSlug = "",
+                                currentEventStartedAt = 0L
+                            )
+                        }
+                    },
+                    variant = BigButtonVariant.Surface
+                )
+            }
+        }
+    }
+
+    if (showStartDialog) {
+        AlertDialog(
+            onDismissRequest = { showStartDialog = false },
+            title = { Text("Start new event") },
+            text = {
+                Column {
+                    Text(
+                        text = "Event name will scope the Cloudinary folder, audit log, and per-phone SMS limits. Used through the event.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Espresso.copy(alpha = 0.72f)
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.s))
+                    OutlinedTextField(
+                        value = newEventName,
+                        onValueChange = { newEventName = it.take(60) },
+                        label = { Text("Event name (e.g. The Hewlett Wedding)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radii.s),
+                        colors = adminTextFieldColors()
+                    )
+                    if (newEventName.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(Spacing.xs))
+                        Text(
+                            text = "Slug preview: ${EventSlug.from(newEventName)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Espresso.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val now = System.currentTimeMillis()
+                        val slug = EventSlug.from(newEventName, now)
+                        viewModel.updateSetting {
+                            copy(
+                                currentEventName = newEventName.trim(),
+                                currentEventSlug = slug,
+                                currentEventStartedAt = now
+                            )
+                        }
+                        showStartDialog = false
+                    },
+                    enabled = newEventName.isNotBlank()
+                ) { Text("START") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStartDialog = false }) { Text("CANCEL") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SendLogBlock(
+    settings: BoothSettings,
+    viewModel: AdminViewModel
+) {
+    val entries = remember(settings.sendLogJson) { SendLog.parse(settings.sendLogJson) }
+    val recent = entries.takeLast(50).reversed()
+    val fmt = remember { SimpleDateFormat("MMM d, h:mm a", Locale.US) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+            .padding(Spacing.md)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "${entries.size} entries total · last 50 shown",
+                fontFamily = HankenGrotesk,
+                fontSize = 13.sp,
+                color = Espresso.copy(alpha = 0.72f)
+            )
+            BigButton(
+                text = "CLEAR LOG",
+                onClick = { viewModel.updateSetting { copy(sendLogJson = "[]") } },
+                variant = BigButtonVariant.Surface
+            )
+        }
+
+        Spacer(modifier = Modifier.height(Spacing.s))
+
+        if (recent.isEmpty()) {
+            Text(
+                text = "No sends recorded yet.",
+                fontFamily = HankenGrotesk,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                fontSize = 13.sp,
+                color = Espresso.copy(alpha = 0.6f)
+            )
+        } else {
+            recent.forEach { e ->
+                val tint = if (e.status == "ok") Pine else Clay
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(tint)
+                    )
+                    Text(
+                        text = fmt.format(Date(e.timestampMs)),
+                        fontFamily = HankenGrotesk,
+                        fontSize = 12.sp,
+                        color = Espresso.copy(alpha = 0.72f),
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = e.channel.uppercase(),
+                        fontFamily = HankenGrotesk,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = Walnut,
+                        modifier = Modifier.width(48.dp)
+                    )
+                    Text(
+                        text = e.recipientMasked,
+                        fontFamily = HankenGrotesk,
+                        fontSize = 12.sp,
+                        color = Espresso,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = if (e.eventSlug.isNotBlank()) e.eventSlug else "—",
+                        fontFamily = HankenGrotesk,
+                        fontSize = 11.sp,
+                        color = Espresso.copy(alpha = 0.6f),
+                        maxLines = 1
+                    )
+                }
+                if (e.status == "err" && e.note.isNotBlank()) {
+                    Text(
+                        text = e.note,
+                        fontFamily = HankenGrotesk,
+                        fontSize = 11.sp,
+                        color = Clay,
+                        modifier = Modifier.padding(start = 24.dp, bottom = 4.dp)
+                    )
+                }
+            }
+        }
     }
 }
