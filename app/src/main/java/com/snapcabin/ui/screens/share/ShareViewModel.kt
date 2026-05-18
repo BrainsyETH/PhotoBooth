@@ -11,10 +11,13 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.snapcabin.event.SendLog
+import com.snapcabin.event.SendLogEntry
 import com.snapcabin.filter.CustomBrandingRenderer
 import com.snapcabin.filter.WatermarkRenderer
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
+import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.EmailSmsSharer
 import com.snapcabin.share.LocalPhotoServer
 import com.snapcabin.share.PhotoPrinter
@@ -50,7 +53,8 @@ class ShareViewModel @Inject constructor(
     private val settingsManager: SettingsManager,
     private val photoPrinter: PhotoPrinter,
     private val emailSmsSharer: EmailSmsSharer,
-    private val twilioSmsSender: TwilioSmsSender
+    private val twilioSmsSender: TwilioSmsSender,
+    private val cloudinaryUploader: CloudinaryUploader
 ) : ViewModel() {
 
     companion object {
@@ -64,6 +68,9 @@ class ShareViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BoothSettings())
 
     fun setPhoto(bitmap: Bitmap, context: Context) {
+        // New photo — invalidate the previous upload + per-session counter.
+        cachedPublicUrl = null
+        twilioSendsThisSession = 0
         viewModelScope.launch {
             // Bake in admin-configured branding (border + overlay PNGs, then watermark text)
             val processedPhoto = withContext(Dispatchers.Default) {
@@ -204,6 +211,11 @@ class ShareViewModel @Inject constructor(
 
     // ────── Twilio SMS ──────
     private var twilioSendsThisSession: Int = 0
+    /** Cached Cloudinary URL for the current photo so we don't re-upload per SMS. */
+    private var cachedPublicUrl: String? = null
+    /** Per-event count of SMS sent to each phone number. Resets when the current event changes. */
+    private val perPhoneSendCounts: MutableMap<String, Int> = mutableMapOf()
+    private var perPhoneCountsForEvent: String = ""
 
     fun sendViaTwilio(rawPhoneNumber: String) {
         val s = settings.value
@@ -220,17 +232,36 @@ class ShareViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(message = "Enter a valid phone number (e.g. +15551234567).")
             return
         }
+        // Reset per-phone counters if the event changed (or first run).
+        if (perPhoneCountsForEvent != s.currentEventSlug) {
+            perPhoneSendCounts.clear()
+            perPhoneCountsForEvent = s.currentEventSlug
+        }
+        val alreadySentToThisNumber = perPhoneSendCounts[to] ?: 0
+        if (alreadySentToThisNumber >= s.twilioMaxPerNumber.coerceAtLeast(1)) {
+            _uiState.value = _uiState.value.copy(
+                message = "Already sent ${alreadySentToThisNumber} times to that number this event."
+            )
+            return
+        }
 
         viewModelScope.launch {
-            val photoUrl = buildPhotoUrl(s)
+            _uiState.value = _uiState.value.copy(message = "Sending to $to…")
+
+            // Resolve a URL Twilio can fetch. Priority: cached Cloudinary upload >
+            // fresh Cloudinary upload > admin-configured public base > LAN URL.
+            val publicUrl = resolvePublicPhotoUrl(s)
+
             val body = buildString {
                 append("Your photo is ready")
                 if (s.eventName.isNotBlank()) append(" — ").append(s.eventName)
                 append("!")
-                if (photoUrl != null) append(" ").append(photoUrl)
+                if (publicUrl != null) append(" ").append(publicUrl)
             }
-            // Only attach as MMS if the URL is publicly reachable (admin set a public base).
-            val mediaUrl = if (s.twilioPhotoUrlBase.isNotBlank()) photoUrl else null
+            // Only send as MMS if the URL is publicly reachable from Twilio's servers.
+            val isPublic = publicUrl != null &&
+                (s.cloudinaryEnabled || s.twilioPhotoUrlBase.isNotBlank())
+            val mediaUrl = if (isPublic) publicUrl else null
 
             val result = twilioSmsSender.send(
                 accountSid = s.twilioAccountSid,
@@ -243,13 +274,75 @@ class ShareViewModel @Inject constructor(
             when (result) {
                 is TwilioSmsSender.Result.Ok -> {
                     twilioSendsThisSession++
+                    perPhoneSendCounts[to] = (perPhoneSendCounts[to] ?: 0) + 1
+                    appendToSendLog(s, "sms", SendLog.maskPhone(to), "ok", note = "")
                     _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
                 }
                 is TwilioSmsSender.Result.Err -> {
+                    appendToSendLog(s, "sms", SendLog.maskPhone(to), "err", note = result.message)
                     _uiState.value = _uiState.value.copy(message = result.message)
                 }
             }
         }
+    }
+
+    /** Append-only audit log of every send. Capped at SendLog.MAX_ENTRIES. */
+    private fun appendToSendLog(
+        s: BoothSettings,
+        channel: String,
+        recipientMasked: String,
+        status: String,
+        note: String
+    ) {
+        val entry = SendLogEntry(
+            timestampMs = System.currentTimeMillis(),
+            eventSlug = s.currentEventSlug.ifEmpty { "unassigned" },
+            channel = channel,
+            recipientMasked = recipientMasked,
+            status = status,
+            note = note
+        )
+        viewModelScope.launch {
+            settingsManager.update {
+                copy(sendLogJson = SendLog.append(sendLogJson, entry))
+            }
+        }
+    }
+
+    /** Returns a URL Twilio can fetch, uploading to Cloudinary on first use if enabled. */
+    private suspend fun resolvePublicPhotoUrl(s: BoothSettings): String? {
+        cachedPublicUrl?.let { return it }
+
+        if (s.cloudinaryEnabled && s.cloudinaryCloudName.isNotBlank() &&
+            s.cloudinaryUploadPreset.isNotBlank()
+        ) {
+            val photo = _uiState.value.photo
+            if (photo != null) {
+                val result = cloudinaryUploader.upload(
+                    cloudName = s.cloudinaryCloudName,
+                    uploadPreset = s.cloudinaryUploadPreset,
+                    bitmap = photo,
+                    folder = s.currentEventSlug.takeIf { it.isNotBlank() }?.let { "events/$it" }
+                )
+                when (result) {
+                    is CloudinaryUploader.Result.Ok -> {
+                        cachedPublicUrl = result.secureUrl
+                        return result.secureUrl
+                    }
+                    is CloudinaryUploader.Result.Err -> {
+                        // Fall through to other URL sources but surface the error in the UI.
+                        _uiState.value = _uiState.value.copy(message = result.message)
+                    }
+                }
+            }
+        }
+
+        // Admin-supplied public host as fallback.
+        val base = s.twilioPhotoUrlBase.trim().trimEnd('/')
+        if (base.isNotEmpty()) return "$base/photo.jpg"
+
+        // Last resort: LAN URL (recipient must be on same WiFi).
+        return _uiState.value.shareUrl
     }
 
     /** Loose normalization: keep "+" + digits, prepend "+1" for 10-digit US-style input. */
@@ -270,13 +363,6 @@ class ShareViewModel @Inject constructor(
             else -> null
         }
         return if (candidate != null && twilioSmsSender.isValidE164(candidate)) candidate else null
-    }
-
-    private fun buildPhotoUrl(s: BoothSettings): String? {
-        val base = s.twilioPhotoUrlBase.trim().trimEnd('/')
-        if (base.isNotEmpty()) return "$base/photo.jpg"
-        // Fall back to LAN URL — works only if recipient is on same WiFi.
-        return _uiState.value.shareUrl
     }
 
     fun clearMessage() {
