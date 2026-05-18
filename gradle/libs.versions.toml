@@ -14,6 +14,7 @@ zxing = "3.5.3"
 lifecycle = "2.8.7"
 activity = "1.9.3"
 core-ktx = "1.15.0"
+browser = "1.8.0"
 
 [libraries]
 # Compose BOM
@@ -57,6 +58,9 @@ nanohttpd = { group = "org.nanohttpd", name = "nanohttpd", version = "2.3.1" }
 
 # QR code
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+# Browser (Custom Tabs for the in-app privacy policy link)
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

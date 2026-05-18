@@ -1,0 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500;700;900&family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background: #faf5ea;
+    color: #322619;
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background: radial-gradient(ellipse at top, #fdfaf1 0%, #faf5ea 55%, #eee5cf 100%);
+    min-height: 100vh;
+  }
+  h1, h2, h3 {
+    font-family: "Frank Ruhl Libre", Georgia, serif;
+    color: #322619;
+    letter-spacing: -0.015em;
+  }
+  a {
+    color: #6b8f73;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  a:hover {
+    color: #52755a;
+  }
+}

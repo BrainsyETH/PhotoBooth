@@ -27,6 +27,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,6 +78,13 @@ fun ShareScreen(
 
     LaunchedEffect(photo) {
         photo?.let { viewModel.setPhoto(it, context) }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // Stop the LAN photo-server foreground service when leaving Share.
+            com.snapcabin.share.PhotoShareService.stop(context)
+        }
     }
 
     LaunchedEffect(uiState.message) {
