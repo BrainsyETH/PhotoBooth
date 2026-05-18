@@ -22,10 +22,29 @@ android {
 
     signingConfigs {
         create("release") {
+            val isReleaseBuild = gradle.startParameter.taskNames.any { name ->
+                name.contains("Release", ignoreCase = true) ||
+                    name.contains("bundleRelease", ignoreCase = true) ||
+                    name.contains("assembleRelease", ignoreCase = true)
+            }
+            val storePass = System.getenv("KEYSTORE_PASSWORD")
+            val alias = System.getenv("KEY_ALIAS")
+            val keyPass = System.getenv("KEY_PASSWORD")
+            if (isReleaseBuild) {
+                require(!storePass.isNullOrBlank()) {
+                    "KEYSTORE_PASSWORD env var is required for release builds. See docs/RELEASE_BUILD.md."
+                }
+                require(!alias.isNullOrBlank()) {
+                    "KEY_ALIAS env var is required for release builds. See docs/RELEASE_BUILD.md."
+                }
+                require(!keyPass.isNullOrBlank()) {
+                    "KEY_PASSWORD env var is required for release builds. See docs/RELEASE_BUILD.md."
+                }
+            }
             storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "snapcabin123"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "snapcabin"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "snapcabin123"
+            storePassword = storePass ?: ""
+            keyAlias = alias ?: ""
+            keyPassword = keyPass ?: ""
         }
     }
 
@@ -86,6 +105,9 @@ dependencies {
 
     // Splash Screen (Android 12+ compat)
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // Browser — Custom Tabs for the in-app privacy policy link
+    implementation(libs.androidx.browser)
 
     // Navigation
     implementation(libs.navigation.compose)

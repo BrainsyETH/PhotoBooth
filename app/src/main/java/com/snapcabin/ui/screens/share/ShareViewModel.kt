@@ -22,6 +22,7 @@ import com.snapcabin.share.EmailSmsSharer
 import com.snapcabin.share.LocalPhotoServer
 import com.snapcabin.share.PhotoPrinter
 import com.snapcabin.share.PhotoSaver
+import com.snapcabin.share.PhotoShareService
 import com.snapcabin.share.QrCodeGenerator
 import com.snapcabin.share.TwilioSmsSender
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -140,9 +141,8 @@ class ShareViewModel @Inject constructor(
     private fun startLocalServer(bitmap: Bitmap, context: Context) {
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    localPhotoServer.servePhoto(bitmap)
-                }
+                // Start the foreground service so the LAN server survives a brief background.
+                PhotoShareService.start(context, bitmap)
                 val ip = getLocalIpAddress(context)
                 if (ip != null) {
                     val url = localPhotoServer.getPhotoUrl(ip)

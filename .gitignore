@@ -14,3 +14,12 @@ local.properties
 *.keystore
 *.jks
 keystore/
+
+# Web (Next.js subproject in /web)
+web/node_modules/
+web/.next/
+web/out/
+web/.vercel
+web/*.tsbuildinfo
+web/next-env.d.ts
+web/.env*.local

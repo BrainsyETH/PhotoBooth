@@ -140,5 +140,13 @@
 
     <!-- Privacy -->
     <string name="privacy_title">Privacy Policy</string>
-    <string name="privacy_body">SnapCabin captures photos using your device camera. Photos are stored locally on your device and are never uploaded to external servers unless you explicitly choose to share them.\n\nThe QR code sharing feature runs a temporary local server on your WiFi network. No data leaves your local network.\n\nWe do not collect analytics, personal information, or usage data.\n\nFor questions, contact: support@snapcabin.app</string>
+    <string name="privacy_body">SnapCabin captures photos using the kiosk camera. We — the app developer — collect no analytics, crash reports, identifiers, or usage data of any kind.\n\nPhotos stay on the kiosk by default. The QR-download feature runs a temporary HTTP server on the local WiFi; the photo is reachable only to phones on the same network.\n\nIf the kiosk operator has configured Cloudinary, photos may be uploaded there to be delivered via SMS through Twilio. Phone numbers entered by guests are sent only to Twilio for that purpose. The kiosk operator — not SnapCabin — is the data controller for those flows.\n\nFor the full policy and your operator\'s contact info, see https://snapcabin.app/privacy</string>
+    <string name="privacy_view_online">View full policy online</string>
+    <string name="privacy_view_online_url">https://snapcabin.app/privacy</string>
+
+    <!-- Foreground service notification (LAN photo server) -->
+    <string name="photo_service_channel_name">Photo download server</string>
+    <string name="photo_service_channel_description">Keeps the LAN QR-download server running while the share screen is open.</string>
+    <string name="photo_service_notification_title">Photo ready to download</string>
+    <string name="photo_service_notification_body">Guests on this WiFi can scan the QR to save the photo.</string>
 </resources>
