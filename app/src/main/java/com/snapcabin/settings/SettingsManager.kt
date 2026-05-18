@@ -66,6 +66,11 @@ data class BoothSettings(
     val twilioPhotoUrlBase: String = "",     // optional public URL prefix; falls back to LAN URL
     val twilioMaxPerSession: Int = 10,       // rate limit to prevent abuse
 
+    // Cloudinary (public photo hosting for Twilio MMS — unsigned upload preset)
+    val cloudinaryEnabled: Boolean = false,
+    val cloudinaryCloudName: String = "",
+    val cloudinaryUploadPreset: String = "",
+
     // Modes
     val enableSinglePhotoMode: Boolean = true,
     val enableCollageMode: Boolean = true,
@@ -121,6 +126,9 @@ class SettingsManager @Inject constructor(
         val TWILIO_FROM_NUMBER = stringPreferencesKey("twilio_from_number")
         val TWILIO_PHOTO_URL_BASE = stringPreferencesKey("twilio_photo_url_base")
         val TWILIO_MAX_PER_SESSION = intPreferencesKey("twilio_max_per_session")
+        val CLOUDINARY_ENABLED = booleanPreferencesKey("cloudinary_enabled")
+        val CLOUDINARY_CLOUD_NAME = stringPreferencesKey("cloudinary_cloud_name")
+        val CLOUDINARY_UPLOAD_PRESET = stringPreferencesKey("cloudinary_upload_preset")
         val AUTO_SAVE = booleanPreferencesKey("auto_save_gallery")
         val OUTPUT_QUALITY = intPreferencesKey("output_quality")
         val WATERMARK_ENABLED = booleanPreferencesKey("watermark_enabled")
@@ -192,6 +200,9 @@ class SettingsManager @Inject constructor(
             twilioFromNumber = prefs[Keys.TWILIO_FROM_NUMBER] ?: "",
             twilioPhotoUrlBase = prefs[Keys.TWILIO_PHOTO_URL_BASE] ?: "",
             twilioMaxPerSession = prefs[Keys.TWILIO_MAX_PER_SESSION] ?: 10,
+            cloudinaryEnabled = prefs[Keys.CLOUDINARY_ENABLED] ?: false,
+            cloudinaryCloudName = prefs[Keys.CLOUDINARY_CLOUD_NAME] ?: "",
+            cloudinaryUploadPreset = prefs[Keys.CLOUDINARY_UPLOAD_PRESET] ?: "",
             enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
             enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
             enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
@@ -281,6 +292,9 @@ class SettingsManager @Inject constructor(
             prefs[Keys.TWILIO_FROM_NUMBER] = updated.twilioFromNumber
             prefs[Keys.TWILIO_PHOTO_URL_BASE] = updated.twilioPhotoUrlBase
             prefs[Keys.TWILIO_MAX_PER_SESSION] = updated.twilioMaxPerSession
+            prefs[Keys.CLOUDINARY_ENABLED] = updated.cloudinaryEnabled
+            prefs[Keys.CLOUDINARY_CLOUD_NAME] = updated.cloudinaryCloudName
+            prefs[Keys.CLOUDINARY_UPLOAD_PRESET] = updated.cloudinaryUploadPreset
             prefs[Keys.AUTO_SAVE] = updated.autoSaveToGallery
             prefs[Keys.OUTPUT_QUALITY] = updated.outputQuality
             prefs[Keys.WATERMARK_ENABLED] = updated.watermarkEnabled

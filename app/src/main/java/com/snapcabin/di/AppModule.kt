@@ -6,6 +6,7 @@ import com.snapcabin.analytics.CrashReporter
 import com.snapcabin.camera.CameraManager
 import com.snapcabin.kiosk.KioskManager
 import com.snapcabin.settings.SettingsManager
+import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.EmailSmsSharer
 import com.snapcabin.share.LocalPhotoServer
 import com.snapcabin.share.PhotoPrinter
@@ -67,6 +68,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTwilioSmsSender(): TwilioSmsSender = TwilioSmsSender()
+
+    @Provides
+    @Singleton
+    fun provideCloudinaryUploader(): CloudinaryUploader = CloudinaryUploader()
 
     @Provides
     @Singleton

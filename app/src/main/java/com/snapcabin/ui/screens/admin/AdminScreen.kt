@@ -702,7 +702,65 @@ fun AdminScreen(
 
                     item {
                         Text(
-                            text = "Without a public photo host, the SMS will include the kiosk's local IP URL — guests must be on the same WiFi to open it. Provide a public host (S3, R2, Firebase Storage) to deliver as MMS over cellular.",
+                            text = "Without a public photo host, the SMS includes the kiosk's local IP URL — guests must be on the same WiFi to open it. Configure Cloudinary below (or set the host URL above) to deliver as MMS over cellular.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Espresso.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(horizontal = Spacing.xs)
+                        )
+                    }
+                }
+
+                // CLOUDINARY (public photo hosting for Twilio MMS)
+                item { AdminEyebrow("CLOUDINARY PHOTO HOSTING") }
+
+                item {
+                    SettingRow("Upload photos to Cloudinary before SMS") {
+                        Switch(
+                            checked = settings.cloudinaryEnabled,
+                            onCheckedChange = { v ->
+                                viewModel.updateSetting { copy(cloudinaryEnabled = v) }
+                            },
+                            colors = adminSwitchColors()
+                        )
+                    }
+                }
+
+                if (settings.cloudinaryEnabled) {
+                    item {
+                        var name by remember { mutableStateOf(settings.cloudinaryCloudName) }
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = {
+                                name = it.trim()
+                                viewModel.updateSetting { copy(cloudinaryCloudName = name) }
+                            },
+                            label = { Text("Cloud name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radii.s),
+                            colors = adminTextFieldColors()
+                        )
+                    }
+
+                    item {
+                        var preset by remember { mutableStateOf(settings.cloudinaryUploadPreset) }
+                        OutlinedTextField(
+                            value = preset,
+                            onValueChange = {
+                                preset = it.trim()
+                                viewModel.updateSetting { copy(cloudinaryUploadPreset = preset) }
+                            },
+                            label = { Text("Unsigned upload preset name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radii.s),
+                            colors = adminTextFieldColors()
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Create the preset in Cloudinary → Settings → Upload → Add upload preset. Set Signing Mode to \"Unsigned\". For safety: restrict allowed formats to image/* and set a max file size (~10 MB). The preset name above must match exactly.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Espresso.copy(alpha = 0.6f),
                             modifier = Modifier.padding(horizontal = Spacing.xs)
