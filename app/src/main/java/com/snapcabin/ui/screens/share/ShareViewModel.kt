@@ -3,10 +3,6 @@ package com.snapcabin.ui.screens.share
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.ConnectivityManager
-import android.net.LinkProperties
-import android.net.wifi.WifiManager
-import android.os.Build
 import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
@@ -19,23 +15,21 @@ import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.EmailSmsSharer
-import com.snapcabin.share.LocalPhotoServer
 import com.snapcabin.share.PhotoPrinter
 import com.snapcabin.share.PhotoSaver
-import com.snapcabin.share.PhotoShareService
 import com.snapcabin.share.QrCodeGenerator
 import com.snapcabin.share.TwilioSmsSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.Inet4Address
-import java.net.NetworkInterface
 import javax.inject.Inject
 
 data class ShareUiState(
@@ -43,15 +37,27 @@ data class ShareUiState(
     val qrCodeBitmap: Bitmap? = null,
     val savedPath: String? = null,
     val isSaving: Boolean = false,
+    /** True while the Cloudinary upload is in flight. */
+    val isUploading: Boolean = false,
+    /** Public Cloudinary URL once the upload succeeds. Empty when Cloudinary is off. */
     val shareUrl: String? = null,
+    /** Thank-you overlay is rendered when this is true. */
+    val endingSession: Boolean = false,
     val message: String? = null
 )
+
+/**
+ * One-shot navigation events. The NavGraph collects these and reacts; the
+ * ViewModel is the single source of truth for "we're done, go home."
+ */
+sealed interface ShareEvent {
+    data object SessionEnded : ShareEvent
+}
 
 @HiltViewModel
 class ShareViewModel @Inject constructor(
     private val photoSaver: PhotoSaver,
     private val qrCodeGenerator: QrCodeGenerator,
-    private val localPhotoServer: LocalPhotoServer,
     private val settingsManager: SettingsManager,
     private val photoPrinter: PhotoPrinter,
     private val emailSmsSharer: EmailSmsSharer,
@@ -61,18 +67,31 @@ class ShareViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "ShareViewModel"
+        /** How long the Thank You overlay stays before we navigate back to Attract. */
+        private const val THANK_YOU_DURATION_MS = 3_000L
     }
 
     private val _uiState = MutableStateFlow(ShareUiState())
     val uiState: StateFlow<ShareUiState> = _uiState.asStateFlow()
 
+    /**
+     * Single-shot event channel for navigation. Channel + receiveAsFlow ensures
+     * each event is delivered exactly once, even across configuration changes.
+     */
+    private val _events = Channel<ShareEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
+
     val settings: StateFlow<BoothSettings> = settingsManager.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BoothSettings())
+
+    /** Guards against double-ending if Done is tapped twice or races with the timer. */
+    private var sessionEndScheduled: Boolean = false
 
     fun setPhoto(bitmap: Bitmap, context: Context) {
         // New photo — invalidate the previous upload + per-session counter.
         cachedPublicUrl = null
         twilioSendsThisSession = 0
+        sessionEndScheduled = false
         viewModelScope.launch {
             // Bake in admin-configured branding (border + overlay PNGs, then watermark text)
             val processedPhoto = withContext(Dispatchers.Default) {
@@ -91,14 +110,49 @@ class ShareViewModel @Inject constructor(
 
             _uiState.value = _uiState.value.copy(photo = processedPhoto)
 
-            // Auto-save if enabled
+            // Auto-save if enabled.
             if (settings.value.autoSaveToGallery) {
                 saveToGallery(context)
             }
 
-            // Start QR sharing if enabled
-            if (settings.value.enableQrSharing && settings.value.enableLocalServer) {
-                startLocalServer(processedPhoto, context)
+            // Eager Cloudinary upload so QR + SMS reuse the same URL. Without
+            // Cloudinary the QR section stays hidden — guests can still use
+            // Save / Share / Print / Email.
+            val s = settings.value
+            if (s.cloudinaryEnabled && s.cloudinaryCloudName.isNotBlank() &&
+                s.cloudinaryUploadPreset.isNotBlank()
+            ) {
+                uploadToCloudinary(s, processedPhoto)
+            }
+        }
+    }
+
+    private suspend fun uploadToCloudinary(s: BoothSettings, photo: Bitmap) {
+        _uiState.value = _uiState.value.copy(isUploading = true)
+        val result = cloudinaryUploader.upload(
+            cloudName = s.cloudinaryCloudName,
+            uploadPreset = s.cloudinaryUploadPreset,
+            bitmap = photo,
+            folder = s.currentEventSlug.takeIf { it.isNotBlank() }?.let { "events/$it" }
+        )
+        when (result) {
+            is CloudinaryUploader.Result.Ok -> {
+                cachedPublicUrl = result.secureUrl
+                val qr = withContext(Dispatchers.Default) {
+                    qrCodeGenerator.generate(result.secureUrl)
+                }
+                _uiState.value = _uiState.value.copy(
+                    isUploading = false,
+                    shareUrl = result.secureUrl,
+                    qrCodeBitmap = qr
+                )
+            }
+            is CloudinaryUploader.Result.Err -> {
+                Log.w(TAG, "Cloudinary upload failed: ${result.message}")
+                _uiState.value = _uiState.value.copy(
+                    isUploading = false,
+                    message = result.message
+                )
             }
         }
     }
@@ -139,93 +193,6 @@ class ShareViewModel @Inject constructor(
         }
     }
 
-    private fun startLocalServer(bitmap: Bitmap, context: Context) {
-        viewModelScope.launch {
-            try {
-                // Start the foreground service so the LAN server survives a brief background.
-                PhotoShareService.start(context, bitmap)
-                val ip = getLocalIpAddress(context)
-                if (ip != null) {
-                    val url = localPhotoServer.getPhotoUrl(ip)
-                    val qr = withContext(Dispatchers.Default) {
-                        qrCodeGenerator.generate(url)
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        shareUrl = url,
-                        qrCodeBitmap = qr
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Local server failed to start", e)
-            }
-        }
-    }
-
-    /**
-     * Pick the IP address a guest phone on the same WiFi can reach.
-     *
-     * Strategy:
-     *  1. Walk every NetworkInterface and prefer one whose name starts with
-     *     "wlan" (Android WiFi). This avoids picking the wrong IP when the
-     *     tablet also has cellular (rmnet*), an active VPN (tun*), or a
-     *     Docker/USB-tether bridge in the rare case it's present.
-     *  2. If no wlan interface is up, fall back to ConnectivityManager's
-     *     active network (still beats the bare first-non-loopback we used
-     *     before).
-     *  3. Last resort: WifiManager.connectionInfo.ipAddress, which is
-     *     deprecated but still works on older Samsung firmware.
-     */
-    private fun getLocalIpAddress(context: Context): String? {
-        ipFromInterfaces()?.let { return it }
-        ipFromActiveNetwork(context)?.let { return it }
-        return getLocalIpViaWifiManager(context)
-    }
-
-    private fun ipFromInterfaces(): String? {
-        return try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()?.toList() ?: return null
-            val candidates = interfaces.filter { iface ->
-                iface.isUp && !iface.isLoopback && !iface.isVirtual
-            }
-            // Prefer wlan*, then anything else
-            val ordered = candidates.sortedByDescending { it.name.startsWith("wlan") }
-            for (iface in ordered) {
-                for (addr in iface.inetAddresses) {
-                    if (addr is Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
-                        return addr.hostAddress
-                    }
-                }
-            }
-            null
-        } catch (e: Exception) {
-            Log.w(TAG, "NetworkInterface enumeration failed", e)
-            null
-        }
-    }
-
-    private fun ipFromActiveNetwork(context: Context): String? {
-        return try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = cm.activeNetwork ?: return null
-            val link: LinkProperties = cm.getLinkProperties(network) ?: return null
-            link.linkAddresses.firstNotNullOfOrNull { la ->
-                val addr = la.address
-                if (addr is Inet4Address && !addr.isLoopbackAddress) addr.hostAddress else null
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "ConnectivityManager IP lookup failed", e)
-            null
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun getLocalIpViaWifiManager(context: Context): String? {
-        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-        val ip = wifiManager?.connectionInfo?.ipAddress ?: return null
-        if (ip == 0) return null
-        return "${ip and 0xff}.${ip shr 8 and 0xff}.${ip shr 16 and 0xff}.${ip shr 24 and 0xff}"
-    }
-
     fun printPhoto(context: Context) {
         val photo = _uiState.value.photo ?: return
         photoPrinter.print(context, photo)
@@ -239,6 +206,21 @@ class ShareViewModel @Inject constructor(
     fun shareViaSms(context: Context) {
         val photo = _uiState.value.photo ?: return
         emailSmsSharer.shareViaSms(context, photo)
+    }
+
+    /**
+     * The Done button (and any other "we're done here" caller) goes through
+     * here. We show the Thank You overlay, then emit SessionEnded once. Calling
+     * this more than once is a no-op so the user can spam Done safely.
+     */
+    fun endSession() {
+        if (sessionEndScheduled) return
+        sessionEndScheduled = true
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(endingSession = true)
+            kotlinx.coroutines.delay(THANK_YOU_DURATION_MS)
+            _events.send(ShareEvent.SessionEnded)
+        }
     }
 
     // ────── Twilio SMS ──────
@@ -264,7 +246,6 @@ class ShareViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(message = "Enter a valid phone number (e.g. +15551234567).")
             return
         }
-        // Reset per-phone counters if the event changed (or first run).
         if (perPhoneCountsForEvent != s.currentEventSlug) {
             perPhoneSendCounts.clear()
             perPhoneCountsForEvent = s.currentEventSlug
@@ -280,20 +261,16 @@ class ShareViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(message = "Sending to $to…")
 
-            // Resolve a URL Twilio can fetch. Priority: cached Cloudinary upload >
-            // fresh Cloudinary upload > admin-configured public base > LAN URL.
             val publicUrl = resolvePublicPhotoUrl(s)
 
             val body = buildString {
                 append("Your photo is ready")
-                if (s.eventName.isNotBlank()) append(" — ").append(s.eventName)
+                if (s.eventName.isNotBlank()) append(" from ").append(s.eventName)
                 append("!")
                 if (publicUrl != null) append(" ").append(publicUrl)
             }
-            // Only send as MMS if the URL is publicly reachable from Twilio's servers.
-            val isPublic = publicUrl != null &&
-                (s.cloudinaryEnabled || s.twilioPhotoUrlBase.isNotBlank())
-            val mediaUrl = if (isPublic) publicUrl else null
+            // MMS only when we actually have a public URL.
+            val mediaUrl = if (publicUrl != null) publicUrl else null
 
             val result = twilioSmsSender.send(
                 accountSid = s.twilioAccountSid,
@@ -318,7 +295,6 @@ class ShareViewModel @Inject constructor(
         }
     }
 
-    /** Append-only audit log of every send. Capped at SendLog.MAX_ENTRIES. */
     private fun appendToSendLog(
         s: BoothSettings,
         channel: String,
@@ -341,7 +317,12 @@ class ShareViewModel @Inject constructor(
         }
     }
 
-    /** Returns a URL Twilio can fetch, uploading to Cloudinary on first use if enabled. */
+    /**
+     * Returns a publicly-reachable URL for the current photo, uploading to
+     * Cloudinary on demand if the eager upload didn't already cache one.
+     * Falls back to an admin-supplied public host if set, otherwise null
+     * (in which case Twilio sends a text-only SMS).
+     */
     private suspend fun resolvePublicPhotoUrl(s: BoothSettings): String? {
         cachedPublicUrl?.let { return it }
 
@@ -362,32 +343,26 @@ class ShareViewModel @Inject constructor(
                         return result.secureUrl
                     }
                     is CloudinaryUploader.Result.Err -> {
-                        // Fall through to other URL sources but surface the error in the UI.
                         _uiState.value = _uiState.value.copy(message = result.message)
                     }
                 }
             }
         }
 
-        // Admin-supplied public host as fallback.
         val base = s.twilioPhotoUrlBase.trim().trimEnd('/')
         if (base.isNotEmpty()) return "$base/photo.jpg"
 
-        // Last resort: LAN URL (recipient must be on same WiFi).
-        return _uiState.value.shareUrl
+        return null
     }
 
-    /** Loose normalization: keep "+" + digits, prepend "+1" for 10-digit US-style input. */
     private fun normalizeToE164(raw: String): String? {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null
-        // Already E.164
         if (trimmed.startsWith("+")) {
             val digits = trimmed.drop(1).filter { it.isDigit() }
             val candidate = "+$digits"
             return if (twilioSmsSender.isValidE164(candidate)) candidate else null
         }
-        // US 10-digit fallback
         val digits = trimmed.filter { it.isDigit() }
         val candidate = when (digits.length) {
             10 -> "+1$digits"
@@ -399,10 +374,5 @@ class ShareViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(message = null)
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        localPhotoServer.stopServing()
     }
 }

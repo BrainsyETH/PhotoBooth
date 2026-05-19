@@ -29,7 +29,6 @@ import com.snapcabin.ui.screens.modeselect.ModeSelectScreen
 import com.snapcabin.ui.screens.privacy.PrivacyPolicyScreen
 import com.snapcabin.ui.screens.review.ReviewScreen
 import com.snapcabin.ui.screens.share.ShareScreen
-import com.snapcabin.ui.screens.thankyou.ThankYouScreen
 
 object Routes {
     const val ATTRACT = "attract"
@@ -41,7 +40,6 @@ object Routes {
     const val ADMIN = "admin"
     const val PRIVACY = "privacy"
     const val GALLERY = "gallery"
-    const val THANK_YOU = "thank_you"
 
     fun getReady(mode: CaptureMode) = "get_ready/${mode.routeArg}"
     fun capture(mode: CaptureMode) = "capture/${mode.routeArg}"
@@ -53,13 +51,11 @@ private fun getScreenTimeout(route: String?): Long = when {
     route?.startsWith("capture") == true -> 90_000L
     route == Routes.REVIEW -> 30_000L
     route == Routes.SHARE -> 60_000L
-    route == Routes.THANK_YOU -> 5_000L
     else -> 0L
 }
 
 private fun getWarningDuration(route: String?): Long = when (route) {
     Routes.REVIEW -> 10_000L
-    Routes.THANK_YOU -> 0L
     else -> 15_000L
 }
 
@@ -86,14 +82,23 @@ fun NavGraph(settingsManager: SettingsManager) {
     val warningMs = remember(currentRoute) { getWarningDuration(currentRoute) }
     val timeoutEnabled = timeoutMs > 0
 
+    // Single source of truth for "go back to the Attract screen." Used by
+    // both the inactivity timeout and Share's session-end event. Pops to and
+    // through Attract, then navigates fresh, so we always land on a clean
+    // Attract regardless of the back-stack state when called.
+    val goHome: () -> Unit = {
+        navController.navigate(Routes.ATTRACT) {
+            popUpTo(Routes.ATTRACT) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
     InactivityHandler(
         timeoutMs = timeoutMs,
         warningMs = warningMs,
         enabled = timeoutEnabled,
         resetKey = currentRoute,
-        onTimeout = {
-            navController.popBackStack(Routes.ATTRACT, inclusive = false)
-        }
+        onTimeout = goHome
     ) {
         NavHost(
             navController = navController,
@@ -222,23 +227,7 @@ fun NavGraph(settingsManager: SettingsManager) {
 
                 ShareScreen(
                     photo = uiState.capturedPhoto,
-                    onDone = {
-                        navController.navigate(Routes.THANK_YOU) {
-                            popUpTo(Routes.ATTRACT) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-
-            composable(Routes.THANK_YOU) {
-                ThankYouScreen(
-                    onDone = {
-                        navController.navigate(Routes.ATTRACT) {
-                            popUpTo(Routes.ATTRACT) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }
+                    onSessionEnd = goHome
                 )
             }
         }

@@ -51,13 +51,11 @@ data class BoothSettings(
 
     // Sharing
     val enableQrSharing: Boolean = true,
-    val enableLocalServer: Boolean = true,
     val enableSaveToGallery: Boolean = true,
     val enableShareIntent: Boolean = true,
     val enablePrint: Boolean = true,
     val enableEmail: Boolean = true,
     val enableSms: Boolean = true,
-    val serverPort: Int = 8080,
 
     // Twilio SMS (optional — disabled by default)
     val twilioEnabled: Boolean = false,
@@ -151,13 +149,11 @@ class SettingsManager @Inject constructor(
         val EVENT_NAME = stringPreferencesKey("event_name")
         val ATTRACT_SUBTEXT = stringPreferencesKey("attract_subtext")
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
-        val ENABLE_SERVER = booleanPreferencesKey("enable_local_server")
         val ENABLE_SAVE_GALLERY = booleanPreferencesKey("enable_save_gallery")
         val ENABLE_SHARE_INTENT = booleanPreferencesKey("enable_share_intent")
         val ENABLE_PRINT = booleanPreferencesKey("enable_print")
         val ENABLE_EMAIL = booleanPreferencesKey("enable_email")
         val ENABLE_SMS = booleanPreferencesKey("enable_sms")
-        val SERVER_PORT = intPreferencesKey("server_port")
         val ENABLE_SINGLE_PHOTO = booleanPreferencesKey("enable_single_photo_mode")
         val ENABLE_COLLAGE = booleanPreferencesKey("enable_collage_mode")
         val ENABLE_GIF = booleanPreferencesKey("enable_gif_mode")
@@ -200,13 +196,11 @@ class SettingsManager @Inject constructor(
             eventName = prefs[Keys.EVENT_NAME] ?: "",
             attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
             enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
-            enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
             enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
             enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: true,
             enablePrint = prefs[Keys.ENABLE_PRINT] ?: true,
             enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
             enableSms = prefs[Keys.ENABLE_SMS] ?: true,
-            serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
             twilioEnabled = prefs[Keys.TWILIO_ENABLED] ?: false,
             twilioAccountSid = prefs[Keys.TWILIO_ACCOUNT_SID] ?: "",
             twilioAuthToken = prefs[Keys.TWILIO_AUTH_TOKEN] ?: "",
@@ -266,13 +260,11 @@ class SettingsManager @Inject constructor(
                 eventName = prefs[Keys.EVENT_NAME] ?: "",
                 attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
                 enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
-                enableLocalServer = prefs[Keys.ENABLE_SERVER] ?: true,
                 enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
                 enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: true,
                 enablePrint = prefs[Keys.ENABLE_PRINT] ?: true,
                 enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
                 enableSms = prefs[Keys.ENABLE_SMS] ?: true,
-                serverPort = prefs[Keys.SERVER_PORT] ?: 8080,
                 enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
                 enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
                 enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
@@ -327,13 +319,11 @@ class SettingsManager @Inject constructor(
             prefs[Keys.EVENT_NAME] = updated.eventName
             prefs[Keys.ATTRACT_SUBTEXT] = updated.attractSubtext
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
-            prefs[Keys.ENABLE_SERVER] = updated.enableLocalServer
             prefs[Keys.ENABLE_SAVE_GALLERY] = updated.enableSaveToGallery
             prefs[Keys.ENABLE_SHARE_INTENT] = updated.enableShareIntent
             prefs[Keys.ENABLE_PRINT] = updated.enablePrint
             prefs[Keys.ENABLE_EMAIL] = updated.enableEmail
             prefs[Keys.ENABLE_SMS] = updated.enableSms
-            prefs[Keys.SERVER_PORT] = updated.serverPort
             prefs[Keys.ENABLE_SINGLE_PHOTO] = updated.enableSinglePhotoMode
             prefs[Keys.ENABLE_COLLAGE] = updated.enableCollageMode
             prefs[Keys.ENABLE_GIF] = updated.enableGifMode

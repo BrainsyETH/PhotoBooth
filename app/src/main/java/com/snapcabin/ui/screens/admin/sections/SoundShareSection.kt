@@ -2,9 +2,12 @@ package com.snapcabin.ui.screens.admin.sections
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -13,6 +16,7 @@ import com.snapcabin.ui.screens.admin.AdminViewModel
 import com.snapcabin.ui.screens.admin.SettingRow
 import com.snapcabin.ui.screens.admin.adminSliderColors
 import com.snapcabin.ui.screens.admin.adminSwitchColors
+import com.snapcabin.ui.theme.Espresso
 import com.snapcabin.ui.theme.Spacing
 
 @Composable
@@ -95,13 +99,20 @@ internal fun ShareSection(
             )
         }
 
-        SettingRow("QR code (scan to download)") {
+        SettingRow("QR code (Cloudinary link)") {
             Switch(
                 checked = settings.enableQrSharing,
                 onCheckedChange = { v -> viewModel.updateSetting { copy(enableQrSharing = v) } },
                 colors = adminSwitchColors()
             )
         }
+
+        Text(
+            text = "QR code needs Cloudinary. Configure it under CLOUDINARY PHOTO HOSTING. The previous LAN-only QR option was removed because most mobile browsers now block plain-HTTP downloads.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.55f),
+            modifier = Modifier.padding(horizontal = Spacing.xs)
+        )
 
         SettingRow("Auto-save every photo silently") {
             Switch(
