@@ -52,6 +52,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.rememberScreenClass
+import com.snapcabin.ui.components.scaledDp
+import com.snapcabin.ui.components.sidebarWidth
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.CabinSurface
 import com.snapcabin.ui.theme.Espresso
@@ -60,7 +63,6 @@ import com.snapcabin.ui.theme.HoneyDeep
 import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.ShareDenim
 import com.snapcabin.ui.theme.ShareLeaf
-import com.snapcabin.ui.theme.Sidebar
 import com.snapcabin.ui.theme.Spacing
 import kotlinx.coroutines.delay
 
@@ -94,6 +96,13 @@ fun ShareScreen(
         }
     }
 
+    val screen = rememberScreenClass()
+    val sidebarWidthDp = screen.sidebarWidth().dp
+    val titleSize = screen.scaledDp(34).sp
+    val qrBoxSize = screen.scaledDp(172).dp
+    val qrImageSize = screen.scaledDp(144).dp
+    val sidebarPadding = screen.scaledDp(28).dp
+
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -123,10 +132,10 @@ fun ShareScreen(
         // Right: sidebar
         Column(
             modifier = Modifier
-                .width(Sidebar.width)
+                .width(sidebarWidthDp)
                 .fillMaxHeight()
                 .background(CabinSurface)
-                .padding(28.dp),
+                .padding(sidebarPadding),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Column(
@@ -138,7 +147,7 @@ fun ShareScreen(
             ) {
                 Text(
                     text = stringResource(R.string.share_title),
-                    fontSize = 34.sp,
+                    fontSize = titleSize,
                     fontFamily = FrankRuhlLibre,
                     fontWeight = FontWeight.Bold,
                     color = Espresso
@@ -154,7 +163,7 @@ fun ShareScreen(
                         )
                         Box(
                             modifier = Modifier
-                                .size(172.dp)
+                                .size(qrBoxSize)
                                 .shadow(elevation = 1.dp, shape = RoundedCornerShape(Radii.s))
                                 .clip(RoundedCornerShape(Radii.s))
                                 .background(Color.White)
@@ -165,7 +174,7 @@ fun ShareScreen(
                             Image(
                                 bitmap = qr.asImageBitmap(),
                                 contentDescription = stringResource(R.string.share_qr_desc),
-                                modifier = Modifier.size(144.dp)
+                                modifier = Modifier.size(qrImageSize)
                             )
                         }
                         uiState.shareUrl?.let { url ->

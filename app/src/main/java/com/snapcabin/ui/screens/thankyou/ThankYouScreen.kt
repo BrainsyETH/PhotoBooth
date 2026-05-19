@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.snapcabin.ui.components.rememberScreenClass
+import com.snapcabin.ui.components.scaledDp
 import com.snapcabin.ui.theme.CabinBackground
 import com.snapcabin.ui.theme.CabinSurface
 import com.snapcabin.ui.theme.Espresso
@@ -42,6 +44,10 @@ import kotlinx.coroutines.delay
 fun ThankYouScreen(
     onDone: () -> Unit
 ) {
+    val screen = rememberScreenClass()
+    val titleSize = screen.scaledDp(140).sp
+    val subtitleSize = screen.scaledDp(30).sp
+
     var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -82,7 +88,7 @@ fun ThankYouScreen(
         ) {
             Text(
                 text = "Thank you.",
-                fontSize = 140.sp,
+                fontSize = titleSize,
                 fontFamily = FrankRuhlLibre,
                 fontWeight = FontWeight.Bold,
                 color = Espresso,
@@ -104,7 +110,7 @@ fun ThankYouScreen(
 
             Text(
                 text = "Your photo is ready",
-                fontSize = 30.sp,
+                fontSize = subtitleSize,
                 fontFamily = FrankRuhlLibre,
                 fontWeight = FontWeight.Medium,
                 fontStyle = FontStyle.Italic,

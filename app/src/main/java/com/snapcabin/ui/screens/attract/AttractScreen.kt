@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.snapcabin.R
+import com.snapcabin.ui.components.rememberScreenClass
+import com.snapcabin.ui.components.scaledDp
 import com.snapcabin.ui.theme.CabinBackground
 import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSurface
@@ -56,6 +58,12 @@ fun AttractScreen(
     eventName: String = "",
     subtext: String = ""
 ) {
+    val screen = rememberScreenClass()
+    val logoSize = screen.scaledDp(280).dp
+    val titleLarge = screen.scaledDp(96).sp
+    val titleSmall = screen.scaledDp(72).sp
+    val subtextSize = screen.scaledDp(26).sp
+
     val infiniteTransition = rememberInfiniteTransition(label = "attract")
     val ctaAlpha by infiniteTransition.animateFloat(
         initialValue = 0.55f,
@@ -92,7 +100,7 @@ fun AttractScreen(
             Image(
                 painter = painterResource(id = R.drawable.snapcabin_logov2),
                 contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(280.dp)
+                modifier = Modifier.size(logoSize)
             )
 
             Spacer(modifier = Modifier.height(Spacing.lg))
@@ -100,7 +108,7 @@ fun AttractScreen(
             val headline = if (eventName.isNotBlank()) eventName else stringResource(R.string.app_name)
             Text(
                 text = headline,
-                fontSize = if (headline.length > 16) 72.sp else 96.sp,
+                fontSize = if (headline.length > 16) titleSmall else titleLarge,
                 fontFamily = FrankRuhlLibre,
                 fontWeight = FontWeight.Bold,
                 color = Espresso,
@@ -113,7 +121,7 @@ fun AttractScreen(
                 Spacer(modifier = Modifier.height(Spacing.md))
                 Text(
                     text = subtext,
-                    fontSize = 26.sp,
+                    fontSize = subtextSize,
                     fontFamily = FrankRuhlLibre,
                     fontWeight = FontWeight.Medium,
                     fontStyle = FontStyle.Italic,
