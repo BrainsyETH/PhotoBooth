@@ -225,6 +225,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                     onDone = {
                         navController.navigate(Routes.THANK_YOU) {
                             popUpTo(Routes.ATTRACT) { inclusive = false }
+                            launchSingleTop = true
                         }
                     }
                 )
@@ -233,7 +234,10 @@ fun NavGraph(settingsManager: SettingsManager) {
             composable(Routes.THANK_YOU) {
                 ThankYouScreen(
                     onDone = {
-                        navController.popBackStack(Routes.ATTRACT, inclusive = false)
+                        navController.navigate(Routes.ATTRACT) {
+                            popUpTo(Routes.ATTRACT) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 )
             }

@@ -14,6 +14,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!--
+      Required only on Android 8.0-9 (API 26-28) when "auto-save to gallery" is on.
+      Android 10+ uses scoped MediaStore which doesn't need this. Capped with
+      maxSdkVersion so newer installs don't see the permission prompt.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <application
         android:name=".SnapCabinApp"
         android:allowBackup="false"

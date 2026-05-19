@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.Inet4Address
+import java.net.NetworkInterface
 import javax.inject.Inject
 
 data class ShareUiState(
@@ -161,29 +162,60 @@ class ShareViewModel @Inject constructor(
     }
 
     /**
-     * Get local IP address using modern ConnectivityManager API (Android 23+)
-     * with WifiManager fallback for older Samsung firmware.
+     * Pick the IP address a guest phone on the same WiFi can reach.
+     *
+     * Strategy:
+     *  1. Walk every NetworkInterface and prefer one whose name starts with
+     *     "wlan" (Android WiFi). This avoids picking the wrong IP when the
+     *     tablet also has cellular (rmnet*), an active VPN (tun*), or a
+     *     Docker/USB-tether bridge in the rare case it's present.
+     *  2. If no wlan interface is up, fall back to ConnectivityManager's
+     *     active network (still beats the bare first-non-loopback we used
+     *     before).
+     *  3. Last resort: WifiManager.connectionInfo.ipAddress, which is
+     *     deprecated but still works on older Samsung firmware.
      */
     private fun getLocalIpAddress(context: Context): String? {
-        // Modern approach: ConnectivityManager (works on Android M+)
-        try {
-            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = connectivityManager.activeNetwork
-            if (network != null) {
-                val linkProperties: LinkProperties? = connectivityManager.getLinkProperties(network)
-                linkProperties?.linkAddresses?.forEach { linkAddress ->
-                    val address = linkAddress.address
-                    if (address is Inet4Address && !address.isLoopbackAddress) {
-                        return address.hostAddress
+        ipFromInterfaces()?.let { return it }
+        ipFromActiveNetwork(context)?.let { return it }
+        return getLocalIpViaWifiManager(context)
+    }
+
+    private fun ipFromInterfaces(): String? {
+        return try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()?.toList() ?: return null
+            val candidates = interfaces.filter { iface ->
+                iface.isUp && !iface.isLoopback && !iface.isVirtual
+            }
+            // Prefer wlan*, then anything else
+            val ordered = candidates.sortedByDescending { it.name.startsWith("wlan") }
+            for (iface in ordered) {
+                for (addr in iface.inetAddresses) {
+                    if (addr is Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                        return addr.hostAddress
                     }
                 }
             }
+            null
         } catch (e: Exception) {
-            Log.w(TAG, "ConnectivityManager IP lookup failed, trying WifiManager", e)
+            Log.w(TAG, "NetworkInterface enumeration failed", e)
+            null
         }
+    }
 
-        // Fallback for older devices / Samsung firmware quirks
-        return getLocalIpViaWifiManager(context)
+    private fun ipFromActiveNetwork(context: Context): String? {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return null
+            val link: LinkProperties = cm.getLinkProperties(network) ?: return null
+            link.linkAddresses.firstNotNullOfOrNull { la ->
+                val addr = la.address
+                if (addr is Inet4Address && !addr.isLoopbackAddress) addr.hostAddress else null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "ConnectivityManager IP lookup failed", e)
+            null
+        }
     }
 
     @Suppress("DEPRECATION")

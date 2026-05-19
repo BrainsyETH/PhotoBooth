@@ -33,24 +33,41 @@ class PhotoSaver @Inject constructor() {
     }
 
     private fun saveWithMediaStore(context: Context, bitmap: Bitmap, fileName: String, quality: Int): String? {
+        // On Q+ we use IS_PENDING so the entry isn't visible to gallery apps
+        // while we're still writing bytes. Some OEM gallery apps refuse to
+        // show partially-written entries; clearing IS_PENDING after the write
+        // also kicks off MediaStore indexing.
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.jpg")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/SnapCabin")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
 
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            ?: return null
+        if (uri == null) {
+            Log.e(TAG, "MediaStore.insert returned null. RELATIVE_PATH=${contentValues.getAsString(MediaStore.MediaColumns.RELATIVE_PATH)}")
+            return null
+        }
 
         return try {
-            resolver.openOutputStream(uri)?.use { stream ->
+            resolver.openOutputStream(uri).use { stream ->
+                if (stream == null) {
+                    Log.e(TAG, "openOutputStream returned null for $uri")
+                    resolver.delete(uri, null, null)
+                    return null
+                }
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality.coerceIn(1, 100), stream)
+                stream.flush()
             }
+            val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            resolver.update(uri, done, null, null)
+            Log.i(TAG, "Saved photo to $uri")
             uri.toString()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save via MediaStore", e)
-            resolver.delete(uri, null, null)
+            try { resolver.delete(uri, null, null) } catch (_: Exception) { }
             null
         }
     }

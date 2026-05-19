@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.rememberScreenClass
+import com.snapcabin.ui.components.scaledDp
 import com.snapcabin.ui.screens.admin.sections.AboutSection
 import com.snapcabin.ui.screens.admin.sections.AuditSection
 import com.snapcabin.ui.screens.admin.sections.BrandingSection
@@ -92,7 +94,8 @@ fun AdminScreen(
         if (!pinVerified) {
             PinEntry(
                 onPinSubmit = { viewModel.verifyPin(it) },
-                onCancel = onDismiss
+                onCancel = onDismiss,
+                showDefaultHint = settings.adminPin == "1234"
             )
         } else {
             val sections = listOf(
@@ -171,6 +174,9 @@ private fun AdminContent(
         }
     }
 
+    val screen = rememberScreenClass()
+    val navWidth = screen.scaledDp(240).dp
+
     Row(modifier = Modifier.fillMaxSize()) {
         SideNav(
             sections = sections,
@@ -180,7 +186,7 @@ private fun AdminContent(
             },
             onDismiss = onDismiss,
             modifier = Modifier
-                .width(240.dp)
+                .width(navWidth)
                 .fillMaxHeight()
         )
 
@@ -339,7 +345,8 @@ private fun SideNavItem(
 @Composable
 private fun PinEntry(
     onPinSubmit: (String) -> Boolean,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    showDefaultHint: Boolean = false
 ) {
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
@@ -379,6 +386,16 @@ private fun PinEntry(
                 shape = RoundedCornerShape(Radii.s),
                 colors = adminTextFieldColors()
             )
+
+            if (showDefaultHint && !error) {
+                Spacer(modifier = Modifier.height(Spacing.s))
+                Text(
+                    text = "Default PIN is 1234. Change it under KIOSK after you sign in.",
+                    color = Honey,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium
+                )
+            }
 
             if (error) {
                 Spacer(modifier = Modifier.height(Spacing.s))
