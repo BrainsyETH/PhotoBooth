@@ -18,9 +18,6 @@
 -keep class coil3.** { *; }
 -dontwarn coil3.**
 
-# --- NanoHTTPD ---
--keep class fi.iki.elonen.** { *; }
-
 # --- ZXing ---
 -keep class com.google.zxing.** { *; }
 
