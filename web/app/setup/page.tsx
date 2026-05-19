@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "SnapCabin · Setup guides",
   description:
-    "Step-by-step guides for wiring SnapCabin to Twilio (SMS) and Cloudinary (photo hosting).",
+    "Step-by-step guides for wiring SnapCabin to Twilio (text messages) and Cloudinary (photo hosting).",
 };
 
 export default function SetupIndex() {
@@ -19,22 +19,23 @@ export default function SetupIndex() {
         Setup guides
       </h1>
       <p className="mt-4 max-w-xl text-lg leading-relaxed text-espresso/80">
-        SnapCabin runs offline by default. These two optional integrations are
-        what let guests get the photo straight to their phone over cellular.
+        SnapCabin works offline by default. These two optional integrations
+        are what let a guest get the photo straight to their phone over
+        cellular instead of WiFi.
       </p>
 
       <section className="mt-12 grid gap-6 md:grid-cols-2">
         <SetupCard
           title="Twilio"
-          subtitle="Send the photo as SMS / MMS"
+          subtitle="Send the photo by text"
           href="/setup/twilio"
-          minutes="~10 minutes"
+          minutes="About 10 minutes"
         />
         <SetupCard
           title="Cloudinary"
-          subtitle="Public photo hosting for MMS"
+          subtitle="Host the photo so the text can include it"
           href="/setup/cloudinary"
-          minutes="~5 minutes"
+          minutes="About 5 minutes"
         />
       </section>
 
@@ -43,10 +44,10 @@ export default function SetupIndex() {
           Recommended order
         </h2>
         <ol className="mt-4 list-decimal space-y-2 pl-6 text-base text-espresso/85">
-          <li>Set up Cloudinary first — it gives you a public photo URL.</li>
-          <li>Then Twilio — it consumes that URL when sending MMS.</li>
+          <li>Set up Cloudinary first. It gives you a public photo URL.</li>
+          <li>Then Twilio. It uses that URL when sending the picture.</li>
           <li>
-            Test each integration via the admin screen on the kiosk before your
+            Test each one from the admin screen on the tablet before your
             event.
           </li>
         </ol>
@@ -77,7 +78,7 @@ function SetupCard({
       <h2 className="mt-1 font-display text-3xl font-bold text-espresso">
         {title}
       </h2>
-      <p className="mt-3 text-sm text-mist">{minutes} · step-by-step</p>
+      <p className="mt-3 text-sm text-mist">{minutes}, step by step</p>
     </Link>
   );
 }
