@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
@@ -6,6 +7,7 @@ export default function Home() {
       <Hero />
       <Features />
       <HowItWorks />
+      <Comparison />
       <Integrations />
       <Faq />
       <Footer />
@@ -17,31 +19,33 @@ function Hero() {
   return (
     <section className="flex flex-col items-center gap-8 text-center">
       <p className="text-xs font-sans font-semibold uppercase tracking-[0.3em] text-honey-deep">
-        Photo Booth · Self-hosted · Android
+        Photo booth for your event, on your tablet
       </p>
-      <h1 className="font-display text-6xl font-bold leading-[1.05] text-espresso sm:text-7xl">
-        SnapCabin
-      </h1>
-      <p className="font-display text-2xl italic text-walnut sm:text-3xl">
-        A photo booth in the woods.
-      </p>
-      <p className="max-w-xl text-lg leading-relaxed text-espresso/80">
-        Self-hosted Android photo-booth kiosk for weddings and gatherings. No
-        analytics, no telemetry, no monthly fee. Pay once, run it on your own
-        hardware, keep every photo on your operator's storage.
+      <Image
+        src="/snapcabin-logo.png"
+        alt="SnapCabin"
+        width={1536}
+        height={1024}
+        priority
+        className="h-auto w-full max-w-xl"
+      />
+      <p className="max-w-xl text-lg leading-relaxed text-espresso/85">
+        A photo booth that runs on an Android tablet you already own. Guests
+        snap their photo, pick how they want it, and walk away with it on
+        their phone. No subscription, no monthly bill, no surprise add-ons.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-4">
         <Link
           href="/setup"
           className="rounded-2xl bg-pine px-6 py-3 font-sans text-base font-semibold text-cream no-underline shadow-sm transition hover:bg-pine-deep"
         >
-          Setup guides
+          See how to set it up
         </Link>
         <a
           href="mailto:hello@snapcabin.app"
           className="rounded-2xl border border-walnut/40 px-6 py-3 font-sans text-base font-semibold text-walnut no-underline transition hover:border-walnut hover:text-walnut-deep"
         >
-          Contact
+          Ask a question
         </a>
       </div>
     </section>
@@ -49,34 +53,35 @@ function Hero() {
 }
 
 function Features() {
+  const items = [
+    {
+      title: "Runs on a tablet you already have",
+      body: "Any modern Android tablet works. Install once, take it to the next event, and the next.",
+    },
+    {
+      title: "Three ways to capture a moment",
+      body: "Single photo, four-shot collage, or short looping GIF. Guests pick what feels right.",
+    },
+    {
+      title: "Photos straight to a phone",
+      body: "Guests scan a QR code, or punch in their number and the photo arrives by text. Email works too.",
+    },
+    {
+      title: "Make it look like your event",
+      body: "Add the couple's names, a tagline, a watermark, a custom border, or a logo overlay. Change any of it from the kiosk.",
+    },
+    {
+      title: "Your photos stay yours",
+      body: "Photos live on the tablet, or in your own Cloudinary account if you wire one up. SnapCabin never holds copies.",
+    },
+    {
+      title: "A history of every send",
+      body: "An on-tablet log shows every text or email that went out, with timestamps and the last four digits of the number.",
+    },
+  ];
   return (
     <section className="mt-28 grid gap-6 sm:grid-cols-2">
-      {[
-        {
-          title: "Yours, on your hardware",
-          body: "Runs on any modern Android tablet. Photos live on the device unless you wire it to your own cloud storage.",
-        },
-        {
-          title: "Single Photo · Collage · GIF",
-          body: "Three capture modes a guest can pick from, each with countdown coaching, framing guide, and pose prompts.",
-        },
-        {
-          title: "SMS + MMS delivery",
-          body: "Bring your own Twilio account and SnapCabin will send the photo straight to a guest's phone.",
-        },
-        {
-          title: "Cloudinary photo hosting",
-          body: "Unsigned uploads to a folder scoped per event. The kiosk never sees your API secret.",
-        },
-        {
-          title: "Branding per event",
-          body: "Event name, attract tagline, watermark, custom border, and logo overlay — all configurable from the admin screen.",
-        },
-        {
-          title: "Audit log, on-device",
-          body: "Every send is logged with timestamp, channel, masked recipient, and event slug. Last 500 entries, exportable on request.",
-        },
-      ].map((f) => (
+      {items.map((f) => (
         <FeatureCard key={f.title} title={f.title} body={f.body} />
       ))}
     </section>
@@ -96,30 +101,30 @@ function HowItWorks() {
   const steps = [
     {
       n: "01",
-      title: "Install on a tablet",
-      body: "Sideload the APK (or install once it's on Play). One-time setup; no monthly fee.",
+      title: "Install once",
+      body: "Buy SnapCabin, install it on your Android tablet. Setup wizard runs you through camera and storage permissions.",
     },
     {
       n: "02",
-      title: "Configure your event",
-      body: "Tap a hidden corner, enter the admin PIN, name the event, and dial in branding.",
+      title: "Name your event",
+      body: "Tap a hidden corner, type the admin PIN, give the event a name and a tagline. The look of the booth updates right away.",
     },
     {
       n: "03",
-      title: "Wire up SMS + hosting",
-      body: "Paste Twilio credentials and a Cloudinary preset. We link to the setup guides right from the admin screen.",
+      title: "Plug in text and photo hosting",
+      body: "Paste your Twilio keys for SMS, and a Cloudinary preset so photos can travel by text. Both are optional and we link you to step-by-step guides.",
     },
     {
       n: "04",
-      title: "Lock it down + host",
-      body: "Optional Android Device Owner kiosk mode keeps the app locked to the tablet for the evening.",
+      title: "Run the event",
+      body: "Turn on Kiosk Mode to lock the tablet to SnapCabin for the night. Guests do the rest.",
     },
   ];
   return (
     <section className="mt-28">
       <SectionHeading
         eyebrow="How it works"
-        title="A weekend's worth of setup, not a quarter's"
+        title="From box to booth in an afternoon"
       />
       <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((s) => (
@@ -143,30 +148,232 @@ function HowItWorks() {
   );
 }
 
+function Comparison() {
+  return (
+    <section className="mt-28">
+      <SectionHeading
+        eyebrow="Cost compared"
+        title="What a 250-photo event actually costs"
+      />
+      <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-espresso/75">
+        Most photo booth apps charge a monthly fee whether you run one event a
+        year or twenty. SnapCabin is a one-time purchase. Texting and hosting
+        are billed at cost by Twilio and Cloudinary, with no markup from us.
+      </p>
+
+      <div className="mt-10 overflow-x-auto rounded-3xl border border-walnut/15 bg-cream/70">
+        <table className="w-full text-left text-sm sm:text-base">
+          <thead>
+            <tr className="border-b border-walnut/15 text-xs uppercase tracking-widest text-honey-deep">
+              <th className="px-5 py-4 font-sans font-semibold">Option</th>
+              <th className="px-5 py-4 font-sans font-semibold">
+                Up-front
+              </th>
+              <th className="px-5 py-4 font-sans font-semibold">
+                Per month
+              </th>
+              <th className="px-5 py-4 font-sans font-semibold">
+                Per event of 250 photos
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-walnut/10">
+            <tr className="bg-pine/5">
+              <td className="px-5 py-4">
+                <p className="font-display text-lg font-semibold text-espresso">
+                  SnapCabin
+                </p>
+                <p className="text-xs text-mist">
+                  One-time app, pay-as-you-go text + hosting
+                </p>
+              </td>
+              <td className="px-5 py-4 font-sans text-espresso">
+                One-time
+              </td>
+              <td className="px-5 py-4 font-sans text-pine-deep">$0</td>
+              <td className="px-5 py-4 font-sans font-semibold text-pine-deep">
+                ~$5 in text fees
+              </td>
+            </tr>
+            <tr>
+              <td className="px-5 py-4">
+                <p className="font-display text-lg font-semibold text-espresso">
+                  Snappic Starter
+                </p>
+                <p className="text-xs text-mist">Monthly subscription</p>
+              </td>
+              <td className="px-5 py-4 font-sans text-espresso">$0</td>
+              <td className="px-5 py-4 font-sans text-espresso">$69</td>
+              <td className="px-5 py-4 font-sans text-espresso">
+                $69 (one month minimum)
+              </td>
+            </tr>
+            <tr>
+              <td className="px-5 py-4">
+                <p className="font-display text-lg font-semibold text-espresso">
+                  Snappic Business
+                </p>
+                <p className="text-xs text-mist">Monthly subscription</p>
+              </td>
+              <td className="px-5 py-4 font-sans text-espresso">$0</td>
+              <td className="px-5 py-4 font-sans text-espresso">$189</td>
+              <td className="px-5 py-4 font-sans text-espresso">
+                $189 (one month minimum)
+              </td>
+            </tr>
+            <tr>
+              <td className="px-5 py-4">
+                <p className="font-display text-lg font-semibold text-espresso">
+                  Simple Booth HALO
+                </p>
+                <p className="text-xs text-mist">
+                  Weekly or monthly plans, iPad app
+                </p>
+              </td>
+              <td className="px-5 py-4 font-sans text-espresso">$0</td>
+              <td className="px-5 py-4 font-sans text-espresso">
+                Plans from $9/week
+              </td>
+              <td className="px-5 py-4 font-sans text-espresso">
+                ~$36 if billed weekly all month
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mx-auto mt-4 max-w-3xl text-center text-xs text-mist">
+        Prices listed for the other apps are taken from their public pricing
+        pages as of May 2026 and may have changed.{" "}
+        <a
+          href="https://www.snappic.com/pricing"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Snappic pricing
+        </a>
+        ,{" "}
+        <a
+          href="https://www.simplebooth.com/plans"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Simple Booth plans
+        </a>
+        . SnapCabin&rsquo;s text cost is based on Twilio&rsquo;s published US
+        MMS rate of about $0.02 per message; international rates vary.
+      </p>
+
+      <div className="mt-12">
+        <h3 className="text-center font-display text-2xl font-medium text-espresso">
+          Features compared
+        </h3>
+        <div className="mt-6 overflow-x-auto rounded-3xl border border-walnut/15 bg-cream/70">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-walnut/15 text-xs uppercase tracking-widest text-honey-deep">
+                <th className="px-5 py-4 font-sans font-semibold">Feature</th>
+                <th className="px-5 py-4 text-center font-sans font-semibold">
+                  SnapCabin
+                </th>
+                <th className="px-5 py-4 text-center font-sans font-semibold">
+                  Snappic Starter
+                </th>
+                <th className="px-5 py-4 text-center font-sans font-semibold">
+                  Simple Booth HALO
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-walnut/10 text-espresso/85">
+              <FeatureRow label="Single photo, collage, GIF modes" />
+              <FeatureRow label="Send photo by text (SMS / MMS)" />
+              <FeatureRow label="QR-code on-WiFi download" snapcabin simplebooth={false} snappic={false} />
+              <FeatureRow
+                label="Photos stored on your own cloud account"
+                snapcabin
+                snappic={false}
+                simplebooth={false}
+              />
+              <FeatureRow label="Custom border and logo overlay" />
+              <FeatureRow label="Works offline once configured" snapcabin snappic={false} simplebooth={false} />
+              <FeatureRow
+                label="Pay only for what you use after purchase"
+                snapcabin
+                snappic={false}
+                simplebooth={false}
+              />
+              <FeatureRow
+                label="Source available for inspection"
+                snapcabin
+                snappic={false}
+                simplebooth={false}
+              />
+            </tbody>
+          </table>
+        </div>
+        <p className="mx-auto mt-3 max-w-3xl text-center text-xs text-mist">
+          Other app feature lists are best-effort summaries from their public
+          marketing pages as of May 2026. We&rsquo;d love to be told what
+          we&rsquo;ve missed.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function FeatureRow({
+  label,
+  snapcabin = true,
+  snappic = true,
+  simplebooth = true,
+}: {
+  label: string;
+  snapcabin?: boolean;
+  snappic?: boolean;
+  simplebooth?: boolean;
+}) {
+  return (
+    <tr>
+      <td className="px-5 py-3">{label}</td>
+      <td className="px-5 py-3 text-center">{snapcabin ? <Check /> : <Dash />}</td>
+      <td className="px-5 py-3 text-center">{snappic ? <Check /> : <Dash />}</td>
+      <td className="px-5 py-3 text-center">{simplebooth ? <Check /> : <Dash />}</td>
+    </tr>
+  );
+}
+
+function Check() {
+  return <span className="font-bold text-pine-deep">Yes</span>;
+}
+
+function Dash() {
+  return <span className="text-mist">No</span>;
+}
+
 function Integrations() {
   return (
     <section className="mt-28">
       <SectionHeading
         eyebrow="Bring your own keys"
-        title="Two integrations, both optional"
+        title="Two services do the heavy lifting"
       />
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <IntegrationCard
           name="Twilio"
-          tagline="SMS + MMS delivery"
-          body="Send the captured photo as an SMS link or an MMS image. SnapCabin authenticates with your Account SID + Auth Token; per-session and per-phone rate limits keep one phone from spamming the line."
+          tagline="Texts a photo to your guest"
+          body="When a guest types their phone number, Twilio sends the photo as a text. You bring the account and we use your keys on the tablet only. Pay Twilio per message at their published rate."
           ctaHref="/setup/twilio"
         />
         <IntegrationCard
           name="Cloudinary"
-          tagline="Public photo hosting"
-          body="Photos upload to a folder scoped to the current event via an unsigned preset. The kiosk never holds your API secret, and you control retention, transforms, and access on your end."
+          tagline="Keeps photos available online"
+          body="So the text arrives with the photo attached instead of just a link, the tablet uploads each photo to your Cloudinary account first. The free tier covers a typical event."
           ctaHref="/setup/cloudinary"
         />
       </div>
       <p className="mt-6 text-center text-sm text-mist">
-        Skip both and the kiosk still runs — guests download photos by scanning
-        the QR code on the same WiFi.
+        You can skip both. Guests can still pick photos up by scanning the
+        on-screen QR code on the same WiFi as the tablet.
       </p>
     </section>
   );
@@ -199,7 +406,7 @@ function IntegrationCard({
           href={ctaHref}
           className="inline-block rounded-xl bg-pine px-5 py-2.5 font-sans text-sm font-semibold text-cream no-underline transition hover:bg-pine-deep"
         >
-          Open setup guide →
+          Read the setup guide
         </Link>
       </div>
     </article>
@@ -212,20 +419,20 @@ function Faq() {
       <SectionHeading eyebrow="FAQ" title="Quick answers" />
       <div className="mt-10 space-y-4">
         <FaqRow
-          q="Do I need a backend?"
-          a="No. SnapCabin runs entirely on the tablet. Twilio and Cloudinary are optional — they're how guests receive their photo by text. Without them, guests download via the QR code on the local WiFi."
+          q="Do I have to use Twilio and Cloudinary?"
+          a="No. SnapCabin works fully offline. Guests pick up their photo by scanning a QR code on the tablet, which downloads it on the same WiFi. Twilio and Cloudinary just make it possible to send a photo over cellular."
         />
         <FaqRow
-          q="Does SnapCabin see any data?"
-          a="No analytics, no telemetry, no crash reporting, no accounts. Your operator is the data controller for anything sent through Twilio or Cloudinary."
+          q="What kind of tablet do I need?"
+          a="Most Android tablets from the last few years should work, especially anything in landscape orientation with a decent front camera. We&rsquo;ve had good results with Samsung Galaxy Tab S6 and newer."
         />
         <FaqRow
-          q="What tablet do I need?"
-          a="Any modern Android tablet (Android 8+, 8.7–12.4 inch screen, landscape). We've tested on Samsung Tab S6 / S8 / S9."
+          q="Does SnapCabin send any data back to you?"
+          a="The app does not include analytics SDKs, crash reporters, or other libraries that phone home. Whatever your guests send through Twilio or Cloudinary goes only to your account at those services. The privacy policy covers this in more detail."
         />
         <FaqRow
           q="Can I run multiple events?"
-          a="Today the kiosk handles one active event at a time. Start a new event to roll over branding, Cloudinary folder, and rate limits."
+          a="Yes. You give each event a name and the app keeps photos, audit logs, and rate limits scoped to it. Today the kiosk handles one active event at a time. Start a new event when you&rsquo;re ready to switch."
         />
       </div>
     </section>
@@ -246,9 +453,13 @@ function FaqRow({ q, a }: { q: string; a: string }) {
 function Footer() {
   return (
     <footer className="mt-28 flex flex-col items-center gap-4 border-t border-walnut/15 pt-10 text-sm text-mist">
-      <p className="font-display text-base italic text-walnut">
-        SnapCabin · A photo booth in the woods
-      </p>
+      <Image
+        src="/snapcabin-logo.png"
+        alt="SnapCabin"
+        width={1536}
+        height={1024}
+        className="h-auto w-full max-w-[240px] opacity-80"
+      />
       <div className="flex flex-wrap items-center justify-center gap-6 font-sans">
         <Link href="/setup" className="font-semibold no-underline">
           Setup
@@ -264,7 +475,8 @@ function Footer() {
         </a>
       </div>
       <p className="text-xs text-mist">
-        Not affiliated with Twilio, Cloudinary, Samsung, or Google.
+        SnapCabin is not affiliated with Twilio, Cloudinary, Snappic, Simple
+        Booth, Samsung, or Google.
       </p>
     </footer>
   );

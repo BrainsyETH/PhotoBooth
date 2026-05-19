@@ -140,7 +140,7 @@
 
     <!-- Privacy -->
     <string name="privacy_title">Privacy Policy</string>
-    <string name="privacy_body">SnapCabin captures photos using the kiosk camera. We — the app developer — collect no analytics, crash reports, identifiers, or usage data of any kind.\n\nPhotos stay on the kiosk by default. The QR-download feature runs a temporary HTTP server on the local WiFi; the photo is reachable only to phones on the same network.\n\nIf the kiosk operator has configured Cloudinary, photos may be uploaded there to be delivered via SMS through Twilio. Phone numbers entered by guests are sent only to Twilio for that purpose. The kiosk operator — not SnapCabin — is the data controller for those flows.\n\nFor the full policy and your operator\'s contact info, see https://snapcabin.app/privacy</string>
+    <string name="privacy_body">SnapCabin captures photos using the tablet\'s camera. The published app does not bundle analytics, crash reporting, advertising, or telemetry libraries.\n\nPhotos stay on the tablet by default. The QR download feature runs a temporary web server on the local WiFi so phones on the same network can download the photo.\n\nIf the event host has set up Cloudinary, photos may be uploaded there so a text message can include the picture. Phone numbers entered by guests are sent only to Twilio for that purpose. The event host, not SnapCabin, is the data controller for those services.\n\nFor the full policy and the host\'s contact details, see https://snapcabin.app/privacy</string>
     <string name="privacy_view_online">View full policy online</string>
     <string name="privacy_view_online_url">https://snapcabin.app/privacy</string>
 
