@@ -30,9 +30,10 @@ function Hero() {
         className="h-auto w-full max-w-xl"
       />
       <p className="max-w-xl text-lg leading-relaxed text-espresso/85">
-        A photo booth that runs on an Android tablet you already own. Guests
-        snap their photo, pick how they want it, and walk away with it on
-        their phone. No subscription, no monthly bill, no surprise add-ons.
+        A photo booth for an Android tablet. Guests snap their photo, pick
+        how they want it, and walk away with it on their phone. No
+        subscription, no monthly bill, no surprise add-ons. One-time
+        purchase, runs on the tablet you bring.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-4">
         <Link
@@ -55,8 +56,8 @@ function Hero() {
 function Features() {
   const items = [
     {
-      title: "Runs on a tablet you already have",
-      body: "Any modern Android tablet works. Install once, take it to the next event, and the next.",
+      title: "Runs on an Android tablet",
+      body: "Pick any modern Android tablet (at least an 8-inch screen). Install once, take it to the next event, and the next.",
     },
     {
       title: "Three ways to capture a moment",
@@ -64,7 +65,7 @@ function Features() {
     },
     {
       title: "Photos straight to a phone",
-      body: "Guests scan a QR code, or punch in their number and the photo arrives by text. Email works too.",
+      body: "Guests scan a QR code or punch in their number and the photo arrives by text. Email works too. Both run through services you connect (Cloudinary and Twilio).",
     },
     {
       title: "Make it look like your event",
@@ -372,8 +373,10 @@ function Integrations() {
         />
       </div>
       <p className="mt-6 text-center text-sm text-mist">
-        You can skip both. Guests can still pick photos up by scanning the
-        on-screen QR code on the same WiFi as the tablet.
+        Cloudinary powers the QR code and the photo attached to text
+        messages. Without it, the tablet still saves locally and the system
+        share menu still works, you just won&rsquo;t hand off the photo
+        over cellular.
       </p>
     </section>
   );
@@ -420,11 +423,11 @@ function Faq() {
       <div className="mt-10 space-y-4">
         <FaqRow
           q="Do I have to use Twilio and Cloudinary?"
-          a="No. SnapCabin works fully offline. Guests pick up their photo by scanning a QR code on the tablet, which downloads it on the same WiFi. Twilio and Cloudinary just make it possible to send a photo over cellular."
+          a="Only if you want photos to travel off the tablet. Cloudinary hosts the photo so a QR code or text can carry it; Twilio is the text-message service. Without them, guests can still save locally, share via the Android system share sheet, or print. There&rsquo;s no local-WiFi QR option any more because modern mobile browsers block plain-HTTP downloads."
         />
         <FaqRow
           q="What kind of tablet do I need?"
-          a="Most Android tablets from the last few years should work, especially anything in landscape orientation with a decent front camera. We&rsquo;ve had good results with Samsung Galaxy Tab S6 and newer."
+          a="An Android tablet, at least eight inches, ideally with a decent front-facing camera. We&rsquo;ve had good results with Samsung Galaxy Tab S6 and newer. Phones aren&rsquo;t supported. The app refuses to launch on devices below an 8-inch class screen so you don&rsquo;t end up with a broken layout at the event."
         />
         <FaqRow
           q="Does SnapCabin send any data back to you?"

@@ -52,7 +52,17 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = kioskEnabled) {
                     // Do nothing — prevent exiting the app
                 }
-                NavGraph(settingsManager = settingsManager)
+                // SnapCabin is a tablet kiosk app. On a phone (<600dp smallest
+                // width) every screen is the wrong shape, so we bail with an
+                // explicit message instead of pretending to work.
+                val sw = resources.configuration.smallestScreenWidthDp
+                if (sw < 600) {
+                    com.snapcabin.ui.screens.unsupported.UnsupportedDeviceScreen(
+                        smallestWidthDp = sw
+                    )
+                } else {
+                    NavGraph(settingsManager = settingsManager)
+                }
             }
         }
     }

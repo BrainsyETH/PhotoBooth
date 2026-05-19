@@ -8,7 +8,6 @@ import com.snapcabin.kiosk.KioskManager
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.EmailSmsSharer
-import com.snapcabin.share.LocalPhotoServer
 import com.snapcabin.share.PhotoPrinter
 import com.snapcabin.share.PhotoSaver
 import com.snapcabin.share.QrCodeGenerator
@@ -44,10 +43,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideQrCodeGenerator(): QrCodeGenerator = QrCodeGenerator()
-
-    @Provides
-    @Singleton
-    fun provideLocalPhotoServer(): LocalPhotoServer = LocalPhotoServer()
 
     @Provides
     @Singleton

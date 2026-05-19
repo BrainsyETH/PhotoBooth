@@ -123,20 +123,6 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="Optional: photo download over WiFi">
-        <p>
-          When a guest reaches the share screen, the app can start a small
-          web server on the tablet&rsquo;s local WiFi (for example,{" "}
-          <code className="rounded bg-oat/60 px-1 py-0.5 text-sm">
-            http://192.168.x.y:8080
-          </code>
-          ) so a phone on the same network can scan the QR code and
-          download the photo. This server is reachable only from devices on
-          the same network and stops when the share screen is dismissed.
-          The photo does not leave the tablet during this flow.
-        </p>
-      </Section>
-
       <Section title="Optional: photo hosting through Cloudinary">
         <p>
           If the host has entered Cloudinary credentials and turned on the
@@ -204,18 +190,12 @@ export default function PrivacyPage() {
             host has enabled upload to Cloudinary.
           </li>
           <li>
-            <strong>Internet, WiFi, and network state.</strong> Needed for
-            Cloudinary uploads, Twilio text delivery, and the WiFi-only
-            photo download server.
+            <strong>Internet and network state.</strong> Needed for
+            Cloudinary uploads and Twilio text delivery.
           </li>
           <li>
             <strong>Boot completed.</strong> So the tablet can relaunch the
             app after a power cycle. The host turns this on if they want it.
-          </li>
-          <li>
-            <strong>Foreground service and notifications.</strong> Used to
-            keep the WiFi photo server alive while the share screen is
-            active.
           </li>
           <li>
             <strong>USB host.</strong> Optional, used to detect a USB
