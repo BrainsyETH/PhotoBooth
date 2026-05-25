@@ -192,7 +192,14 @@ fun NavGraph(settingsManager: SettingsManager) {
             }
 
             composable(Routes.REVIEW) {
-                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
+                // CAPTURE may have been popped out from under us if a navigate-
+                // to-ATTRACT transition is in flight while this composable is
+                // still being torn down. Bail without rendering; the transition
+                // will dispose this entry shortly.
+                val captureEntry = runCatching {
+                    navController.getBackStackEntry(Routes.CAPTURE)
+                }.getOrNull() ?: return@composable
+
                 val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
                 val uiState by captureViewModel.uiState.collectAsState()
                 val mode = uiState.mode
@@ -231,7 +238,15 @@ fun NavGraph(settingsManager: SettingsManager) {
             }
 
             composable(Routes.SHARE) {
-                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
+                // Same caveat as REVIEW: SHARE reaches into CAPTURE's
+                // ViewModel for the captured photo, but during the goHome
+                // popUpTo transition CAPTURE is popped before SHARE is
+                // disposed, and getBackStackEntry will throw. Bail
+                // gracefully; the disposal completes a frame later.
+                val captureEntry = runCatching {
+                    navController.getBackStackEntry(Routes.CAPTURE)
+                }.getOrNull() ?: return@composable
+
                 val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
                 val uiState by captureViewModel.uiState.collectAsState()
 
