@@ -85,22 +85,21 @@ fun NavGraph(settingsManager: SettingsManager) {
     // Single source of truth for "go back to the Attract screen." Used by
     // both the inactivity timeout and Share's session-end event.
     //
-    // popBackStack(ATTRACT, inclusive=false) pops every entry above ATTRACT
-    // and leaves ATTRACT in place. We deliberately do NOT use
-    // navigate(ATTRACT){ popUpTo(ATTRACT){ inclusive = true } } here: that
-    // pattern briefly empties the back stack, and because MainActivity is
-    // declared as category.HOME the empty-stack moment triggers an
-    // activity finish() on some Android versions — exactly the "Done kills
-    // the app" symptom we kept seeing.
+    // We use the canonical navigate(start) { popUpTo(start) { inclusive = false }
+    // launchSingleTop = true } pattern from the Compose Navigation docs.
+    // popUpTo with inclusive=false clears every entry above ATTRACT while
+    // keeping ATTRACT itself, and launchSingleTop reuses the existing
+    // ATTRACT entry instead of pushing a duplicate. The back stack never
+    // empties, so neither the activity nor the system task manager treats
+    // this as "user wants to leave the app."
+    //
+    // Plain popBackStack(Routes.ATTRACT, inclusive = false) looks equivalent
+    // but in practice triggered an activity finish in Navigation Compose
+    // 2.8.5 when ATTRACT was the start destination of the NavHost.
     val goHome: () -> Unit = {
-        if (!navController.popBackStack(Routes.ATTRACT, inclusive = false)) {
-            // ATTRACT not on the stack (shouldn't happen since it's the start
-            // destination, but defensive). Use the gentler navigate-without-
-            // popping-start pattern as a fallback.
-            navController.navigate(Routes.ATTRACT) {
-                popUpTo(Routes.ATTRACT) { inclusive = false }
-                launchSingleTop = true
-            }
+        navController.navigate(Routes.ATTRACT) {
+            popUpTo(Routes.ATTRACT) { inclusive = false }
+            launchSingleTop = true
         }
     }
 
