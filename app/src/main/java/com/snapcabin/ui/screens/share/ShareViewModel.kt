@@ -7,10 +7,12 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.snapcabin.event.SendLog
 import com.snapcabin.event.SendLogEntry
 import com.snapcabin.filter.CustomBrandingRenderer
 import com.snapcabin.filter.WatermarkRenderer
+import com.snapcabin.session.CaptureSession
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.share.CloudinaryUploader
@@ -26,6 +28,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -62,7 +67,9 @@ class ShareViewModel @Inject constructor(
     private val photoPrinter: PhotoPrinter,
     private val emailSmsSharer: EmailSmsSharer,
     private val twilioSmsSender: TwilioSmsSender,
-    private val cloudinaryUploader: CloudinaryUploader
+    private val cloudinaryUploader: CloudinaryUploader,
+    private val captureSession: CaptureSession,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     companion object {
@@ -87,43 +94,51 @@ class ShareViewModel @Inject constructor(
     /** Guards against double-ending if Done is tapped twice or races with the timer. */
     private var sessionEndScheduled: Boolean = false
 
-    fun setPhoto(bitmap: Bitmap, context: Context) {
+    init {
+        // Observe the session's active photo and process the first non-null
+        // distinct bitmap we see. Replaces the previous "ShareScreen passes
+        // the photo as a parameter and triggers viewModel.setPhoto()" wiring,
+        // which required the Share composable to read CAPTURE's back-stack
+        // entry — fragile during the goHome teardown.
+        viewModelScope.launch {
+            captureSession.state
+                .map { it.activePhoto }
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { processIncomingPhoto(it) }
+        }
+    }
+
+    private suspend fun processIncomingPhoto(bitmap: Bitmap) {
         // New photo — invalidate the previous upload + per-session counter.
         cachedPublicUrl = null
         twilioSendsThisSession = 0
         sessionEndScheduled = false
-        viewModelScope.launch {
-            // Bake in admin-configured branding (border + overlay PNGs, then watermark text)
-            val processedPhoto = withContext(Dispatchers.Default) {
-                val s = settings.value
-                val branded = CustomBrandingRenderer.apply(
-                    source = bitmap,
-                    borderPath = s.customBorderPath,
-                    overlayPath = s.customOverlayPath
-                )
-                if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
-                    WatermarkRenderer.apply(branded, s.watermarkText)
-                } else {
-                    branded
-                }
-            }
 
-            _uiState.value = _uiState.value.copy(photo = processedPhoto)
-
-            // Auto-save if enabled.
-            if (settings.value.autoSaveToGallery) {
-                saveToGallery(context)
+        val s = settings.value
+        val processedPhoto = withContext(Dispatchers.Default) {
+            val branded = CustomBrandingRenderer.apply(
+                source = bitmap,
+                borderPath = s.customBorderPath,
+                overlayPath = s.customOverlayPath
+            )
+            if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
+                WatermarkRenderer.apply(branded, s.watermarkText)
+            } else {
+                branded
             }
+        }
 
-            // Eager Cloudinary upload so QR + SMS reuse the same URL. Without
-            // Cloudinary the QR section stays hidden — guests can still use
-            // Save / Share / Print / Email.
-            val s = settings.value
-            if (s.cloudinaryEnabled && s.cloudinaryCloudName.isNotBlank() &&
-                s.cloudinaryUploadPreset.isNotBlank()
-            ) {
-                uploadToCloudinary(s, processedPhoto)
-            }
+        _uiState.value = _uiState.value.copy(photo = processedPhoto)
+
+        if (s.autoSaveToGallery) {
+            saveToGallery(appContext)
+        }
+
+        if (s.cloudinaryEnabled && s.cloudinaryCloudName.isNotBlank() &&
+            s.cloudinaryUploadPreset.isNotBlank()
+        ) {
+            uploadToCloudinary(s, processedPhoto)
         }
     }
 
@@ -219,6 +234,10 @@ class ShareViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(endingSession = true)
             kotlinx.coroutines.delay(THANK_YOU_DURATION_MS)
+            // Clear the active photo before we navigate so the next session
+            // starts clean and ShareViewModel's session observer doesn't
+            // re-fire processing on the stale bitmap.
+            captureSession.setActivePhoto(null)
             _events.send(ShareEvent.SessionEnded)
         }
     }

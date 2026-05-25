@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snapcabin.camera.CameraManager
+import com.snapcabin.session.CaptureSession
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.ui.components.SoundManager
@@ -35,15 +36,15 @@ data class CaptureUiState(
     val showFlash: Boolean = false,
     val isCapturing: Boolean = false,
     val error: String? = null,
-    val isFinished: Boolean = false,
-    val capturedPhoto: Bitmap? = null
+    val isFinished: Boolean = false
 )
 
 @HiltViewModel
 class CaptureViewModel @Inject constructor(
     val cameraManager: CameraManager,
     private val settingsManager: SettingsManager,
-    val soundManager: SoundManager
+    val soundManager: SoundManager,
+    private val captureSession: CaptureSession
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CaptureUiState())
@@ -114,8 +115,7 @@ class CaptureViewModel @Inject constructor(
                                 val photos = _uiState.value.photos + photo
                                 _uiState.value = _uiState.value.copy(
                                     photos = photos,
-                                    shotsTaken = photos.size,
-                                    capturedPhoto = photo
+                                    shotsTaken = photos.size
                                 )
                             } catch (e: Exception) {
                                 _uiState.value = _uiState.value.copy(
@@ -137,6 +137,10 @@ class CaptureViewModel @Inject constructor(
                     currentStep = CaptureStep.Done,
                     isFinished = true
                 )
+                // Publish the final result to the activity-scoped session so
+                // Review and Share don't need to read back through our
+                // back-stack-scoped uiState.
+                captureSession.setCaptureResult(_uiState.value.mode, _uiState.value.photos)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     error = "Burst failed: ${e.message}",
@@ -160,15 +164,14 @@ class CaptureViewModel @Inject constructor(
     fun resetCapture() {
         burstJob?.cancel()
         _uiState.value = CaptureUiState()
+        // The session is cleared so a retake starts from an empty slate for
+        // Review (which now reads photos from CaptureSession).
+        captureSession.reset()
     }
 
     fun getPhotos(): List<Bitmap> = _uiState.value.photos
 
     fun getPickedPhoto(index: Int): Bitmap? = _uiState.value.photos.getOrNull(index)
-
-    fun setActiveSinglePhoto(bitmap: Bitmap) {
-        _uiState.value = _uiState.value.copy(capturedPhoto = bitmap)
-    }
 
     private fun parsePrompts(raw: String): List<String> =
         raw.split("||").map { it.trim() }.filter { it.isNotEmpty() }

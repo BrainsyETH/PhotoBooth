@@ -1,6 +1,7 @@
 package com.snapcabin.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -13,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.snapcabin.collage.CollageLayout
 import com.snapcabin.collage.CollageRenderer
+import com.snapcabin.session.SessionViewModel
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.ui.components.InactivityHandler
@@ -115,6 +117,11 @@ fun NavGraph(settingsManager: SettingsManager) {
             startDestination = Routes.ATTRACT
         ) {
             composable(Routes.ATTRACT) {
+                // Clear any state from the previous session whenever we land
+                // back on Attract (Done, inactivity timeout, manual nav).
+                val sessionVm: SessionViewModel = hiltViewModel()
+                LaunchedEffect(Unit) { sessionVm.reset() }
+
                 AttractScreen(
                     onTap = {
                         val route = getStartRoute(settings)
@@ -192,44 +199,42 @@ fun NavGraph(settingsManager: SettingsManager) {
             }
 
             composable(Routes.REVIEW) {
-                // CAPTURE may have been popped out from under us if a navigate-
-                // to-ATTRACT transition is in flight while this composable is
-                // still being torn down. Bail without rendering; the transition
-                // will dispose this entry shortly.
+                // Read mode + photos from the activity-scoped session, not
+                // from CAPTURE's back-stack entry. CaptureViewModel publishes
+                // the burst result here when capture completes.
+                val sessionVm: SessionViewModel = hiltViewModel()
+                val sessionState by sessionVm.state.collectAsState()
+                // CaptureViewModel is still scoped to CAPTURE because Retake
+                // restarts the same burst. We only touch it via popBackStack
+                // and resetCapture; both work safely as long as CAPTURE is
+                // present (it is, since Review is one entry above it).
                 val captureEntry = runCatching {
                     navController.getBackStackEntry(Routes.CAPTURE)
                 }.getOrNull() ?: return@composable
-
                 val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
-                val uiState by captureViewModel.uiState.collectAsState()
-                val mode = uiState.mode
-                val photos = uiState.photos
 
                 ReviewScreen(
-                    mode = mode,
-                    photos = photos,
+                    mode = sessionState.mode,
+                    photos = sessionState.photos,
                     autoAcceptSeconds = settings.reviewAutoAcceptSeconds,
                     onRetake = {
                         captureViewModel.resetCapture()
                         navController.popBackStack(Routes.CAPTURE, inclusive = false)
                     },
                     onAccept = { pickedIndex ->
-                        when (mode) {
+                        val photos = sessionState.photos
+                        when (sessionState.mode) {
                             CaptureMode.Single -> {
-                                photos.getOrNull(pickedIndex)?.let { bmp ->
-                                    captureViewModel.setActiveSinglePhoto(bmp)
-                                }
+                                photos.getOrNull(pickedIndex)?.let { sessionVm.setActivePhoto(it) }
                                 navController.navigate(Routes.SHARE)
                             }
                             CaptureMode.Collage -> {
                                 val assembled = CollageRenderer.render(photos, CollageLayout.GRID_2X2)
-                                captureViewModel.setActiveSinglePhoto(assembled)
+                                sessionVm.setActivePhoto(assembled)
                                 navController.navigate(Routes.SHARE)
                             }
                             CaptureMode.Gif -> {
-                                photos.firstOrNull()?.let { bmp ->
-                                    captureViewModel.setActiveSinglePhoto(bmp)
-                                }
+                                photos.firstOrNull()?.let { sessionVm.setActivePhoto(it) }
                                 navController.navigate(Routes.SHARE)
                             }
                         }
@@ -238,22 +243,9 @@ fun NavGraph(settingsManager: SettingsManager) {
             }
 
             composable(Routes.SHARE) {
-                // Same caveat as REVIEW: SHARE reaches into CAPTURE's
-                // ViewModel for the captured photo, but during the goHome
-                // popUpTo transition CAPTURE is popped before SHARE is
-                // disposed, and getBackStackEntry will throw. Bail
-                // gracefully; the disposal completes a frame later.
-                val captureEntry = runCatching {
-                    navController.getBackStackEntry(Routes.CAPTURE)
-                }.getOrNull() ?: return@composable
-
-                val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
-                val uiState by captureViewModel.uiState.collectAsState()
-
-                ShareScreen(
-                    photo = uiState.capturedPhoto,
-                    onSessionEnd = goHome
-                )
+                // ShareViewModel observes CaptureSession.activePhoto on its
+                // own — no need to reach into CAPTURE's back-stack entry.
+                ShareScreen(onSessionEnd = goHome)
             }
         }
     }

@@ -80,7 +80,6 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ShareScreen(
-    photo: Bitmap?,
     onSessionEnd: () -> Unit,
     viewModel: ShareViewModel = hiltViewModel()
 ) {
@@ -90,9 +89,8 @@ fun ShareScreen(
     var showSmsDialog by remember { mutableStateOf(false) }
     var smsPhoneInput by remember { mutableStateOf("") }
 
-    LaunchedEffect(photo) {
-        photo?.let { viewModel.setPhoto(it, context) }
-    }
+    // ShareViewModel observes CaptureSession.activePhoto on its own; the
+    // screen doesn't have to plumb the bitmap in via a parameter any more.
 
     // The ViewModel is the single source of truth for "we're done." It emits
     // SessionEnded once (Done tap or any other trigger) and the NavGraph
@@ -133,7 +131,7 @@ fun ShareScreen(
                     .padding(Spacing.xl),
                 contentAlignment = Alignment.Center
             ) {
-                photo?.let { bitmap ->
+                uiState.photo?.let { bitmap ->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = stringResource(R.string.share_photo_desc),
