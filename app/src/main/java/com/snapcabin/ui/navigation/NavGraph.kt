@@ -83,13 +83,24 @@ fun NavGraph(settingsManager: SettingsManager) {
     val timeoutEnabled = timeoutMs > 0
 
     // Single source of truth for "go back to the Attract screen." Used by
-    // both the inactivity timeout and Share's session-end event. Pops to and
-    // through Attract, then navigates fresh, so we always land on a clean
-    // Attract regardless of the back-stack state when called.
+    // both the inactivity timeout and Share's session-end event.
+    //
+    // popBackStack(ATTRACT, inclusive=false) pops every entry above ATTRACT
+    // and leaves ATTRACT in place. We deliberately do NOT use
+    // navigate(ATTRACT){ popUpTo(ATTRACT){ inclusive = true } } here: that
+    // pattern briefly empties the back stack, and because MainActivity is
+    // declared as category.HOME the empty-stack moment triggers an
+    // activity finish() on some Android versions — exactly the "Done kills
+    // the app" symptom we kept seeing.
     val goHome: () -> Unit = {
-        navController.navigate(Routes.ATTRACT) {
-            popUpTo(Routes.ATTRACT) { inclusive = true }
-            launchSingleTop = true
+        if (!navController.popBackStack(Routes.ATTRACT, inclusive = false)) {
+            // ATTRACT not on the stack (shouldn't happen since it's the start
+            // destination, but defensive). Use the gentler navigate-without-
+            // popping-start pattern as a fallback.
+            navController.navigate(Routes.ATTRACT) {
+                popUpTo(Routes.ATTRACT) { inclusive = false }
+                launchSingleTop = true
+            }
         }
     }
 
