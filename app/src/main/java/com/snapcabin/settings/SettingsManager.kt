@@ -65,11 +65,13 @@ data class BoothSettings(
     val resendSubject: String = "Your photo from {event}", // {event} expands to the event name
     val resendMaxPerSession: Int = 3,         // rate limit to prevent abuse
     val resendMaxPerAddress: Int = 3,         // per-recipient cap (anti-spam, per event)
+    val resendVerifiedAt: Long = 0L,          // set when a test email succeeds; cleared on credential edit
 
     // Cloudinary (public photo hosting for QR sharing — unsigned upload preset)
     val cloudinaryEnabled: Boolean = false,
     val cloudinaryCloudName: String = "",
     val cloudinaryUploadPreset: String = "",
+    val cloudinaryVerifiedAt: Long = 0L,      // set when a test upload succeeds; cleared on credential edit
 
     // Event lifecycle — each event scopes Cloudinary folder + audit + rate limits
     val currentEventName: String = "",
@@ -133,9 +135,11 @@ class SettingsManager @Inject constructor(
         val RESEND_SUBJECT = stringPreferencesKey("resend_subject")
         val RESEND_MAX_PER_SESSION = intPreferencesKey("resend_max_per_session")
         val RESEND_MAX_PER_ADDRESS = intPreferencesKey("resend_max_per_address")
+        val RESEND_VERIFIED_AT = longPreferencesKey("resend_verified_at")
         val CLOUDINARY_ENABLED = booleanPreferencesKey("cloudinary_enabled")
         val CLOUDINARY_CLOUD_NAME = stringPreferencesKey("cloudinary_cloud_name")
         val CLOUDINARY_UPLOAD_PRESET = stringPreferencesKey("cloudinary_upload_preset")
+        val CLOUDINARY_VERIFIED_AT = longPreferencesKey("cloudinary_verified_at")
         val CURRENT_EVENT_NAME = stringPreferencesKey("current_event_name")
         val CURRENT_EVENT_SLUG = stringPreferencesKey("current_event_slug")
         val CURRENT_EVENT_STARTED_AT = longPreferencesKey("current_event_started_at")
@@ -205,9 +209,11 @@ class SettingsManager @Inject constructor(
         resendSubject = prefs[Keys.RESEND_SUBJECT] ?: "Your photo from {event}",
         resendMaxPerSession = prefs[Keys.RESEND_MAX_PER_SESSION] ?: 3,
         resendMaxPerAddress = prefs[Keys.RESEND_MAX_PER_ADDRESS] ?: 3,
+        resendVerifiedAt = prefs[Keys.RESEND_VERIFIED_AT] ?: 0L,
         cloudinaryEnabled = prefs[Keys.CLOUDINARY_ENABLED] ?: false,
         cloudinaryCloudName = prefs[Keys.CLOUDINARY_CLOUD_NAME] ?: "",
         cloudinaryUploadPreset = prefs[Keys.CLOUDINARY_UPLOAD_PRESET] ?: "",
+        cloudinaryVerifiedAt = prefs[Keys.CLOUDINARY_VERIFIED_AT] ?: 0L,
         currentEventName = prefs[Keys.CURRENT_EVENT_NAME] ?: "",
         currentEventSlug = prefs[Keys.CURRENT_EVENT_SLUG] ?: "",
         currentEventStartedAt = prefs[Keys.CURRENT_EVENT_STARTED_AT] ?: 0L,
@@ -256,9 +262,11 @@ class SettingsManager @Inject constructor(
             prefs[Keys.RESEND_SUBJECT] = updated.resendSubject
             prefs[Keys.RESEND_MAX_PER_SESSION] = updated.resendMaxPerSession
             prefs[Keys.RESEND_MAX_PER_ADDRESS] = updated.resendMaxPerAddress
+            prefs[Keys.RESEND_VERIFIED_AT] = updated.resendVerifiedAt
             prefs[Keys.CLOUDINARY_ENABLED] = updated.cloudinaryEnabled
             prefs[Keys.CLOUDINARY_CLOUD_NAME] = updated.cloudinaryCloudName
             prefs[Keys.CLOUDINARY_UPLOAD_PRESET] = updated.cloudinaryUploadPreset
+            prefs[Keys.CLOUDINARY_VERIFIED_AT] = updated.cloudinaryVerifiedAt
             prefs[Keys.CURRENT_EVENT_NAME] = updated.currentEventName
             prefs[Keys.CURRENT_EVENT_SLUG] = updated.currentEventSlug
             prefs[Keys.CURRENT_EVENT_STARTED_AT] = updated.currentEventStartedAt

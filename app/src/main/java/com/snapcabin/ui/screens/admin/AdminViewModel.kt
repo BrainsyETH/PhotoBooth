@@ -16,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.settings.SettingsManager
+import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.ResendEmailSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,20 +34,27 @@ data class CameraInfo(
     val isExternal: Boolean
 )
 
-enum class TestEmailStatus { Idle, Sending, Sent, Failed }
+enum class TestStatus { Idle, Sending, Sent, Failed }
 
 @HiltViewModel
 class AdminViewModel @Inject constructor(
     private val settingsManager: SettingsManager,
     private val resendEmailSender: ResendEmailSender,
+    private val cloudinaryUploader: CloudinaryUploader,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val _testEmailStatus = MutableStateFlow(TestEmailStatus.Idle)
-    val testEmailStatus: StateFlow<TestEmailStatus> = _testEmailStatus.asStateFlow()
+    private val _testEmailStatus = MutableStateFlow(TestStatus.Idle)
+    val testEmailStatus: StateFlow<TestStatus> = _testEmailStatus.asStateFlow()
 
     private val _testEmailMessage = MutableStateFlow("")
     val testEmailMessage: StateFlow<String> = _testEmailMessage.asStateFlow()
+
+    private val _testUploadStatus = MutableStateFlow(TestStatus.Idle)
+    val testUploadStatus: StateFlow<TestStatus> = _testUploadStatus.asStateFlow()
+
+    private val _testUploadMessage = MutableStateFlow("")
+    val testUploadMessage: StateFlow<String> = _testUploadMessage.asStateFlow()
 
     val settings: StateFlow<BoothSettings> = settingsManager.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BoothSettings())
@@ -99,7 +107,7 @@ class AdminViewModel @Inject constructor(
      */
     fun sendResendTestEmail(toAddress: String) {
         val s = settings.value
-        _testEmailStatus.value = TestEmailStatus.Sending
+        _testEmailStatus.value = TestStatus.Sending
         _testEmailMessage.value = ""
         viewModelScope.launch {
             val placeholder = buildPlaceholderBitmap()
@@ -117,11 +125,12 @@ class AdminViewModel @Inject constructor(
             )
             when (result) {
                 is ResendEmailSender.Result.Ok -> {
-                    _testEmailStatus.value = TestEmailStatus.Sent
+                    _testEmailStatus.value = TestStatus.Sent
                     _testEmailMessage.value = "Sent. Check your inbox."
+                    settingsManager.update { copy(resendVerifiedAt = System.currentTimeMillis()) }
                 }
                 is ResendEmailSender.Result.Err -> {
-                    _testEmailStatus.value = TestEmailStatus.Failed
+                    _testEmailStatus.value = TestStatus.Failed
                     _testEmailMessage.value = result.message
                 }
             }
@@ -129,8 +138,44 @@ class AdminViewModel @Inject constructor(
     }
 
     fun resetTestEmailState() {
-        _testEmailStatus.value = TestEmailStatus.Idle
+        _testEmailStatus.value = TestStatus.Idle
         _testEmailMessage.value = ""
+    }
+
+    /**
+     * Uploads a placeholder image to Cloudinary with the saved credentials so
+     * the operator can confirm the cloud name + unsigned preset work before
+     * the event. Mirrors the Resend test.
+     */
+    fun sendCloudinaryTest() {
+        val s = settings.value
+        _testUploadStatus.value = TestStatus.Sending
+        _testUploadMessage.value = ""
+        viewModelScope.launch {
+            val placeholder = buildPlaceholderBitmap()
+            val result = cloudinaryUploader.upload(
+                cloudName = s.cloudinaryCloudName,
+                uploadPreset = s.cloudinaryUploadPreset,
+                bitmap = placeholder,
+                folder = "events/_test"
+            )
+            when (result) {
+                is CloudinaryUploader.Result.Ok -> {
+                    _testUploadStatus.value = TestStatus.Sent
+                    _testUploadMessage.value = "Upload worked. Your preset is live."
+                    settingsManager.update { copy(cloudinaryVerifiedAt = System.currentTimeMillis()) }
+                }
+                is CloudinaryUploader.Result.Err -> {
+                    _testUploadStatus.value = TestStatus.Failed
+                    _testUploadMessage.value = result.message
+                }
+            }
+        }
+    }
+
+    fun resetTestUploadState() {
+        _testUploadStatus.value = TestStatus.Idle
+        _testUploadMessage.value = ""
     }
 
     private fun buildPlaceholderBitmap(): Bitmap {
