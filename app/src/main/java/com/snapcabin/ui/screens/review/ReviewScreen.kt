@@ -288,10 +288,15 @@ private fun EmptyCaptureRecovery(onRetake: () -> Unit) {
  * approves is what gets delivered (the old overlay-compositing path drew the
  * border differently from the final image). Always works on a fresh copy so the
  * original capture is never mutated (the Share pipeline brands it again later).
+ *
+ * [maxDim] caps the longest edge (used for GIF frames, where N full-res copies
+ * would be heavy). Pass null for full resolution — previews are displayed near
+ * screen size, so baking into a smaller bitmap and scaling back up reads as a
+ * blurry logo.
  */
-private fun brandForPreview(src: Bitmap, settings: BoothSettings, maxDim: Int = 1200): Bitmap {
+private fun brandForPreview(src: Bitmap, settings: BoothSettings, maxDim: Int? = null): Bitmap {
     val longest = maxOf(src.width, src.height)
-    val base = if (longest > maxDim) {
+    val base = if (maxDim != null && longest > maxDim) {
         val scale = maxDim.toFloat() / longest
         Bitmap.createScaledBitmap(
             src,
@@ -466,7 +471,9 @@ private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
         brandedFrames = emptyList()
         if (photos.isNotEmpty()) {
             brandedFrames = withContext(Dispatchers.Default) {
-                photos.map { brandForPreview(it, settings, maxDim = 720) }
+                // 1080 keeps N frames affordable in memory while staying sharp
+                // in the preview box; the delivered GIF is encoded separately.
+                photos.map { brandForPreview(it, settings, maxDim = 1080) }
             }
         }
     }
