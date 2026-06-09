@@ -44,8 +44,11 @@ data class BoothSettings(
     val watermarkText: String = "",
 
     // Branding
-    val customBorderPath: String = "", // File path to custom border/frame image
-    val customOverlayPath: String = "", // File path to custom overlay image
+    val customBorderPath: String = "", // File path to custom border/frame image (always full-frame)
+    val customOverlayPath: String = "", // File path to custom overlay/logo image
+    val overlayPlacement: String = "stretch", // "stretch" (full-frame) | "corner"
+    val overlayCorner: String = "br",  // tl | tr | bl | br — used when placement = corner
+    val overlaySizePct: Int = 20,      // logo width as % of photo width, used when placement = corner
     val eventName: String = "",        // Shown as the Attract headline
     val attractSubtext: String = "A photo booth in the woods", // Tagline under the event name
 
@@ -150,6 +153,9 @@ class SettingsManager @Inject constructor(
         val WATERMARK_TEXT = stringPreferencesKey("watermark_text")
         val CUSTOM_BORDER_PATH = stringPreferencesKey("custom_border_path")
         val CUSTOM_OVERLAY_PATH = stringPreferencesKey("custom_overlay_path")
+        val OVERLAY_PLACEMENT = stringPreferencesKey("overlay_placement")
+        val OVERLAY_CORNER = stringPreferencesKey("overlay_corner")
+        val OVERLAY_SIZE_PCT = intPreferencesKey("overlay_size_pct")
         val EVENT_NAME = stringPreferencesKey("event_name")
         val ATTRACT_SUBTEXT = stringPreferencesKey("attract_subtext")
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
@@ -195,6 +201,9 @@ class SettingsManager @Inject constructor(
         watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
         customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
         customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
+        overlayPlacement = prefs[Keys.OVERLAY_PLACEMENT] ?: "stretch",
+        overlayCorner = prefs[Keys.OVERLAY_CORNER] ?: "br",
+        overlaySizePct = prefs[Keys.OVERLAY_SIZE_PCT] ?: 20,
         eventName = prefs[Keys.EVENT_NAME] ?: "",
         attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
         enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
@@ -277,6 +286,9 @@ class SettingsManager @Inject constructor(
             prefs[Keys.WATERMARK_TEXT] = updated.watermarkText
             prefs[Keys.CUSTOM_BORDER_PATH] = updated.customBorderPath
             prefs[Keys.CUSTOM_OVERLAY_PATH] = updated.customOverlayPath
+            prefs[Keys.OVERLAY_PLACEMENT] = updated.overlayPlacement
+            prefs[Keys.OVERLAY_CORNER] = updated.overlayCorner
+            prefs[Keys.OVERLAY_SIZE_PCT] = updated.overlaySizePct
             prefs[Keys.EVENT_NAME] = updated.eventName
             prefs[Keys.ATTRACT_SUBTEXT] = updated.attractSubtext
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
