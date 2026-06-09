@@ -191,8 +191,16 @@ fun NavGraph(settingsManager: SettingsManager) {
                 )
             }
 
-            composable(Routes.REVIEW) {
-                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
+            composable(Routes.REVIEW) { entry ->
+                // remember() is load-bearing: this composable recomposes during
+                // its exit transition AFTER goHome has already popped CAPTURE
+                // off the back stack. A bare getBackStackEntry() at that point
+                // throws IllegalArgumentException and kills the process. The
+                // remembered entry from first composition stays valid for the
+                // duration of the animation.
+                val captureEntry = remember(entry) {
+                    navController.getBackStackEntry(Routes.CAPTURE)
+                }
                 val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
                 val uiState by captureViewModel.uiState.collectAsState()
                 val mode = uiState.mode
@@ -231,8 +239,14 @@ fun NavGraph(settingsManager: SettingsManager) {
                 )
             }
 
-            composable(Routes.SHARE) {
-                val captureEntry = navController.getBackStackEntry(Routes.CAPTURE)
+            composable(Routes.SHARE) { entry ->
+                // Same teardown-recomposition hazard as REVIEW above. This is
+                // where the post-thank-you crash lived: goHome pops CAPTURE,
+                // SHARE recomposes mid-exit-animation, and an unremembered
+                // getBackStackEntry(CAPTURE) throws.
+                val captureEntry = remember(entry) {
+                    navController.getBackStackEntry(Routes.CAPTURE)
+                }
                 val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
                 val uiState by captureViewModel.uiState.collectAsState()
 

@@ -88,6 +88,18 @@ fun ReviewScreen(
     var paused by remember { mutableStateOf(false) }
     var startTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
+    // The auto-accept timer and the USE THIS ONE button can race — a guest
+    // tapping as the countdown hits zero used to navigate to SHARE twice,
+    // stacking two Share screens and double-stamping the watermark. Accept
+    // exactly once.
+    var accepted by remember { mutableStateOf(false) }
+    val acceptOnce: (Int) -> Unit = { idx ->
+        if (!accepted) {
+            accepted = true
+            onAccept(idx)
+        }
+    }
+
     LaunchedEffect(autoAcceptSeconds, paused) {
         if (paused || autoAcceptSeconds <= 0) return@LaunchedEffect
         startTime = System.currentTimeMillis()
@@ -97,7 +109,7 @@ fun ReviewScreen(
             remaining = (autoAcceptSeconds - elapsed).coerceAtLeast(0f)
         }
         if (!paused && remaining <= 0f) {
-            onAccept(picked)
+            acceptOnce(picked)
         }
     }
 
@@ -192,7 +204,7 @@ fun ReviewScreen(
                     contentAlignment = Alignment.CenterEnd
                 ) {
                     UseThisButton(
-                        onClick = { onAccept(picked) },
+                        onClick = { acceptOnce(picked) },
                         progress = if (paused || autoAcceptSeconds <= 0) null
                             else ((autoAcceptSeconds - remaining) / autoAcceptSeconds).coerceIn(0f, 1f),
                         remainingSeconds = remaining
