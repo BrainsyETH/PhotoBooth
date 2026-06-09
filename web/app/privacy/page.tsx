@@ -114,7 +114,7 @@ export default function PrivacyPage() {
             on the device.
           </li>
         </ul>
-        <p className="text-sm text-mist">
+        <p className="text-sm text-espresso/70">
           On Android, app-private storage is not visible to other apps
           installed on the device. It can be read by anyone with physical
           access to the device and the right developer tools, which is why
