@@ -222,11 +222,7 @@ function Faq() {
       <div className="mt-10 space-y-4">
         <FaqRow
           q="What does it cost?"
-          a="$2.99 on Google Play, per device. Pay once, install on the tablet you're using as the booth. If you run more than one tablet at the same event, each tablet is a separate $2.99 install. Whatever you spend at Resend or Cloudinary for delivery and hosting is between you and them — we don't take a cut."
-        />
-        <FaqRow
-          q="What about updates and refunds?"
-          a="Every install comes with six months of updates from the date of purchase. After that, the app keeps working — it just may stop receiving new features and fixes from us. Refunds follow Google Play's standard refund policy. Reach out through Play if you need one."
+          a="$2.99 on Google Play, per device. Pay once, install on the tablet you're using as the booth. If you run more than one tablet at the same event, each tablet is a separate $2.99 install. Whatever you spend at Resend or Cloudinary for delivery and hosting is between you and them — we don't take a cut. Refunds follow Google Play's standard refund policy."
         />
         <FaqRow
           q="Do I have to use Resend and Cloudinary?"
@@ -276,6 +272,9 @@ function Footer() {
         </Link>
         <Link href="/privacy" className="font-semibold no-underline">
           Privacy
+        </Link>
+        <Link href="/terms" className="font-semibold no-underline">
+          Terms
         </Link>
         <a
           href="mailto:hello@snapcabin.app"

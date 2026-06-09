@@ -3,7 +3,7 @@
 A photo booth in the woods — self-hosted Android kiosk app for weddings,
 parties, and gatherings. Wedding-friendly sage/cream/champagne palette;
 no analytics, no telemetry; runs entirely on hardware you bring.
-$2.99 once per device on Google Play, six months of updates included.
+$2.99 once per device on Google Play.
 
 ## Repo layout
 
