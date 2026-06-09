@@ -314,19 +314,28 @@ class ShareViewModel @Inject constructor(
     }
 
     private fun buildHtmlBody(s: BoothSettings, publicUrl: String?): String {
-        val eventLine = if (s.eventName.isNotBlank()) {
-            " from <strong>${escapeHtml(s.eventName)}</strong>"
-        } else {
-            ""
-        }
+        // Operator-authored body. {event} expands to the event name; the text
+        // is HTML-escaped (it's plain text from a kiosk field, not trusted
+        // markup) and blank lines become separate paragraphs.
+        val event = s.eventName.ifBlank { "the booth" }
+        val rawBody = s.resendBodyText
+            .ifBlank { "Your photo is attached — save it, share it, treasure it." }
+            .replace("{event}", event)
+        val paragraphs = rawBody
+            .split(Regex("\\n[ \\t]*\\n"))         // blank line → paragraph break
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n") { para ->
+                val withBreaks = escapeHtml(para).replace("\n", "<br>")
+                "  <p>$withBreaks</p>"
+            }
         val linkLine = publicUrl?.let {
-            "<p style=\"color:#7a6a4f;font-size:14px;\">If the attachment doesn't come through, here's a link: <a href=\"${escapeHtml(it)}\">${escapeHtml(it)}</a></p>"
+            "  <p style=\"color:#7a6a4f;font-size:14px;\">If the attachment doesn't come through, here's a link: <a href=\"${escapeHtml(it)}\">${escapeHtml(it)}</a></p>"
         }.orEmpty()
         return """
             <div style="font-family:Helvetica,Arial,sans-serif;color:#3a2e20;">
-              <p>Your photo is attached$eventLine.</p>
-              <p>Save it, share it, treasure it.</p>
-              $linkLine
+            $paragraphs
+            $linkLine
             </div>
         """.trimIndent()
     }

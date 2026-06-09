@@ -204,6 +204,27 @@ internal fun ResendSection(
                 modifier = Modifier.padding(horizontal = Spacing.xs)
             )
 
+            var body by remember { mutableStateOf(settings.resendBodyText) }
+            OutlinedTextField(
+                value = body,
+                onValueChange = {
+                    body = it
+                    viewModel.updateSetting { copy(resendBodyText = body) }
+                },
+                label = { Text("Email message") },
+                minLines = 3,
+                maxLines = 8,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(Radii.s),
+                colors = adminTextFieldColors()
+            )
+            Text(
+                text = "Shown above the attached photo. {event} expands to the event name; leave a blank line between paragraphs.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = Spacing.xs)
+            )
+
             SettingRow("Max emails per session: ${settings.resendMaxPerSession}") {
                 Slider(
                     value = settings.resendMaxPerSession.toFloat(),

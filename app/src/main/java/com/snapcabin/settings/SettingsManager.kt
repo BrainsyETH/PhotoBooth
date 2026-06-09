@@ -66,6 +66,7 @@ data class BoothSettings(
     val resendFromAddress: String = "",       // e.g. "SnapCabin <booth@yourdomain.com>"
     val resendReplyToAddress: String = "",    // optional; lands guest replies in the host's inbox
     val resendSubject: String = "Your photo from {event}", // {event} expands to the event name
+    val resendBodyText: String = "Your photo is attached — save it, share it, treasure it.", // {event} expands; blank lines become paragraphs
     val resendMaxPerSession: Int = 3,         // rate limit to prevent abuse
     val resendMaxPerAddress: Int = 3,         // per-recipient cap (anti-spam, per event)
     val resendVerifiedAt: Long = 0L,          // set when a test email succeeds; cleared on credential edit
@@ -136,6 +137,7 @@ class SettingsManager @Inject constructor(
         val RESEND_FROM_ADDRESS = stringPreferencesKey("resend_from_address")
         val RESEND_REPLY_TO_ADDRESS = stringPreferencesKey("resend_reply_to_address")
         val RESEND_SUBJECT = stringPreferencesKey("resend_subject")
+        val RESEND_BODY_TEXT = stringPreferencesKey("resend_body_text")
         val RESEND_MAX_PER_SESSION = intPreferencesKey("resend_max_per_session")
         val RESEND_MAX_PER_ADDRESS = intPreferencesKey("resend_max_per_address")
         val RESEND_VERIFIED_AT = longPreferencesKey("resend_verified_at")
@@ -216,6 +218,8 @@ class SettingsManager @Inject constructor(
         resendFromAddress = prefs[Keys.RESEND_FROM_ADDRESS] ?: "",
         resendReplyToAddress = prefs[Keys.RESEND_REPLY_TO_ADDRESS] ?: "",
         resendSubject = prefs[Keys.RESEND_SUBJECT] ?: "Your photo from {event}",
+        resendBodyText = prefs[Keys.RESEND_BODY_TEXT]
+            ?: "Your photo is attached — save it, share it, treasure it.",
         resendMaxPerSession = prefs[Keys.RESEND_MAX_PER_SESSION] ?: 3,
         resendMaxPerAddress = prefs[Keys.RESEND_MAX_PER_ADDRESS] ?: 3,
         resendVerifiedAt = prefs[Keys.RESEND_VERIFIED_AT] ?: 0L,
@@ -269,6 +273,7 @@ class SettingsManager @Inject constructor(
             prefs[Keys.RESEND_FROM_ADDRESS] = updated.resendFromAddress
             prefs[Keys.RESEND_REPLY_TO_ADDRESS] = updated.resendReplyToAddress
             prefs[Keys.RESEND_SUBJECT] = updated.resendSubject
+            prefs[Keys.RESEND_BODY_TEXT] = updated.resendBodyText
             prefs[Keys.RESEND_MAX_PER_SESSION] = updated.resendMaxPerSession
             prefs[Keys.RESEND_MAX_PER_ADDRESS] = updated.resendMaxPerAddress
             prefs[Keys.RESEND_VERIFIED_AT] = updated.resendVerifiedAt

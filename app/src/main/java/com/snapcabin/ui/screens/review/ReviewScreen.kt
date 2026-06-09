@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import com.snapcabin.R
 import com.snapcabin.collage.CollageLayout
 import com.snapcabin.collage.CollageRenderer
+import com.snapcabin.filter.CustomBrandingRenderer
+import com.snapcabin.filter.WatermarkRenderer
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.ui.components.BrandingPreviewOverlay
 import com.snapcabin.ui.screens.capture.CaptureMode
@@ -272,11 +274,37 @@ private fun SinglePreview(photos: List<Bitmap>, picked: Int, settings: BoothSett
 private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
     var rendered by remember { mutableStateOf<Bitmap?>(null) }
 
-    LaunchedEffect(photos) {
+    // The collage renders 16:9. Branding is baked into the assembled bitmap
+    // with the exact renderer the Share pipeline uses, so the preview matches
+    // the final image — no separately-positioned overlay floating in the
+    // letterbox whitespace.
+    LaunchedEffect(
+        photos,
+        settings.customBorderPath,
+        settings.customOverlayPath,
+        settings.overlayPlacement,
+        settings.overlayCorner,
+        settings.overlaySizePct,
+        settings.watermarkEnabled,
+        settings.watermarkText
+    ) {
         rendered = null
         if (photos.size >= 2) {
             rendered = withContext(Dispatchers.Default) {
-                CollageRenderer.render(photos, CollageLayout.GRID_2X2)
+                val collage = CollageRenderer.render(photos, CollageLayout.GRID_2X2)
+                val branded = CustomBrandingRenderer.apply(
+                    source = collage,
+                    borderPath = settings.customBorderPath,
+                    overlayPath = settings.customOverlayPath,
+                    overlayPlacement = settings.overlayPlacement,
+                    overlayCorner = settings.overlayCorner,
+                    overlaySizePct = settings.overlaySizePct
+                )
+                if (settings.watermarkEnabled && settings.watermarkText.isNotBlank()) {
+                    WatermarkRenderer.apply(branded, settings.watermarkText)
+                } else {
+                    branded
+                }
             }
         }
     }
@@ -284,7 +312,7 @@ private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .aspectRatio(4f / 3f)
+            .aspectRatio(16f / 9f)
             .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))
             .background(Cream)
@@ -308,10 +336,7 @@ private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
                 modifier = Modifier.align(Alignment.Center)
             )
         }
-        BrandingPreviewOverlay(
-            settings = settings,
-            modifier = Modifier.fillMaxSize()
-        )
+        // Branding is baked into `rendered` above — no separate overlay.
     }
 }
 

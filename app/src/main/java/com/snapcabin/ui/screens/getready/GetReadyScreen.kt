@@ -138,11 +138,15 @@ fun GetReadyScreen(
         )
 
         // Branding overlay — shows the corner logo over the live preview as an
-        // alignment guide. No-op when no overlay is configured or in stretch mode.
-        BrandingLiveOverlay(
-            settings = settings,
-            modifier = Modifier.fillMaxSize()
-        )
+        // alignment guide. No-op when no overlay is configured or in stretch
+        // mode. Hidden for collage: the final collage is 16:9 and places the
+        // logo differently from a single 4:3 frame, so the guide would lie.
+        if (mode != CaptureMode.Collage) {
+            BrandingLiveOverlay(
+                settings = settings,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         if (settings.framingGuideEnabled) {
             FramingGuide()
