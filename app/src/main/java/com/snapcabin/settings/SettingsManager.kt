@@ -52,12 +52,12 @@ data class BoothSettings(
     val eventName: String = "",        // Shown as the Attract headline
     val attractSubtext: String = "A photo booth in the woods", // Tagline under the event name
 
-    // Sharing
+    // Sharing. The guest Email button is gated solely by resendEnabled —
+    // one switch, in EMAIL DELIVERY, not two that must agree.
     val enableQrSharing: Boolean = true,
     val enableSaveToGallery: Boolean = true,
     val enableShareIntent: Boolean = false,
-    val enablePrint: Boolean = true,
-    val enableEmail: Boolean = true, // Gates the "Email me my photo" button (Resend)
+    val enablePrint: Boolean = false, // off by default: PRINT with no printer dumps guests into the Android print dialog
 
     // Resend email (optional — disabled by default). Resend's HTTP API delivers
     // the photo as a JPEG attachment over WiFi. No phone numbers, no carrier.
@@ -164,7 +164,6 @@ class SettingsManager @Inject constructor(
         val ENABLE_SAVE_GALLERY = booleanPreferencesKey("enable_save_gallery")
         val ENABLE_SHARE_INTENT = booleanPreferencesKey("enable_share_intent")
         val ENABLE_PRINT = booleanPreferencesKey("enable_print")
-        val ENABLE_EMAIL = booleanPreferencesKey("enable_email")
         val ENABLE_SINGLE_PHOTO = booleanPreferencesKey("enable_single_photo_mode")
         val ENABLE_COLLAGE = booleanPreferencesKey("enable_collage_mode")
         val ENABLE_GIF = booleanPreferencesKey("enable_gif_mode")
@@ -211,8 +210,7 @@ class SettingsManager @Inject constructor(
         enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
         enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
         enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: false,
-        enablePrint = prefs[Keys.ENABLE_PRINT] ?: true,
-        enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
+        enablePrint = prefs[Keys.ENABLE_PRINT] ?: false,
         resendEnabled = prefs[Keys.RESEND_ENABLED] ?: false,
         resendApiKey = prefs[Keys.RESEND_API_KEY] ?: "",
         resendFromAddress = prefs[Keys.RESEND_FROM_ADDRESS] ?: "",
@@ -300,7 +298,6 @@ class SettingsManager @Inject constructor(
             prefs[Keys.ENABLE_SAVE_GALLERY] = updated.enableSaveToGallery
             prefs[Keys.ENABLE_SHARE_INTENT] = updated.enableShareIntent
             prefs[Keys.ENABLE_PRINT] = updated.enablePrint
-            prefs[Keys.ENABLE_EMAIL] = updated.enableEmail
             prefs[Keys.ENABLE_SINGLE_PHOTO] = updated.enableSinglePhotoMode
             prefs[Keys.ENABLE_COLLAGE] = updated.enableCollageMode
             prefs[Keys.ENABLE_GIF] = updated.enableGifMode

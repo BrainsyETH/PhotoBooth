@@ -16,8 +16,10 @@ import androidx.lifecycle.viewModelScope
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.settings.SettingsManager
+import com.snapcabin.camera.CameraManager
 import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.ResendEmailSender
+import com.snapcabin.ui.components.SoundManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,8 +43,13 @@ class AdminViewModel @Inject constructor(
     private val settingsManager: SettingsManager,
     private val resendEmailSender: ResendEmailSender,
     private val cloudinaryUploader: CloudinaryUploader,
+    private val soundManager: SoundManager,
+    val cameraManager: CameraManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    fun playShutterSample() = soundManager.playShutterSample()
+    fun playBeepSample() = soundManager.playBeepSample()
 
     private val _testEmailStatus = MutableStateFlow(TestStatus.Idle)
     val testEmailStatus: StateFlow<TestStatus> = _testEmailStatus.asStateFlow()

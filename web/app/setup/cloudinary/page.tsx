@@ -113,7 +113,7 @@ export default function CloudinarySetup() {
           <li>Long-press the bottom-right corner of the Attract screen.</li>
           <li>Enter the admin PIN.</li>
           <li>
-            Open <strong>CLOUDINARY PHOTO HOSTING</strong> and turn on
+            Open <strong>QR DOWNLOADS</strong> and turn on
             &ldquo;Upload photos to Cloudinary for QR sharing&rdquo;.
           </li>
           <li>

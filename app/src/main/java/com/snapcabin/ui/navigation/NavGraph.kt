@@ -45,13 +45,22 @@ object Routes {
     fun capture(mode: CaptureMode) = "capture/${mode.routeArg}"
 }
 
-private fun getScreenTimeout(route: String?): Long = when {
-    route == Routes.MODE_SELECT -> 30_000L
-    route?.startsWith("get_ready") == true -> 60_000L
-    route?.startsWith("capture") == true -> 90_000L
-    route == Routes.REVIEW -> 30_000L
-    route == Routes.SHARE -> 60_000L
-    else -> 0L
+/**
+ * Per-screen idle timeout, derived from the operator's KIOSK "Idle timeout"
+ * setting (the base). Quick-decision screens reset at half the base; capture
+ * gets 1.5x so a burst is never cut short. With the 60s default this exactly
+ * reproduces the historical 30/60/90s values.
+ */
+private fun getScreenTimeout(route: String?, baseSeconds: Int): Long {
+    val base = baseSeconds.coerceIn(15, 300) * 1000L
+    return when {
+        route == Routes.MODE_SELECT -> base / 2
+        route?.startsWith("get_ready") == true -> base
+        route?.startsWith("capture") == true -> base * 3 / 2
+        route == Routes.REVIEW -> base / 2
+        route == Routes.SHARE -> base
+        else -> 0L
+    }
 }
 
 private fun getWarningDuration(route: String?): Long = when (route) {
@@ -78,7 +87,9 @@ fun NavGraph(settingsManager: SettingsManager) {
     val currentEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentEntry?.destination?.route
 
-    val timeoutMs = remember(currentRoute) { getScreenTimeout(currentRoute) }
+    val timeoutMs = remember(currentRoute, settings.inactivityTimeoutSeconds) {
+        getScreenTimeout(currentRoute, settings.inactivityTimeoutSeconds)
+    }
     val warningMs = remember(currentRoute) { getWarningDuration(currentRoute) }
     val timeoutEnabled = timeoutMs > 0
 

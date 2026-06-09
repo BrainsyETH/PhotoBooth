@@ -235,12 +235,15 @@ internal fun ValidationHint(
     }
 }
 
-/** A readiness checklist row used by the Get Started hub. */
+/** A readiness checklist row used by the Get Started hub. Tappable when
+ *  [onClick] is provided — deep-links into the section that completes the
+ *  item, so the operator never has to hunt the side nav. */
 @Composable
 internal fun ChecklistRow(
     done: Boolean,
     label: String,
-    hint: String
+    hint: String,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -248,6 +251,7 @@ internal fun ChecklistRow(
             .clip(RoundedCornerShape(Radii.s))
             .background(Cream)
             .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)
     ) {
