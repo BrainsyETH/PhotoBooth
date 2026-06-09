@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
+import com.snapcabin.ui.components.BrandingLiveOverlay
 import com.snapcabin.ui.components.FramingGuide
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.theme.CabinLine
@@ -134,6 +135,13 @@ fun GetReadyScreen(
                         radius = 1400f
                     )
                 )
+        )
+
+        // Branding overlay — shows the corner logo over the live preview as an
+        // alignment guide. No-op when no overlay is configured or in stretch mode.
+        BrandingLiveOverlay(
+            settings = settings,
+            modifier = Modifier.fillMaxSize()
         )
 
         if (settings.framingGuideEnabled) {
