@@ -150,7 +150,11 @@ private fun BrandingPreview(settings: BoothSettings) {
     // A neutral 4:3 stand-in photo (gradient + a faux subject) so the operator
     // can see how the border/logo compose — including whether a corner logo
     // overlaps the subject — without taking a real photo.
-    val source = remember { buildPreviewSource() }
+    //
+    // The stand-in is rebuilt on every recompute: apply() paints in place on
+    // mutable bitmaps, so reusing one source would accumulate ghost logos as
+    // the operator drags the size slider — and return the same bitmap
+    // instance, which Compose would then skip redrawing.
     val composed = remember(
         settings.customBorderPath,
         settings.customOverlayPath,
@@ -159,7 +163,7 @@ private fun BrandingPreview(settings: BoothSettings) {
         settings.overlaySizePct
     ) {
         CustomBrandingRenderer.apply(
-            source = source,
+            source = buildPreviewSource(),
             borderPath = settings.customBorderPath,
             overlayPath = settings.customOverlayPath,
             overlayPlacement = settings.overlayPlacement,
