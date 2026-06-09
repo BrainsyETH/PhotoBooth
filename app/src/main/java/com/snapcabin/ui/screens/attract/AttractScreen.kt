@@ -1,5 +1,6 @@
 package com.snapcabin.ui.screens.attract
 
+import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,16 +19,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -40,13 +44,17 @@ import com.snapcabin.R
 import com.snapcabin.ui.components.rememberScreenClass
 import com.snapcabin.ui.components.scaledDp
 import com.snapcabin.ui.theme.CabinBackground
+import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.CabinPrimary
 import com.snapcabin.ui.theme.CabinSurface
+import com.snapcabin.ui.theme.Cream
 import com.snapcabin.ui.theme.Espresso
 import com.snapcabin.ui.theme.FrankRuhlLibre
 import com.snapcabin.ui.theme.HankenGrotesk
+import com.snapcabin.ui.theme.Honey
 import com.snapcabin.ui.theme.Oat
 import com.snapcabin.ui.theme.Parchment
+import com.snapcabin.ui.theme.Pine
 import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
 import com.snapcabin.ui.theme.Walnut
@@ -56,23 +64,48 @@ fun AttractScreen(
     onTap: () -> Unit,
     onAdminLongPress: () -> Unit = {},
     eventName: String = "",
-    subtext: String = ""
+    subtext: String = "",
+    isFirstRun: Boolean = false
 ) {
     val screen = rememberScreenClass()
-    val logoSize = screen.scaledDp(280).dp
-    val titleLarge = screen.scaledDp(96).sp
-    val titleSmall = screen.scaledDp(72).sp
+    val logoSize = screen.scaledDp(220).dp
+    val titleLarge = screen.scaledDp(88).sp
+    val titleSmall = screen.scaledDp(64).sp
     val subtextSize = screen.scaledDp(26).sp
+    val ctaTextSize = screen.scaledDp(40).sp
 
     val infiniteTransition = rememberInfiniteTransition(label = "attract")
-    val ctaAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.55f,
-        targetValue = 1f,
+
+    // The CTA is the hero: a gentle scale "breath" (not just alpha) reads as
+    // alive from across a room and competes with an open bar.
+    val ctaScale by infiniteTransition.animateFloat(
+        initialValue = 0.97f,
+        targetValue = 1.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
+            animation = tween(1700, easing = EaseInOutSine),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "cta"
+        label = "cta-scale"
+    )
+    // A soft champagne halo pulses behind it, slightly out of phase, so the
+    // whole screen has ambient motion rather than one blinking pill.
+    val haloScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2600, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "halo-scale"
+    )
+    val haloAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "halo-alpha"
     )
 
     val backdrop = Brush.radialGradient(
@@ -103,7 +136,7 @@ fun AttractScreen(
                 modifier = Modifier.size(logoSize)
             )
 
-            Spacer(modifier = Modifier.height(Spacing.lg))
+            Spacer(modifier = Modifier.height(Spacing.md))
 
             val headline = if (eventName.isNotBlank()) eventName else stringResource(R.string.app_name)
             Text(
@@ -118,7 +151,7 @@ fun AttractScreen(
             )
 
             if (subtext.isNotBlank()) {
-                Spacer(modifier = Modifier.height(Spacing.md))
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 Text(
                     text = subtext,
                     fontSize = subtextSize,
@@ -130,37 +163,70 @@ fun AttractScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(Spacing.xxl + Spacing.s))
+            Spacer(modifier = Modifier.height(Spacing.xxl))
 
-            // Pine pill CTA — breathing 0.55 → 1.0 alpha.
-            Box(
-                modifier = Modifier
-                    .shadow(
-                        elevation = 6.dp,
-                        shape = RoundedCornerShape(Radii.full),
-                        clip = false
-                    )
-                    .clip(RoundedCornerShape(Radii.full))
-                    .background(CabinPrimary.copy(alpha = ctaAlpha))
-                    .padding(horizontal = Spacing.xl, vertical = Spacing.md)
-            ) {
-                Text(
-                    text = stringResource(R.string.attract_tap_to_start),
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        color = androidx.compose.ui.graphics.Color.White
-                    )
+            // Hero CTA: champagne halo + scaling pine pill with large lettering.
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(screen.scaledDp(360).dp)
+                        .scale(haloScale)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Honey.copy(alpha = haloAlpha),
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
+                Box(
+                    modifier = Modifier
+                        .scale(ctaScale)
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(Radii.full),
+                            clip = false
+                        )
+                        .clip(RoundedCornerShape(Radii.full))
+                        .background(CabinPrimary)
+                        .padding(horizontal = Spacing.xxl, vertical = Spacing.lg)
+                ) {
+                    Text(
+                        text = stringResource(R.string.attract_tap_to_start),
+                        fontFamily = HankenGrotesk,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = ctaTextSize,
+                        letterSpacing = 0.06f.em,
+                        color = Color.White
+                    )
+                }
             }
         }
 
-        Text(
-            text = stringResource(R.string.attract_admin_hint),
-            fontSize = 14.sp,
-            fontFamily = HankenGrotesk,
-            color = Espresso.copy(alpha = 0.28f),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = Spacing.lg, bottom = Spacing.lg)
-        )
+        // First run only: teach the setup gesture + default PIN once. After the
+        // host sets a PIN or starts an event this disappears, so it never
+        // invites tipsy guests into the admin dialog at a live event.
+        if (isFirstRun) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = Spacing.xl)
+                    .clip(RoundedCornerShape(Radii.l))
+                    .background(Cream)
+                    .border(1.dp, CabinLine, RoundedCornerShape(Radii.l))
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+            ) {
+                Text(
+                    text = "New booth? Press and hold anywhere to set it up.  ·  PIN 1234",
+                    fontFamily = HankenGrotesk,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Espresso.copy(alpha = 0.75f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }

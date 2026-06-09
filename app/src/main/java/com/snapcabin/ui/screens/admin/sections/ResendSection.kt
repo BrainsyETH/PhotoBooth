@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snapcabin.settings.BoothSettings
@@ -39,6 +40,7 @@ import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.screens.admin.AdminViewModel
 import com.snapcabin.ui.screens.admin.KioskSafeLink
 import com.snapcabin.ui.screens.admin.NumberedStep
+import com.snapcabin.ui.screens.admin.RevealToggle
 import com.snapcabin.ui.screens.admin.SettingRow
 import com.snapcabin.ui.screens.admin.StatusPill
 import com.snapcabin.ui.screens.admin.StatusTone
@@ -119,6 +121,7 @@ internal fun ResendSection(
             )
 
             var key by remember { mutableStateOf(settings.resendApiKey) }
+            var keyVisible by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = key,
                 onValueChange = {
@@ -128,7 +131,8 @@ internal fun ResendSection(
                 },
                 label = { Text("API key") },
                 placeholder = { Text("re_…") },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = { RevealToggle(visible = keyVisible, onToggle = { keyVisible = !keyVisible }) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(Radii.s),

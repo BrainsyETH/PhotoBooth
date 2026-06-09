@@ -85,7 +85,7 @@ private fun EventBlock(
             )
             Spacer(modifier = Modifier.height(Spacing.xs))
             Text(
-                text = "Slug: ${settings.currentEventSlug}",
+                text = "Photo folder: ${settings.currentEventSlug}",
                 fontFamily = HankenGrotesk,
                 fontSize = 13.sp,
                 color = Espresso.copy(alpha = 0.72f)
@@ -100,13 +100,18 @@ private fun EventBlock(
                     color = Espresso.copy(alpha = 0.72f)
                 )
             }
-            Spacer(modifier = Modifier.height(Spacing.s))
-            Text(
-                text = "Photos upload to Cloudinary folder events/${settings.currentEventSlug}/",
-                fontFamily = HankenGrotesk,
-                fontSize = 12.sp,
-                color = Espresso.copy(alpha = 0.6f)
-            )
+            val cloudinaryReady = settings.cloudinaryEnabled &&
+                settings.cloudinaryCloudName.isNotBlank() &&
+                settings.cloudinaryUploadPreset.isNotBlank()
+            if (cloudinaryReady) {
+                Spacer(modifier = Modifier.height(Spacing.s))
+                Text(
+                    text = "Photos will be saved to the folder “events/${settings.currentEventSlug}/” in your Cloudinary account.",
+                    fontFamily = HankenGrotesk,
+                    fontSize = 12.sp,
+                    color = Espresso.copy(alpha = 0.6f)
+                )
+            }
         } else {
             Text(
                 text = "No active event",
@@ -200,7 +205,7 @@ private fun EventBlock(
                     if (newEventName.isNotBlank()) {
                         Spacer(modifier = Modifier.height(Spacing.xs))
                         Text(
-                            text = "Slug preview: ${EventSlug.from(newEventName)}",
+                            text = "Photo folder name: ${EventSlug.from(newEventName)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Espresso.copy(alpha = 0.6f)
                         )

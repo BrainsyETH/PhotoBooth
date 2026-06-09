@@ -161,7 +161,7 @@ private fun ModeCard(
         Spacer(modifier = Modifier.height(Spacing.lg))
 
         Text(
-            text = "START  →",
+            text = "START →",
             fontSize = 14.sp,
             fontFamily = HankenGrotesk,
             fontWeight = FontWeight.Bold,

@@ -14,13 +14,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.ui.screens.admin.ChecklistRow
 import com.snapcabin.ui.screens.admin.StatusPill
@@ -39,8 +43,16 @@ internal fun GetStartedSection(
     onJumpTo: (String) -> Unit = {},
     onCollapse: (Boolean) -> Unit = {}
 ) {
+    val context = LocalContext.current
+
     val pinChanged = settings.adminPin != "1234"
     val eventStarted = settings.currentEventName.isNotBlank()
+
+    // Best-effort runtime check; re-evaluated on recomposition (e.g. after the
+    // operator runs TEST CAMERA in the CAMERA section and grants the prompt).
+    val cameraReady = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
 
     val emailConfigured = settings.resendEnabled &&
         settings.resendApiKey.isNotBlank() && settings.resendFromAddress.isNotBlank()
@@ -50,9 +62,13 @@ internal fun GetStartedSection(
         settings.cloudinaryCloudName.isNotBlank() && settings.cloudinaryUploadPreset.isNotBlank()
     val qrVerified = qrConfigured && settings.cloudinaryVerifiedAt > 0L
 
-    val deliveryReady = emailConfigured || qrConfigured
-    val doneCount = listOf(pinChanged, eventStarted, deliveryReady).count { it }
-    val allReady = doneCount == 3
+    // Guests only have a working share path if email is on, OR the QR tile is on
+    // AND Cloudinary is actually configured. Don't pass just because creds were
+    // typed into a disabled integration.
+    val qrShareReady = settings.enableQrSharing && qrConfigured
+    val deliveryReady = emailConfigured || qrShareReady
+    val doneCount = listOf(pinChanged, eventStarted, cameraReady, deliveryReady).count { it }
+    val allReady = doneCount == 4
 
     if (settings.getStartedCollapsed) {
         CollapsedBar(
@@ -92,7 +108,7 @@ internal fun GetStartedSection(
             Banner(
                 tone = StatusTone.Good,
                 title = "You're ready to go.",
-                body = "PIN set, event started, and at least one way for guests to get their photos."
+                body = "PIN set, event started, camera working, and at least one way for guests to get their photos."
             )
         } else {
             Banner(
@@ -115,9 +131,15 @@ internal fun GetStartedSection(
             onClick = { onJumpTo("event") }
         )
         ChecklistRow(
+            done = cameraReady,
+            label = "Camera works",
+            hint = if (cameraReady) "Camera is allowed and ready." else "Tap to open CAMERA and run TEST CAMERA — it'll ask for camera permission.",
+            onClick = { onJumpTo("camera") }
+        )
+        ChecklistRow(
             done = deliveryReady,
-            label = "Set up photo delivery",
-            hint = if (deliveryReady) "Guests can get their photos." else "Tap to set up EMAIL DELIVERY (or QR DOWNLOADS for scan-to-save).",
+            label = "Guests can get their photos",
+            hint = if (deliveryReady) "Guests can get their photos." else "Tap to turn on EMAIL DELIVERY (or QR DOWNLOADS for scan-to-save) and finish setup.",
             onClick = { onJumpTo("resend") }
         )
 
@@ -185,13 +207,13 @@ private fun CollapsedBar(
                 color = Espresso
             )
             Text(
-                text = if (allReady) "All set — tap to review." else "$doneCount of 3 done — tap to finish setup.",
+                text = if (allReady) "All set — tap to review." else "$doneCount of 4 done — tap to finish setup.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.7f)
             )
         }
         StatusPill(
-            text = if (allReady) "Ready" else "$doneCount/3",
+            text = if (allReady) "Ready" else "$doneCount/4",
             tone = if (allReady) StatusTone.Good else StatusTone.Warn
         )
         Text(
