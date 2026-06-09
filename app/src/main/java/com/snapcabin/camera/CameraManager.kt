@@ -3,7 +3,10 @@ package com.snapcabin.camera
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.RectF
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager as SystemCameraManager
 import android.hardware.usb.UsbManager
@@ -29,6 +32,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.roundToInt
 
 data class DetectedCamera(
     val id: String,
@@ -296,10 +300,30 @@ class CameraManager @Inject constructor(
                         matrix.preScale(-1f, 1f)
                     }
 
-                    // createBitmap with a non-identity matrix returns a mutable
-                    // bitmap; the identity case already is one (we set inMutable).
+                    // Transform onto a mutable target ourselves. Despite docs
+                    // suggesting otherwise, Bitmap.createBitmap(src, ..., matrix)
+                    // returns an IMMUTABLE bitmap — which silently defeats the
+                    // in-place branding pipeline downstream (mirroring is on by
+                    // default, so every capture hit this) and forces a second
+                    // full-resolution copy in CustomBrandingRenderer.
                     val finalBitmap = if (!matrix.isIdentity) {
-                        Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
+                        val src = RectF(0f, 0f, rawBitmap.width.toFloat(), rawBitmap.height.toFloat())
+                        val dst = RectF()
+                        matrix.mapRect(dst, src)
+                        val out = Bitmap.createBitmap(
+                            dst.width().roundToInt().coerceAtLeast(1),
+                            dst.height().roundToInt().coerceAtLeast(1),
+                            Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = Canvas(out)
+                        canvas.translate(-dst.left, -dst.top)
+                        canvas.drawBitmap(
+                            rawBitmap,
+                            matrix,
+                            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+                        )
+                        rawBitmap.recycle()
+                        out
                     } else {
                         rawBitmap
                     }

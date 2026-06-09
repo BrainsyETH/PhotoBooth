@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -91,12 +92,22 @@ class ShareViewModel @Inject constructor(
         emailSendsThisSession = 0
         sessionEndScheduled = false
         viewModelScope.launch {
+            // Snapshot the REAL stored settings before touching the photo.
+            // This ViewModel is created fresh on Share entry and its stateIn
+            // starts at BoothSettings() defaults; setPhoto races the first
+            // DataStore emission. Reading settings.value here used to brand
+            // with empty paths (no logo, no watermark) and then upload that
+            // unbranded photo once the late-loading settings enabled
+            // Cloudinary. first() suspends the few ms until the stored
+            // values are actually available, and one snapshot keeps the
+            // whole pipeline consistent.
+            val s = settingsManager.settings.first()
+
             // Bake in admin-configured branding (border + overlay PNGs, then watermark text).
             // Failure-isolated: any decode/out-of-memory issue falls back to the raw
             // capture so a bad branding asset can never crash the booth mid-session.
             val processedPhoto = withContext(Dispatchers.Default) {
                 try {
-                    val s = settings.value
                     val branded = CustomBrandingRenderer.apply(
                         source = bitmap,
                         borderPath = s.customBorderPath,
@@ -119,14 +130,13 @@ class ShareViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(photo = processedPhoto)
 
             // Auto-save if enabled.
-            if (settings.value.autoSaveToGallery) {
+            if (s.autoSaveToGallery) {
                 saveToGallery(context)
             }
 
             // Eager Cloudinary upload so QR sharing has a URL ready. Without
             // Cloudinary the QR section stays hidden — guests can still use
             // Save / Share / Print / Email.
-            val s = settings.value
             if (s.cloudinaryEnabled && s.cloudinaryCloudName.isNotBlank() &&
                 s.cloudinaryUploadPreset.isNotBlank()
             ) {
