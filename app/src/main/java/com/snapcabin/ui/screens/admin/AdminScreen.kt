@@ -52,6 +52,7 @@ import com.snapcabin.ui.screens.admin.sections.CameraSection
 import com.snapcabin.ui.screens.admin.sections.CaptureSection
 import com.snapcabin.ui.screens.admin.sections.CloudinarySection
 import com.snapcabin.ui.screens.admin.sections.EventSection
+import com.snapcabin.ui.screens.admin.sections.GetStartedSection
 import com.snapcabin.ui.screens.admin.sections.KioskSection
 import com.snapcabin.ui.screens.admin.sections.ModesSection
 import com.snapcabin.ui.screens.admin.sections.ResendSection
@@ -99,6 +100,9 @@ fun AdminScreen(
             )
         } else {
             val sections = listOf(
+                AdminSection("getstarted", "GET STARTED") {
+                    GetStartedSection(settings = settings)
+                },
                 AdminSection("event", "EVENT") {
                     EventSection(settings = settings, viewModel = viewModel)
                 },
