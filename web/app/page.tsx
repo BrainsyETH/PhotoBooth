@@ -7,7 +7,6 @@ export default function Home() {
       <Hero />
       <Features />
       <HowItWorks />
-      <Comparison />
       <Integrations />
       <Faq />
       <Footer />
@@ -31,9 +30,8 @@ function Hero() {
       />
       <p className="max-w-xl text-lg leading-relaxed text-espresso/85">
         A photo booth for an Android tablet. Guests snap their photo, pick
-        how they want it, and walk away with it in their inbox. No
-        subscription, no monthly bill, no surprise add-ons. One-time
-        purchase, runs on the tablet you bring.
+        how they want it, and walk away with it in their inbox. Runs on the
+        tablet you bring, with the integrations you connect.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-4">
         <Link
@@ -147,211 +145,6 @@ function HowItWorks() {
       </ol>
     </section>
   );
-}
-
-function Comparison() {
-  return (
-    <section className="mt-28">
-      <SectionHeading
-        eyebrow="Cost compared"
-        title="What a 250-photo event actually costs"
-      />
-      <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-espresso/75">
-        Most photo booth apps charge a monthly fee whether you run one event a
-        year or twenty. SnapCabin is a one-time purchase. Email delivery and
-        hosting are billed at cost by Resend and Cloudinary, with no markup
-        from us &mdash; and for a 250-photo event, both stay inside their
-        free tiers.
-      </p>
-
-      <div className="mt-10 overflow-x-auto rounded-3xl border border-walnut/15 bg-cream/70">
-        <table className="w-full text-left text-sm sm:text-base">
-          <thead>
-            <tr className="border-b border-walnut/15 text-xs uppercase tracking-widest text-honey-deep">
-              <th className="px-5 py-4 font-sans font-semibold">Option</th>
-              <th className="px-5 py-4 font-sans font-semibold">
-                Up-front
-              </th>
-              <th className="px-5 py-4 font-sans font-semibold">
-                Per month
-              </th>
-              <th className="px-5 py-4 font-sans font-semibold">
-                Per event of 250 photos
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-walnut/10">
-            <tr className="bg-pine/5">
-              <td className="px-5 py-4">
-                <p className="font-display text-lg font-semibold text-espresso">
-                  SnapCabin
-                </p>
-                <p className="text-xs text-mist">
-                  One-time app, pay-as-you-go email + hosting
-                </p>
-              </td>
-              <td className="px-5 py-4 font-sans text-espresso">
-                One-time
-              </td>
-              <td className="px-5 py-4 font-sans text-pine-deep">$0</td>
-              <td className="px-5 py-4 font-sans font-semibold text-pine-deep">
-                $0 (inside free tiers)
-              </td>
-            </tr>
-            <tr>
-              <td className="px-5 py-4">
-                <p className="font-display text-lg font-semibold text-espresso">
-                  Snappic Starter
-                </p>
-                <p className="text-xs text-mist">Monthly subscription</p>
-              </td>
-              <td className="px-5 py-4 font-sans text-espresso">$0</td>
-              <td className="px-5 py-4 font-sans text-espresso">$69</td>
-              <td className="px-5 py-4 font-sans text-espresso">
-                $69 (one month minimum)
-              </td>
-            </tr>
-            <tr>
-              <td className="px-5 py-4">
-                <p className="font-display text-lg font-semibold text-espresso">
-                  Snappic Business
-                </p>
-                <p className="text-xs text-mist">Monthly subscription</p>
-              </td>
-              <td className="px-5 py-4 font-sans text-espresso">$0</td>
-              <td className="px-5 py-4 font-sans text-espresso">$189</td>
-              <td className="px-5 py-4 font-sans text-espresso">
-                $189 (one month minimum)
-              </td>
-            </tr>
-            <tr>
-              <td className="px-5 py-4">
-                <p className="font-display text-lg font-semibold text-espresso">
-                  Simple Booth HALO
-                </p>
-                <p className="text-xs text-mist">
-                  Weekly or monthly plans, iPad app
-                </p>
-              </td>
-              <td className="px-5 py-4 font-sans text-espresso">$0</td>
-              <td className="px-5 py-4 font-sans text-espresso">
-                Plans from $9/week
-              </td>
-              <td className="px-5 py-4 font-sans text-espresso">
-                ~$36 if billed weekly all month
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p className="mx-auto mt-4 max-w-3xl text-center text-xs text-mist">
-        Prices listed for the other apps are taken from their public pricing
-        pages as of May 2026 and may have changed.{" "}
-        <a
-          href="https://www.snappic.com/pricing"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Snappic pricing
-        </a>
-        ,{" "}
-        <a
-          href="https://www.simplebooth.com/plans"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Simple Booth plans
-        </a>
-        . Resend&rsquo;s free tier covers 3,000 emails per month and
-        Cloudinary&rsquo;s free tier covers 25 GB of storage and bandwidth,
-        which is enough for a typical wedding.
-      </p>
-
-      <div className="mt-12">
-        <h3 className="text-center font-display text-2xl font-medium text-espresso">
-          Features compared
-        </h3>
-        <div className="mt-6 overflow-x-auto rounded-3xl border border-walnut/15 bg-cream/70">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-walnut/15 text-xs uppercase tracking-widest text-honey-deep">
-                <th className="px-5 py-4 font-sans font-semibold">Feature</th>
-                <th className="px-5 py-4 text-center font-sans font-semibold">
-                  SnapCabin
-                </th>
-                <th className="px-5 py-4 text-center font-sans font-semibold">
-                  Snappic Starter
-                </th>
-                <th className="px-5 py-4 text-center font-sans font-semibold">
-                  Simple Booth HALO
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-walnut/10 text-espresso/85">
-              <FeatureRow label="Single photo, collage, GIF modes" />
-              <FeatureRow label="Send photo by email (attachment)" />
-              <FeatureRow label="QR-code download via Cloudinary" />
-              <FeatureRow
-                label="Photos stored on your own cloud account"
-                snapcabin
-                snappic={false}
-                simplebooth={false}
-              />
-              <FeatureRow label="Custom border and logo overlay" />
-              <FeatureRow label="Works offline once configured" snapcabin snappic={false} simplebooth={false} />
-              <FeatureRow
-                label="Pay only for what you use after purchase"
-                snapcabin
-                snappic={false}
-                simplebooth={false}
-              />
-              <FeatureRow
-                label="Source available for inspection"
-                snapcabin
-                snappic={false}
-                simplebooth={false}
-              />
-            </tbody>
-          </table>
-        </div>
-        <p className="mx-auto mt-3 max-w-3xl text-center text-xs text-mist">
-          Other app feature lists are best-effort summaries from their public
-          marketing pages as of May 2026. We&rsquo;d love to be told what
-          we&rsquo;ve missed.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function FeatureRow({
-  label,
-  snapcabin = true,
-  snappic = true,
-  simplebooth = true,
-}: {
-  label: string;
-  snapcabin?: boolean;
-  snappic?: boolean;
-  simplebooth?: boolean;
-}) {
-  return (
-    <tr>
-      <td className="px-5 py-3">{label}</td>
-      <td className="px-5 py-3 text-center">{snapcabin ? <Check /> : <Dash />}</td>
-      <td className="px-5 py-3 text-center">{snappic ? <Check /> : <Dash />}</td>
-      <td className="px-5 py-3 text-center">{simplebooth ? <Check /> : <Dash />}</td>
-    </tr>
-  );
-}
-
-function Check() {
-  return <span className="font-bold text-pine-deep">Yes</span>;
-}
-
-function Dash() {
-  return <span className="text-mist">No</span>;
 }
 
 function Integrations() {
@@ -480,8 +273,8 @@ function Footer() {
         </a>
       </div>
       <p className="text-xs text-mist">
-        SnapCabin is not affiliated with Resend, Cloudinary, Snappic, Simple
-        Booth, Samsung, or Google.
+        SnapCabin is not affiliated with Resend, Cloudinary, Samsung, or
+        Google.
       </p>
     </footer>
   );

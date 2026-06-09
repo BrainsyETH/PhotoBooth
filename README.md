@@ -2,7 +2,7 @@
 
 A photo booth in the woods — self-hosted Android kiosk app for weddings,
 parties, and gatherings. Wedding-friendly sage/cream/champagne palette;
-no analytics, no telemetry; pay once and run it on your own hardware.
+no analytics, no telemetry; runs entirely on hardware you bring.
 
 ## Repo layout
 

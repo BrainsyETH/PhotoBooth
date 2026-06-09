@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "SnapCabin",
   description:
-    "A photo booth that runs on an Android tablet you already own. No subscription, no monthly fee.",
+    "A photo booth that runs on an Android tablet you already own. Bring your own integrations, keep your photos.",
   metadataBase: new URL("https://snapcabin.app"),
   openGraph: {
     title: "SnapCabin",
