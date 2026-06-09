@@ -13,8 +13,9 @@ import javax.inject.Singleton
 
 /**
  * Uploads a photo to Cloudinary via the unsigned-upload endpoint and returns
- * the resulting public URL. Used so Twilio's servers can fetch the photo and
- * deliver it as MMS to recipients on cellular.
+ * the resulting public URL. Used so the share screen can render a QR code
+ * pointing at the hosted photo (and optionally include the link in the
+ * Resend email body).
  *
  * Security:
  *  - "Unsigned" means no API secret is shipped in the app. The cloud_name +

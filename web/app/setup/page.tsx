@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "SnapCabin · Setup guides",
   description:
-    "Step-by-step guides for wiring SnapCabin to Twilio (text messages) and Cloudinary (photo hosting).",
+    "Step-by-step guides for wiring SnapCabin to Resend (email delivery) and Cloudinary (photo hosting).",
 };
 
 export default function SetupIndex() {
@@ -20,20 +20,20 @@ export default function SetupIndex() {
       </h1>
       <p className="mt-4 max-w-xl text-lg leading-relaxed text-espresso/80">
         SnapCabin works offline by default. These two optional integrations
-        are what let a guest get the photo straight to their phone over
-        cellular instead of WiFi.
+        are what let a guest get the photo onto their phone over WiFi &mdash;
+        Resend emails it to them, Cloudinary hosts a copy behind a QR code.
       </p>
 
       <section className="mt-12 grid gap-6 md:grid-cols-2">
         <SetupCard
-          title="Twilio"
-          subtitle="Send the photo by text"
-          href="/setup/twilio"
+          title="Resend"
+          subtitle="Email the photo as an attachment"
+          href="/setup/resend"
           minutes="About 10 minutes"
         />
         <SetupCard
           title="Cloudinary"
-          subtitle="Host the photo so the text can include it"
+          subtitle="Host the photo behind a QR code"
           href="/setup/cloudinary"
           minutes="About 5 minutes"
         />
@@ -44,8 +44,14 @@ export default function SetupIndex() {
           Recommended order
         </h2>
         <ol className="mt-4 list-decimal space-y-2 pl-6 text-base text-espresso/85">
-          <li>Set up Cloudinary first. It gives you a public photo URL.</li>
-          <li>Then Twilio. It uses that URL when sending the picture.</li>
+          <li>
+            Set up Resend first if you want email delivery. The photo arrives
+            as an attachment, so it works without Cloudinary.
+          </li>
+          <li>
+            Add Cloudinary if you also want a QR code on the share screen.
+            It&rsquo;s independent of Resend &mdash; turn one or both on.
+          </li>
           <li>
             Test each one from the admin screen on the tablet before your
             event.

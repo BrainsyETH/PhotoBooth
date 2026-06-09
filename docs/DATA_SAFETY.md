@@ -12,14 +12,14 @@ or Play will reject the submission.
 
 **Is all of the user data collected by your app encrypted in transit?**
 > Yes
-> *(Cloudinary uploads and Twilio API calls are both HTTPS-only. The app
+> *(Cloudinary uploads and Resend API calls are both HTTPS-only. The app
 >  makes no other outbound network calls.)*
 
 **Do you provide a way for users to request that their data be deleted?**
 > Yes, through the event host
 > *(The event host is the data controller for any data that leaves the
 >  device. Guests contact the host to request deletion from Cloudinary
->  or Twilio. The privacy policy explains this.)*
+>  or Resend. The privacy policy explains this.)*
 
 ## Section 2 — Data types
 
@@ -28,29 +28,22 @@ Tick **only** these categories. Leave everything else off.
 ### Photos and videos → Photos
 
 - **Collected**: Yes
-- **Shared**: Yes (with Cloudinary, if the host enabled it)
+- **Shared**: Yes (with Cloudinary, if the host enabled it; and as a JPEG
+  attachment via Resend, if the host enabled it)
 - **Processed ephemerally**: No, saved at least temporarily
 - **Required or optional**: Required for app functionality
 - **Purposes**: App functionality
 - **Is this data type collected, free-form?** No, structured (image files)
 - **User can request data deletion**: Yes (via the host)
 
-### Personal info → Phone number
-
-- **Collected**: Yes (only when a guest enters one to receive an SMS)
-- **Shared**: Yes (with Twilio, to deliver the SMS)
-- **Processed ephemerally**: Yes. The unmasked number is not retained;
-  only a masked last-4-digits version appears in the on-device audit log.
-- **Required or optional**: Optional. The guest chooses to enter it.
-- **Purposes**: Communications
-
 ### Personal info → Email address
 
-- **Collected**: Yes (only when a guest taps the email button)
-- **Shared**: Handed off to a third-party email app via Android Intent;
-  SnapCabin doesn't transmit it directly
-- **Processed ephemerally**: Yes, not retained
-- **Required or optional**: Optional
+- **Collected**: Yes (only when a guest types one to receive their photo)
+- **Shared**: Yes (with Resend, to deliver the email)
+- **Processed ephemerally**: Yes. The unmasked address is not retained;
+  only a masked version (e.g. `e***@example.com`) appears in the on-device
+  audit log.
+- **Required or optional**: Optional. The guest chooses to enter it.
 - **Purposes**: Communications
 
 ## Section 3 — Things to explicitly NOT tick
@@ -67,6 +60,7 @@ rejection vector too.)
 - ❌ **Calendar** — never read.
 - ❌ **Financial info** — none.
 - ❌ **Health and fitness** — none.
+- ❌ **Phone number** — never collected; the SMS path was removed.
 - ❌ **Messages** — we never read SMS / MMS / chat messages.
 - ❌ **Audio / files / documents** — only photos taken by the kiosk camera.
 - ❌ **Web browsing** — none.
@@ -77,11 +71,11 @@ Reference the code:
 
 - `share/CloudinaryUploader.kt`: HTTPS upload of photo only, gated on
   host-configured credentials.
-- `share/TwilioSmsSender.kt`: HTTPS POST of phone number plus photo URL,
-  gated on host-configured credentials.
-- `event/SendLog.kt`: local audit log. Phone numbers are masked at write
-  time (`SendLog.maskPhone` keeps only the last four digits) and never
-  leave the device.
+- `share/ResendEmailSender.kt`: HTTPS POST of email address plus photo
+  attachment (base64 JPEG), gated on host-configured credentials.
+- `event/SendLog.kt`: local audit log. Email addresses are masked at
+  write time (`SendLog.maskEmail` keeps only the first letter and the
+  domain) and never leave the device.
 - No analytics, telemetry, or crash-reporting code anywhere in the app.
 
 ## Updating this form

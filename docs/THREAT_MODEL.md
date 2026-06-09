@@ -9,8 +9,8 @@ Play review might raise.
 
 1. **Photos** taken at events — both as in-memory bitmaps and as files
    optionally uploaded to the operator's Cloudinary account.
-2. **Phone numbers** entered by guests for SMS delivery.
-3. **Operator credentials** — Twilio Account SID + Auth Token + From-number;
+2. **Email addresses** entered by guests for email delivery.
+3. **Operator credentials** — Resend API Key + From-address;
    Cloudinary Cloud Name + Upload Preset; admin PIN.
 4. **Event metadata** — current event name, slug, start time, audit log.
 
@@ -20,9 +20,8 @@ Play review might raise.
 |---|---|
 | Device sandbox ↔ other apps | DataStore lives in the app-private sandbox; other apps can't read it without root. |
 | Kiosk admin ↔ guests | Admin PIN gates Admin, Privacy, Gallery. Long-press hotspot is small, dim, and bottom-right. |
-| Kiosk ↔ Twilio | HTTPS only. Basic auth header constructed locally. Auth Token never logged. |
+| Kiosk ↔ Resend | HTTPS only. Bearer token header constructed locally. API key never logged. |
 | Kiosk ↔ Cloudinary | HTTPS only. Unsigned upload — no API secret on-device. |
-| Kiosk LAN ↔ guest phones | HTTP server on LAN only. Not reachable from the internet. |
 | Operator ↔ guest | The operator is the data controller for any data that leaves the kiosk. SnapCabin (the developer) receives nothing. |
 
 ## Threats and mitigations
@@ -30,15 +29,15 @@ Play review might raise.
 ### T1. Physical access to the kiosk
 
 **Threat**: someone at an event picks up the tablet and tries to access
-operator-only settings, extract credentials, or send fraudulent SMS.
+operator-only settings, extract credentials, or send fraudulent email.
 
 **Mitigations**:
 - Admin PIN (default `1234`, default-PIN warning surfaces in Admin).
 - **Kiosk Mode via Device Owner** — when provisioned, the OS prevents
   exiting the app, opening other apps, or reaching system settings.
   See [DEVICE_OWNER_DISCLOSURE.md](./DEVICE_OWNER_DISCLOSURE.md).
-- Per-session and per-phone SMS rate limits cap blast radius if an
-  attacker does get to the SMS UI.
+- Per-session and per-address email rate limits cap blast radius if an
+  attacker does get to the email UI.
 
 **Residual risk**: an attacker who knows the PIN and is on an unlocked
 (non-Device-Owner) kiosk can change settings or exfiltrate credentials.
@@ -47,7 +46,7 @@ deployment.
 
 ### T2. Credential exfiltration via ADB
 
-**Threat**: someone with USB access enables ADB and pulls Twilio /
+**Threat**: someone with USB access enables ADB and pulls Resend /
 Cloudinary credentials out of the app's DataStore.
 
 **Mitigations**:
@@ -60,23 +59,24 @@ Cloudinary credentials out of the app's DataStore.
 to a non-Device-Owner kiosk can extract credentials.
 **Operator action**: enable Kiosk Mode.
 
-### T3. SMS abuse / spam
+### T3. Email abuse / spam
 
-**Threat**: an attacker repeatedly enters phone numbers to send unwanted
-SMS, racking up the operator's Twilio bill or harassing recipients.
+**Threat**: an attacker repeatedly enters email addresses to send unwanted
+mail, eating into the operator's Resend quota or harassing recipients.
 
 **Mitigations**:
-- `twilioMaxPerSession` (default 10) — caps SMS per photo.
-- `twilioMaxPerNumber` (default 3) — caps SMS to the same number per
+- `resendMaxPerSession` (default 10) — caps emails per photo.
+- `resendMaxPerAddress` (default 3) — caps emails to the same address per
   event.
-- Phone numbers normalized to E.164 + rejected if invalid before any
+- Email addresses validated against a basic RFC-5322 pattern before any
   network call.
 - Per-event reset prevents cross-event blast.
 
-**Residual risk**: an attacker rapidly rotating phone numbers can still
-spam up to `twilioMaxPerSession` × N photos.
-**Operator action**: monitor Twilio's own dashboard (which has its own
-abuse detection); tighten the per-session cap in Admin.
+**Residual risk**: an attacker rapidly rotating email addresses can still
+spam up to `resendMaxPerSession` × N photos.
+**Operator action**: Resend's free tier caps daily sends at 100 — even
+worst-case the blast radius is bounded by the operator's plan limits.
+Tighten the per-session cap in Admin if abuse is anticipated.
 
 ### T4. Unsigned Cloudinary preset abuse
 
@@ -100,7 +100,8 @@ data loss.
 ### T5. Inappropriate photo content
 
 **Threat**: a guest takes an offensive photo and uploads it to the
-operator's Cloudinary account or sends it via the operator's Twilio.
+operator's Cloudinary account or emails it via the operator's Resend
+account.
 
 **Mitigations**:
 - This is a content-moderation problem, not a technical one. SnapCabin
@@ -111,31 +112,17 @@ operator's Cloudinary account or sends it via the operator's Twilio.
 **Operator action**: communicate event norms to guests; supervise the
 kiosk at sensitive events.
 
-### T6. Network-based attacks on the LAN server
-
-**Threat**: someone on the venue WiFi enumerates the kiosk's IP, hits
-`http://x.x.x.x:8080/photo.jpg`, and pulls the latest photo.
-
-**Mitigations**:
-- The server only ever holds the **most recent** photo and shuts down
-  when Share screen is dismissed.
-- The URL is the *intended* delivery mechanism (the QR points there).
-- Operators concerned about this should run a dedicated kiosk WiFi
-  network or disable QR sharing entirely (Admin toggle).
-
-**Residual risk**: bounded to "one photo per session, accessible on
-the LAN for the duration of the share screen."
-
 ## What's intentionally NOT defended
 
 - **Determined OS-level attacker with rooted device + physical access**:
   outside scope. If your threat model includes nation-state actors, this
   isn't the app for you.
-- **Cloudinary or Twilio compromise**: operator's responsibility — those
+- **Cloudinary or Resend compromise**: operator's responsibility — those
   vendors have their own security programs.
-- **Operator misconfiguration** (e.g. setting Twilio From-number to a
-  shared toll-free that can be spoofed): outside scope; documented in
-  the admin UI as the operator's responsibility.
+- **Operator misconfiguration** (e.g. setting a Resend From-address on a
+  domain they don't actually control): outside scope; the Resend API
+  itself rejects unverified domains, and the rejection is surfaced
+  verbatim in the admin UI.
 
 ## What's collected centrally by SnapCabin (the developer)
 

@@ -83,18 +83,10 @@ internal fun ShareSection(
             )
         }
 
-        SettingRow("Email button") {
+        SettingRow("Email button (Resend)") {
             Switch(
                 checked = settings.enableEmail,
                 onCheckedChange = { v -> viewModel.updateSetting { copy(enableEmail = v) } },
-                colors = adminSwitchColors()
-            )
-        }
-
-        SettingRow("Message (SMS) button") {
-            Switch(
-                checked = settings.enableSms,
-                onCheckedChange = { v -> viewModel.updateSetting { copy(enableSms = v) } },
                 colors = adminSwitchColors()
             )
         }

@@ -4,14 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Lightweight append-only audit log of every guest-facing send (SMS/email).
+ * Lightweight append-only audit log of every guest-facing send (email).
  * Stored as JSON in DataStore so we don't need Room for ~500 entries.
  * Recipients are masked at write time so the log itself isn't a PII reservoir.
  */
 data class SendLogEntry(
     val timestampMs: Long,
     val eventSlug: String,
-    val channel: String,         // "sms" | "email" | "intent" | "print"
+    val channel: String,         // "email" | "intent" | "print"
     val recipientMasked: String, // e.g. "+1***-***-5678" or "e***@example.com"
     val status: String,          // "ok" | "err"
     val note: String = ""
@@ -60,15 +60,6 @@ object SendLog {
 
     fun append(currentJson: String, entry: SendLogEntry): String =
         serialize(parse(currentJson) + entry)
-
-    /** Mask a phone number to its last 4 digits: "+15551234567" -> "+1***-***-4567". */
-    fun maskPhone(e164: String): String {
-        val digits = e164.filter { it.isDigit() }
-        if (digits.length < 4) return "***"
-        val last4 = digits.takeLast(4)
-        val prefix = if (e164.startsWith("+1") && digits.length == 11) "+1" else "+"
-        return "$prefix***-***-$last4"
-    }
 
     /** Mask an email's local part: "evan@example.com" -> "e***@example.com". */
     fun maskEmail(address: String): String {

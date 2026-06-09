@@ -40,7 +40,7 @@ internal fun CloudinarySection(
             )
         )
 
-        SettingRow("Upload photos to Cloudinary before SMS") {
+        SettingRow("Upload photos to Cloudinary for QR sharing") {
             Switch(
                 checked = settings.cloudinaryEnabled,
                 onCheckedChange = { v -> viewModel.updateSetting { copy(cloudinaryEnabled = v) } },
@@ -78,7 +78,7 @@ internal fun CloudinarySection(
             )
 
             Text(
-                text = "For safety: restrict the preset to image/* and cap file size around 10 MB. The preset name above must match exactly. Without Cloudinary, SMS falls back to a local-WiFi link only.",
+                text = "For safety: restrict the preset to image/* and cap file size around 10 MB. The preset name above must match exactly. Without Cloudinary, the QR-download tile stays hidden but email and the other share options still work.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.6f),
                 modifier = Modifier.padding(horizontal = Spacing.xs)

@@ -24,7 +24,7 @@ for children" — yes, that's correct.
 
 **"Could children also be interested in your app?"** → **No**
 
-> Justification: The app's UI (admin settings, Twilio configuration, kiosk
+> Justification: The app's UI (admin settings, Resend configuration, kiosk
 > lockdown via ADB, event slug management) is operator-facing and not
 > designed to appeal to children. Children may *appear* in photos taken
 > at events, but the app itself is not marketed to or designed for
@@ -76,5 +76,5 @@ questionnaire simpler — no ad-network compliance to address.
 **Does your app contain in-app purchases?** → **No**
 
 The business model is a one-time app purchase (or sideload license).
-Cloudinary and Twilio are configured per-operator with their own
+Cloudinary and Resend are configured per-operator with their own
 billing relationships outside the app.

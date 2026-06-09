@@ -14,11 +14,10 @@ import com.snapcabin.filter.WatermarkRenderer
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.share.CloudinaryUploader
-import com.snapcabin.share.EmailSmsSharer
 import com.snapcabin.share.PhotoPrinter
 import com.snapcabin.share.PhotoSaver
 import com.snapcabin.share.QrCodeGenerator
-import com.snapcabin.share.TwilioSmsSender
+import com.snapcabin.share.ResendEmailSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -60,8 +59,7 @@ class ShareViewModel @Inject constructor(
     private val qrCodeGenerator: QrCodeGenerator,
     private val settingsManager: SettingsManager,
     private val photoPrinter: PhotoPrinter,
-    private val emailSmsSharer: EmailSmsSharer,
-    private val twilioSmsSender: TwilioSmsSender,
+    private val resendEmailSender: ResendEmailSender,
     private val cloudinaryUploader: CloudinaryUploader
 ) : ViewModel() {
 
@@ -88,9 +86,9 @@ class ShareViewModel @Inject constructor(
     private var sessionEndScheduled: Boolean = false
 
     fun setPhoto(bitmap: Bitmap, context: Context) {
-        // New photo — invalidate the previous upload + per-session counter.
+        // New photo — invalidate previous upload + per-session counter.
         cachedPublicUrl = null
-        twilioSendsThisSession = 0
+        emailSendsThisSession = 0
         sessionEndScheduled = false
         viewModelScope.launch {
             // Bake in admin-configured branding (border + overlay PNGs, then watermark text)
@@ -115,7 +113,7 @@ class ShareViewModel @Inject constructor(
                 saveToGallery(context)
             }
 
-            // Eager Cloudinary upload so QR + SMS reuse the same URL. Without
+            // Eager Cloudinary upload so QR sharing has a URL ready. Without
             // Cloudinary the QR section stays hidden — guests can still use
             // Save / Share / Print / Email.
             val s = settings.value
@@ -198,16 +196,6 @@ class ShareViewModel @Inject constructor(
         photoPrinter.print(context, photo)
     }
 
-    fun shareViaEmail(context: Context) {
-        val photo = _uiState.value.photo ?: return
-        emailSmsSharer.shareViaEmail(context, photo)
-    }
-
-    fun shareViaSms(context: Context) {
-        val photo = _uiState.value.photo ?: return
-        emailSmsSharer.shareViaSms(context, photo)
-    }
-
     /**
      * The Done button (and any other "we're done here" caller) goes through
      * here. We show the Thank You overlay, then emit SessionEnded once. Calling
@@ -223,77 +211,100 @@ class ShareViewModel @Inject constructor(
         }
     }
 
-    // ────── Twilio SMS ──────
-    private var twilioSendsThisSession: Int = 0
-    /** Cached Cloudinary URL for the current photo so we don't re-upload per SMS. */
+    // ────── Resend email ──────
+    private var emailSendsThisSession: Int = 0
+    /** Cached Cloudinary URL for the current photo (optional, included in the email body when present). */
     private var cachedPublicUrl: String? = null
-    /** Per-event count of SMS sent to each phone number. Resets when the current event changes. */
-    private val perPhoneSendCounts: MutableMap<String, Int> = mutableMapOf()
-    private var perPhoneCountsForEvent: String = ""
+    /** Per-event count of emails sent to each address. Resets when the current event changes. */
+    private val perAddressSendCounts: MutableMap<String, Int> = mutableMapOf()
+    private var perAddressCountsForEvent: String = ""
 
-    fun sendViaTwilio(rawPhoneNumber: String) {
+    fun sendViaEmail(rawAddress: String) {
         val s = settings.value
-        if (!s.twilioEnabled) {
-            _uiState.value = _uiState.value.copy(message = "Twilio SMS isn't enabled.")
+        if (!s.resendEnabled) {
+            _uiState.value = _uiState.value.copy(message = "Email delivery isn't enabled.")
             return
         }
-        if (twilioSendsThisSession >= s.twilioMaxPerSession.coerceAtLeast(1)) {
-            _uiState.value = _uiState.value.copy(message = "SMS limit reached for this session.")
+        if (emailSendsThisSession >= s.resendMaxPerSession.coerceAtLeast(1)) {
+            _uiState.value = _uiState.value.copy(message = "Email limit reached for this session.")
             return
         }
-        val to = normalizeToE164(rawPhoneNumber)
-        if (to == null) {
-            _uiState.value = _uiState.value.copy(message = "Enter a valid phone number (e.g. +15551234567).")
+        val to = rawAddress.trim()
+        if (!resendEmailSender.isValidEmail(to)) {
+            _uiState.value = _uiState.value.copy(message = "Enter a valid email address.")
             return
         }
-        if (perPhoneCountsForEvent != s.currentEventSlug) {
-            perPhoneSendCounts.clear()
-            perPhoneCountsForEvent = s.currentEventSlug
+        if (perAddressCountsForEvent != s.currentEventSlug) {
+            perAddressSendCounts.clear()
+            perAddressCountsForEvent = s.currentEventSlug
         }
-        val alreadySentToThisNumber = perPhoneSendCounts[to] ?: 0
-        if (alreadySentToThisNumber >= s.twilioMaxPerNumber.coerceAtLeast(1)) {
+        val alreadySentToThisAddress = perAddressSendCounts[to] ?: 0
+        if (alreadySentToThisAddress >= s.resendMaxPerAddress.coerceAtLeast(1)) {
             _uiState.value = _uiState.value.copy(
-                message = "Already sent ${alreadySentToThisNumber} times to that number this event."
+                message = "Already sent $alreadySentToThisAddress times to that address this event."
             )
+            return
+        }
+
+        val photo = _uiState.value.photo
+        if (photo == null) {
+            _uiState.value = _uiState.value.copy(message = "Photo isn't ready yet.")
             return
         }
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(message = "Sending to $to…")
 
-            val publicUrl = resolvePublicPhotoUrl(s)
+            val htmlBody = buildHtmlBody(s, cachedPublicUrl)
+            val subject = s.resendSubject.ifBlank { "Your photo from the booth" }
 
-            val body = buildString {
-                append("Your photo is ready")
-                if (s.eventName.isNotBlank()) append(" from ").append(s.eventName)
-                append("!")
-                if (publicUrl != null) append(" ").append(publicUrl)
-            }
-            // MMS only when we actually have a public URL.
-            val mediaUrl = if (publicUrl != null) publicUrl else null
-
-            val result = twilioSmsSender.send(
-                accountSid = s.twilioAccountSid,
-                authToken = s.twilioAuthToken,
-                fromE164 = s.twilioFromNumber,
-                toE164 = to,
-                body = body,
-                mediaUrl = mediaUrl
+            val result = resendEmailSender.send(
+                apiKey = s.resendApiKey,
+                fromAddress = s.resendFromAddress,
+                toAddress = to,
+                subject = subject,
+                htmlBody = htmlBody,
+                photo = photo
             )
             when (result) {
-                is TwilioSmsSender.Result.Ok -> {
-                    twilioSendsThisSession++
-                    perPhoneSendCounts[to] = (perPhoneSendCounts[to] ?: 0) + 1
-                    appendToSendLog(s, "sms", SendLog.maskPhone(to), "ok", note = "")
+                is ResendEmailSender.Result.Ok -> {
+                    emailSendsThisSession++
+                    perAddressSendCounts[to] = (perAddressSendCounts[to] ?: 0) + 1
+                    appendToSendLog(s, "email", SendLog.maskEmail(to), "ok", note = "")
                     _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
                 }
-                is TwilioSmsSender.Result.Err -> {
-                    appendToSendLog(s, "sms", SendLog.maskPhone(to), "err", note = result.message)
+                is ResendEmailSender.Result.Err -> {
+                    appendToSendLog(s, "email", SendLog.maskEmail(to), "err", note = result.message)
                     _uiState.value = _uiState.value.copy(message = result.message)
                 }
             }
         }
     }
+
+    private fun buildHtmlBody(s: BoothSettings, publicUrl: String?): String {
+        val eventLine = if (s.eventName.isNotBlank()) {
+            " from <strong>${escapeHtml(s.eventName)}</strong>"
+        } else {
+            ""
+        }
+        val linkLine = publicUrl?.let {
+            "<p style=\"color:#7a6a4f;font-size:14px;\">If the attachment doesn't come through, here's a link: <a href=\"${escapeHtml(it)}\">${escapeHtml(it)}</a></p>"
+        }.orEmpty()
+        return """
+            <div style="font-family:Helvetica,Arial,sans-serif;color:#3a2e20;">
+              <p>Your photo is attached$eventLine.</p>
+              <p>Save it, share it, treasure it.</p>
+              $linkLine
+            </div>
+        """.trimIndent()
+    }
+
+    private fun escapeHtml(s: String): String = s
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;")
 
     private fun appendToSendLog(
         s: BoothSettings,
@@ -315,61 +326,6 @@ class ShareViewModel @Inject constructor(
                 copy(sendLogJson = SendLog.append(sendLogJson, entry))
             }
         }
-    }
-
-    /**
-     * Returns a publicly-reachable URL for the current photo, uploading to
-     * Cloudinary on demand if the eager upload didn't already cache one.
-     * Falls back to an admin-supplied public host if set, otherwise null
-     * (in which case Twilio sends a text-only SMS).
-     */
-    private suspend fun resolvePublicPhotoUrl(s: BoothSettings): String? {
-        cachedPublicUrl?.let { return it }
-
-        if (s.cloudinaryEnabled && s.cloudinaryCloudName.isNotBlank() &&
-            s.cloudinaryUploadPreset.isNotBlank()
-        ) {
-            val photo = _uiState.value.photo
-            if (photo != null) {
-                val result = cloudinaryUploader.upload(
-                    cloudName = s.cloudinaryCloudName,
-                    uploadPreset = s.cloudinaryUploadPreset,
-                    bitmap = photo,
-                    folder = s.currentEventSlug.takeIf { it.isNotBlank() }?.let { "events/$it" }
-                )
-                when (result) {
-                    is CloudinaryUploader.Result.Ok -> {
-                        cachedPublicUrl = result.secureUrl
-                        return result.secureUrl
-                    }
-                    is CloudinaryUploader.Result.Err -> {
-                        _uiState.value = _uiState.value.copy(message = result.message)
-                    }
-                }
-            }
-        }
-
-        val base = s.twilioPhotoUrlBase.trim().trimEnd('/')
-        if (base.isNotEmpty()) return "$base/photo.jpg"
-
-        return null
-    }
-
-    private fun normalizeToE164(raw: String): String? {
-        val trimmed = raw.trim()
-        if (trimmed.isEmpty()) return null
-        if (trimmed.startsWith("+")) {
-            val digits = trimmed.drop(1).filter { it.isDigit() }
-            val candidate = "+$digits"
-            return if (twilioSmsSender.isValidE164(candidate)) candidate else null
-        }
-        val digits = trimmed.filter { it.isDigit() }
-        val candidate = when (digits.length) {
-            10 -> "+1$digits"
-            11 -> if (digits.startsWith("1")) "+$digits" else null
-            else -> null
-        }
-        return if (candidate != null && twilioSmsSender.isValidE164(candidate)) candidate else null
     }
 
     fun clearMessage() {

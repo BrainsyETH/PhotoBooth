@@ -24,11 +24,11 @@ The closest match Play offers is:
 ### Instructions text (paste verbatim)
 
 > SnapCabin has no user accounts. All guest-facing flows (camera, photo
-> capture, share, QR download, SMS, email) are available without any login.
+> capture, share, QR download, email) are available without any login.
 >
 > The **Admin** screen — accessible by long-pressing the bottom-right
 > corner of the Attract screen — is protected by a numeric PIN to prevent
-> guests at an event from accessing operator-only settings (Twilio
+> guests at an event from accessing operator-only settings (Resend
 > credentials, Cloudinary credentials, kiosk lockdown toggle, event
 > configuration, audit log).
 >

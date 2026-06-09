@@ -24,10 +24,10 @@ export default function CloudinarySetup() {
         Host your event photos online
       </h1>
       <p className="mt-4 max-w-xl text-lg leading-relaxed text-espresso/80">
-        Cloudinary is where the tablet uploads each photo so the text
-        message can deliver the actual image and not just a link. You own
-        the account. The tablet uses an unsigned upload preset, which
-        means your API secret never lives on the device.
+        Cloudinary is where the tablet uploads each photo so the share screen
+        can render a QR code pointing at the hosted image. You own the
+        account. The tablet uses an unsigned upload preset, which means your
+        API secret never lives on the device.
       </p>
 
       <Callout title="Before you start">
@@ -114,7 +114,7 @@ export default function CloudinarySetup() {
           <li>Enter the admin PIN.</li>
           <li>
             Open <strong>CLOUDINARY PHOTO HOSTING</strong> and turn on
-            &ldquo;Upload photos to Cloudinary before SMS&rdquo;.
+            &ldquo;Upload photos to Cloudinary for QR sharing&rdquo;.
           </li>
           <li>
             Paste the <strong>Cloud name</strong> and the{" "}
@@ -126,8 +126,9 @@ export default function CloudinarySetup() {
 
       <Step n="5" title="Test an upload">
         <p>
-          Start a test event from the EVENT section, capture a photo, then
-          tap the text-message or QR button. The tablet uploads to{" "}
+          Start a test event from the EVENT section and capture a photo. The
+          QR code tile on the share screen lights up once the upload
+          finishes. The tablet uploads to{" "}
           <code>events/&lt;your-event-name&gt;/</code> in your Cloudinary
           account. Open{" "}
           <a

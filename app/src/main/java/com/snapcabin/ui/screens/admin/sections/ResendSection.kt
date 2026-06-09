@@ -41,52 +41,38 @@ import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
 
 @Composable
-internal fun TwilioSection(
+internal fun ResendSection(
     settings: BoothSettings,
     viewModel: AdminViewModel
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         SetupHint(
             title = "What you'll need",
-            url = "https://snapcabin.app/setup/twilio",
+            url = "https://snapcabin.app/setup/resend",
             bullets = listOf(
-                "A Twilio account (free trial works for testing)",
-                "Account SID + Auth Token from console.twilio.com",
-                "A purchased Twilio phone number with SMS (and MMS, if you want to send photos)"
+                "A free Resend account (resend.com)",
+                "An API key from resend.com/api-keys",
+                "A verified sending domain (or use onboarding@resend.dev for testing)"
             )
         )
 
-        SettingRow("Enable Twilio SMS sending") {
+        SettingRow("Enable email delivery via Resend") {
             Switch(
-                checked = settings.twilioEnabled,
-                onCheckedChange = { v -> viewModel.updateSetting { copy(twilioEnabled = v) } },
+                checked = settings.resendEnabled,
+                onCheckedChange = { v -> viewModel.updateSetting { copy(resendEnabled = v) } },
                 colors = adminSwitchColors()
             )
         }
 
-        if (settings.twilioEnabled) {
-            var sid by remember { mutableStateOf(settings.twilioAccountSid) }
+        if (settings.resendEnabled) {
+            var key by remember { mutableStateOf(settings.resendApiKey) }
             OutlinedTextField(
-                value = sid,
+                value = key,
                 onValueChange = {
-                    sid = it.trim()
-                    viewModel.updateSetting { copy(twilioAccountSid = sid) }
+                    key = it.trim()
+                    viewModel.updateSetting { copy(resendApiKey = key) }
                 },
-                label = { Text("Account SID (starts with AC...)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(Radii.s),
-                colors = adminTextFieldColors()
-            )
-
-            var token by remember { mutableStateOf(settings.twilioAuthToken) }
-            OutlinedTextField(
-                value = token,
-                onValueChange = {
-                    token = it.trim()
-                    viewModel.updateSetting { copy(twilioAuthToken = token) }
-                },
-                label = { Text("Auth Token") },
+                label = { Text("API key (starts with re_)") },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -94,40 +80,40 @@ internal fun TwilioSection(
                 colors = adminTextFieldColors()
             )
 
-            var from by remember { mutableStateOf(settings.twilioFromNumber) }
+            var from by remember { mutableStateOf(settings.resendFromAddress) }
             OutlinedTextField(
                 value = from,
                 onValueChange = {
                     from = it.trim()
-                    viewModel.updateSetting { copy(twilioFromNumber = from) }
+                    viewModel.updateSetting { copy(resendFromAddress = from) }
                 },
-                label = { Text("From number (E.164, e.g. +15551234567)") },
+                label = { Text("From address") },
+                placeholder = { Text("SnapCabin <booth@yourdomain.com>") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(Radii.s),
                 colors = adminTextFieldColors()
             )
 
-            var urlBase by remember { mutableStateOf(settings.twilioPhotoUrlBase) }
+            var subject by remember { mutableStateOf(settings.resendSubject) }
             OutlinedTextField(
-                value = urlBase,
+                value = subject,
                 onValueChange = {
-                    urlBase = it.trim()
-                    viewModel.updateSetting { copy(twilioPhotoUrlBase = urlBase) }
+                    subject = it
+                    viewModel.updateSetting { copy(resendSubject = subject) }
                 },
-                label = { Text("Photo host base URL (optional, public)") },
-                placeholder = { Text("https://your-bucket.example.com") },
+                label = { Text("Subject line") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(Radii.s),
                 colors = adminTextFieldColors()
             )
 
-            SettingRow("Max SMS per session: ${settings.twilioMaxPerSession}") {
+            SettingRow("Max emails per session: ${settings.resendMaxPerSession}") {
                 Slider(
-                    value = settings.twilioMaxPerSession.toFloat(),
+                    value = settings.resendMaxPerSession.toFloat(),
                     onValueChange = { v ->
-                        viewModel.updateSetting { copy(twilioMaxPerSession = v.toInt()) }
+                        viewModel.updateSetting { copy(resendMaxPerSession = v.toInt()) }
                     },
                     valueRange = 1f..50f,
                     steps = 48,
@@ -136,8 +122,21 @@ internal fun TwilioSection(
                 )
             }
 
+            SettingRow("Max per address (per event): ${settings.resendMaxPerAddress}") {
+                Slider(
+                    value = settings.resendMaxPerAddress.toFloat(),
+                    onValueChange = { v ->
+                        viewModel.updateSetting { copy(resendMaxPerAddress = v.toInt()) }
+                    },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    modifier = Modifier.width(200.dp),
+                    colors = adminSliderColors()
+                )
+            }
+
             Text(
-                text = "Without a public photo host, the SMS includes the kiosk's local IP URL — guests must be on the same WiFi to open it. Configure Cloudinary below (or set the host URL above) to deliver as MMS over cellular.",
+                text = "The photo rides as a JPEG attachment, so guests get it even without Cloudinary. The From address must use a domain you've verified in Resend (or onboarding@resend.dev for testing).",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.6f),
                 modifier = Modifier.padding(horizontal = Spacing.xs)

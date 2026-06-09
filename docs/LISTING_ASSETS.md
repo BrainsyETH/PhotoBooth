@@ -30,22 +30,21 @@ Suggested copy:
 >   • Soft auto-accept review with a pause-on-tap progress sweep
 >
 > **Sharing that doesn't feel like 2010**
->   • QR-download over local WiFi
->   • SMS / MMS via your own Twilio account (optional)
->   • Cloud photo hosting via your own Cloudinary account (optional)
->   • Email handoff via the system picker
+>   • Email the photo as an attachment via your own Resend account (optional)
+>   • QR-code download via your own Cloudinary account (optional)
+>   • Android system share sheet for AirDrop-style handoff
 >   • Print to any AirPrint / Mopria-compatible printer
 >
 > **Built for hosts who actually use it**
 >   • True kiosk lockdown via Android Device Owner mode
 >   • Per-event Cloudinary folders for clean photo organization
 >   • On-device audit log of every send (recipients masked for privacy)
->   • Per-phone and per-session SMS rate limiting
+>   • Per-address and per-session email rate limiting
 >   • Wedding-friendly upscale palette — ivory, sage, champagne, taupe
 >
 > **Honest about your data**
 >   • We (SnapCabin) collect nothing — no analytics, crash reports, or IDs
->   • Photos and phone numbers flow only through services *you* configure
+>   • Photos and email addresses flow only through services *you* configure
 >   • Full privacy policy at https://snapcabin.app/privacy
 >
 > Built for hosts running 1–10 events per year who want a real photo
@@ -96,7 +95,7 @@ In rough priority order:
    instruction card all visible.
 4. **Capture mid-count** — huge "2" with the LOOK HERE pointer pulsing.
 5. **Review (Collage)** — assembled 2×2 with the action row.
-6. **Share** — QR code + SMS / Save / Print stack visible.
+6. **Share** — QR code + Email / Save / Print stack visible.
 7. **Admin** showing the EVENT block at top — proves the per-event scoping
    to reviewers without making the listing itself look technical.
 
