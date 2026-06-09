@@ -78,6 +78,7 @@ import kotlinx.coroutines.launch
 
 private const val SETUP_GUIDE_RESEND = "https://snapcabin.app/setup/resend"
 private const val SETUP_GUIDE_CLOUDINARY = "https://snapcabin.app/setup/cloudinary"
+private const val SETUP_GUIDE_KIOSK = "https://snapcabin.app/setup/kiosk"
 
 @Composable
 fun AdminScreen(
@@ -157,7 +158,11 @@ fun AdminScreen(
                 AdminSection("sound", "SOUND") {
                     SoundSection(settings = settings, viewModel = viewModel)
                 },
-                AdminSection("kiosk", "KIOSK") {
+                AdminSection(
+                    key = "kiosk",
+                    label = "KIOSK",
+                    helpUrl = SETUP_GUIDE_KIOSK
+                ) {
                     KioskSection(settings = settings, viewModel = viewModel)
                 },
                 AdminSection("audit", "AUDIT LOG") {

@@ -33,9 +33,6 @@ function PlayStoreButton({ className = "" }: { className?: string }) {
 function Hero() {
   return (
     <section className="flex flex-col items-center gap-8 text-center">
-      <p className="text-xs font-sans font-semibold uppercase tracking-[0.3em] text-honey-deep">
-        Photo booth for your event, on your tablet
-      </p>
       <Image
         src="/snapcabin-logo.png"
         alt="SnapCabin"
@@ -44,8 +41,8 @@ function Hero() {
         priority
         className="h-auto w-full max-w-xl"
       />
-      <h1 className="font-display text-4xl font-bold text-espresso sm:text-5xl">
-        The photo booth that lives on your tablet.
+      <h1 className="font-display text-5xl font-bold text-espresso sm:text-6xl">
+        SnapCabin
       </h1>
       <p className="max-w-xl text-lg leading-relaxed text-espresso/85">
         Guests snap their photo, pick how they want it, and walk away with it in

@@ -51,6 +51,7 @@ data class BoothSettings(
     val overlaySizePct: Int = 20,      // logo width as % of photo width, used when placement = corner
     val eventName: String = "",        // Shown as the Attract headline
     val attractSubtext: String = "A photo booth in the woods", // Tagline under the event name
+    val showCustomLogoOnAttract: Boolean = false, // Swap the SnapCabin logo on the welcome screen for the custom logo
 
     // Sharing. The guest Email button is gated solely by resendEnabled —
     // one switch, in EMAIL DELIVERY, not two that must agree.
@@ -164,6 +165,7 @@ class SettingsManager @Inject constructor(
         val OVERLAY_SIZE_PCT = intPreferencesKey("overlay_size_pct")
         val EVENT_NAME = stringPreferencesKey("event_name")
         val ATTRACT_SUBTEXT = stringPreferencesKey("attract_subtext")
+        val SHOW_CUSTOM_LOGO_ON_ATTRACT = booleanPreferencesKey("show_custom_logo_on_attract")
         val ENABLE_QR = booleanPreferencesKey("enable_qr_sharing")
         val ENABLE_SAVE_GALLERY = booleanPreferencesKey("enable_save_gallery")
         val ENABLE_SHARE_INTENT = booleanPreferencesKey("enable_share_intent")
@@ -211,6 +213,7 @@ class SettingsManager @Inject constructor(
         overlaySizePct = prefs[Keys.OVERLAY_SIZE_PCT] ?: 20,
         eventName = prefs[Keys.EVENT_NAME] ?: "",
         attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
+        showCustomLogoOnAttract = prefs[Keys.SHOW_CUSTOM_LOGO_ON_ATTRACT] ?: false,
         enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
         enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
         enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: false,
@@ -300,6 +303,7 @@ class SettingsManager @Inject constructor(
             prefs[Keys.OVERLAY_SIZE_PCT] = updated.overlaySizePct
             prefs[Keys.EVENT_NAME] = updated.eventName
             prefs[Keys.ATTRACT_SUBTEXT] = updated.attractSubtext
+            prefs[Keys.SHOW_CUSTOM_LOGO_ON_ATTRACT] = updated.showCustomLogoOnAttract
             prefs[Keys.ENABLE_QR] = updated.enableQrSharing
             prefs[Keys.ENABLE_SAVE_GALLERY] = updated.enableSaveToGallery
             prefs[Keys.ENABLE_SHARE_INTENT] = updated.enableShareIntent

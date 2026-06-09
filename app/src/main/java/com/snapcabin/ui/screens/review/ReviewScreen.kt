@@ -59,7 +59,6 @@ import com.snapcabin.collage.CollageRenderer
 import com.snapcabin.filter.CustomBrandingRenderer
 import com.snapcabin.filter.WatermarkRenderer
 import com.snapcabin.settings.BoothSettings
-import com.snapcabin.ui.components.BrandingPreviewOverlay
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.Clay
@@ -283,9 +282,64 @@ private fun EmptyCaptureRecovery(onRetake: () -> Unit) {
     }
 }
 
+/**
+ * Bake the configured branding into a photo for review previews, EXACTLY the
+ * way the Share pipeline and the admin BRANDING preview do — so what the guest
+ * approves is what gets delivered (the old overlay-compositing path drew the
+ * border differently from the final image). Always works on a fresh copy so the
+ * original capture is never mutated (the Share pipeline brands it again later).
+ */
+private fun brandForPreview(src: Bitmap, settings: BoothSettings, maxDim: Int = 1200): Bitmap {
+    val longest = maxOf(src.width, src.height)
+    val base = if (longest > maxDim) {
+        val scale = maxDim.toFloat() / longest
+        Bitmap.createScaledBitmap(
+            src,
+            (src.width * scale).toInt().coerceAtLeast(1),
+            (src.height * scale).toInt().coerceAtLeast(1),
+            true
+        )
+    } else {
+        src.copy(Bitmap.Config.ARGB_8888, true) ?: src
+    }
+    val branded = CustomBrandingRenderer.apply(
+        source = base,
+        borderPath = settings.customBorderPath,
+        overlayPath = settings.customOverlayPath,
+        overlayPlacement = settings.overlayPlacement,
+        overlayCorner = settings.overlayCorner,
+        overlaySizePct = settings.overlaySizePct
+    )
+    return if (settings.watermarkEnabled && settings.watermarkText.isNotBlank()) {
+        WatermarkRenderer.apply(branded, settings.watermarkText)
+    } else {
+        branded
+    }
+}
+
 @Composable
 private fun SinglePreview(photos: List<Bitmap>, picked: Int, settings: BoothSettings) {
     val photo = photos.getOrNull(picked)
+
+    // Bake branding into the picked frame off the main thread so the preview
+    // matches the delivered photo exactly (border included).
+    var rendered by remember { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(
+        photo,
+        settings.customBorderPath,
+        settings.customOverlayPath,
+        settings.overlayPlacement,
+        settings.overlayCorner,
+        settings.overlaySizePct,
+        settings.watermarkEnabled,
+        settings.watermarkText
+    ) {
+        rendered = null
+        if (photo != null) {
+            rendered = withContext(Dispatchers.Default) { brandForPreview(photo, settings) }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxHeight()
@@ -295,18 +349,15 @@ private fun SinglePreview(photos: List<Bitmap>, picked: Int, settings: BoothSett
             .background(Color.Black)
             .border(3.dp, Pine, RoundedCornerShape(16.dp))
     ) {
-        if (photo != null) {
+        val shown = rendered ?: photo
+        if (shown != null) {
             Image(
-                bitmap = photo.asImageBitmap(),
-                contentDescription = null,
+                bitmap = shown.asImageBitmap(),
+                contentDescription = stringResource(R.string.review_photo_desc),
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Fit
             )
         }
-        BrandingPreviewOverlay(
-            settings = settings,
-            modifier = Modifier.fillMaxSize()
-        )
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -380,7 +431,7 @@ private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
         if (bmp != null) {
             Image(
                 bitmap = bmp.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = stringResource(R.string.review_photo_desc),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
@@ -399,15 +450,38 @@ private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
 
 @Composable
 private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
+    // Bake branding into each frame off the main thread so the looping preview
+    // shows the border/logo exactly as the delivered GIF will.
+    var brandedFrames by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    LaunchedEffect(
+        photos,
+        settings.customBorderPath,
+        settings.customOverlayPath,
+        settings.overlayPlacement,
+        settings.overlayCorner,
+        settings.overlaySizePct,
+        settings.watermarkEnabled,
+        settings.watermarkText
+    ) {
+        brandedFrames = emptyList()
+        if (photos.isNotEmpty()) {
+            brandedFrames = withContext(Dispatchers.Default) {
+                photos.map { brandForPreview(it, settings, maxDim = 720) }
+            }
+        }
+    }
+    // Show raw frames until the branded set is ready, so the loop never stalls.
+    val frames = brandedFrames.ifEmpty { photos }
+
     var frame by remember { mutableIntStateOf(0) }
     // Animate at the SAME cadence the delivered GIF will use, so the preview
     // doesn't promise a speed the final file won't keep.
     val frameDelayMs = settings.gifFrameDelayMs.coerceIn(60, 2000).toLong()
-    LaunchedEffect(photos, frameDelayMs) {
-        if (photos.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(frames, frameDelayMs) {
+        if (frames.isEmpty()) return@LaunchedEffect
         while (true) {
             delay(frameDelayMs)
-            frame = (frame + 1) % photos.size
+            frame = (frame + 1) % frames.size
         }
     }
 
@@ -431,18 +505,14 @@ private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
             .background(Color.Black)
             .border(3.dp, Pine, RoundedCornerShape(16.dp))
     ) {
-        photos.getOrNull(frame)?.let { bmp ->
+        frames.getOrNull(frame)?.let { bmp ->
             Image(
                 bitmap = bmp.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = stringResource(R.string.review_photo_desc),
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Fit
             )
         }
-        BrandingPreviewOverlay(
-            settings = settings,
-            modifier = Modifier.fillMaxSize()
-        )
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -461,7 +531,7 @@ private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
                     .background(Clay.copy(alpha = pulseAlpha))
             )
             Text(
-                text = "PLAYING · ${frame + 1} / ${photos.size}",
+                text = "PLAYING · ${(frame % frames.size.coerceAtLeast(1)) + 1} / ${frames.size}",
                 fontFamily = HankenGrotesk,
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,

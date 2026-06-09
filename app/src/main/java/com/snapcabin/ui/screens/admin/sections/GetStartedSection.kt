@@ -67,12 +67,19 @@ internal fun GetStartedSection(
     // typed into a disabled integration.
     val qrShareReady = settings.enableQrSharing && qrConfigured
     val deliveryReady = emailConfigured || qrShareReady
-    val doneCount = listOf(pinChanged, eventStarted, cameraReady, deliveryReady).count { it }
-    val allReady = doneCount == 4
+
+    // Recommended for an unattended booth: with Kiosk Mode on, the tablet is
+    // locked to SnapCabin so guests can't wander into other apps or settings.
+    val lockedDown = settings.kioskModeEnabled
+
+    val checks = listOf(pinChanged, eventStarted, cameraReady, deliveryReady, lockedDown)
+    val doneCount = checks.count { it }
+    val allReady = doneCount == checks.size
 
     if (settings.getStartedCollapsed) {
         CollapsedBar(
             doneCount = doneCount,
+            totalCount = checks.size,
             allReady = allReady,
             onExpand = { onCollapse(false) }
         )
@@ -108,7 +115,7 @@ internal fun GetStartedSection(
             Banner(
                 tone = StatusTone.Good,
                 title = "You're ready to go.",
-                body = "PIN set, event started, camera working, and at least one way for guests to get their photos."
+                body = "PIN set, event started, camera working, guests can get their photos, and the tablet is locked down."
             )
         } else {
             Banner(
@@ -141,6 +148,12 @@ internal fun GetStartedSection(
             label = "Guests can get their photos",
             hint = if (deliveryReady) "Guests can get their photos." else "Tap to turn on EMAIL DELIVERY (or QR DOWNLOADS for scan-to-save) and finish setup.",
             onClick = { onJumpTo("resend") }
+        )
+        ChecklistRow(
+            done = lockedDown,
+            label = "Lock the tablet for guests",
+            hint = if (lockedDown) "Kiosk Mode is on." else "Tap to turn on Kiosk Mode under KIOSK so guests stay in the booth.",
+            onClick = { onJumpTo("kiosk") }
         )
 
         Spacer(modifier = Modifier.height(Spacing.xs))
@@ -185,6 +198,7 @@ private fun qrLabel(enabled: Boolean, configured: Boolean, verified: Boolean): S
 @Composable
 private fun CollapsedBar(
     doneCount: Int,
+    totalCount: Int,
     allReady: Boolean,
     onExpand: () -> Unit
 ) {
@@ -207,13 +221,13 @@ private fun CollapsedBar(
                 color = Espresso
             )
             Text(
-                text = if (allReady) "All set — tap to review." else "$doneCount of 4 done — tap to finish setup.",
+                text = if (allReady) "All set — tap to review." else "$doneCount of $totalCount done — tap to finish setup.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.7f)
             )
         }
         StatusPill(
-            text = if (allReady) "Ready" else "$doneCount/4",
+            text = if (allReady) "Ready" else "$doneCount/$totalCount",
             tone = if (allReady) StatusTone.Good else StatusTone.Warn
         )
         Text(

@@ -270,11 +270,11 @@ fun ShareScreen(
     if (showEmailDialog) {
         AlertDialog(
             onDismissRequest = { showEmailDialog = false },
-            title = { Text("Email me my photo") },
+            title = { Text(stringResource(R.string.share_email_dialog_title)) },
             text = {
                 Column {
                     Text(
-                        text = "Enter your email. The photo arrives as an attachment.",
+                        text = stringResource(R.string.share_email_dialog_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Espresso.copy(alpha = 0.72f)
                     )
@@ -284,7 +284,7 @@ fun ShareScreen(
                         onValueChange = { input ->
                             emailInput = input.trim().take(120)
                         },
-                        label = { Text("Email address") },
+                        label = { Text(stringResource(R.string.share_email_dialog_label)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth(),
@@ -306,10 +306,12 @@ fun ShareScreen(
                         showEmailDialog = false
                     },
                     enabled = emailInput.isNotBlank()
-                ) { Text("SEND") }
+                ) { Text(stringResource(R.string.share_email_dialog_send)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEmailDialog = false }) { Text("CANCEL") }
+                TextButton(onClick = { showEmailDialog = false }) {
+                    Text(stringResource(R.string.share_email_dialog_cancel))
+                }
             }
         )
     }

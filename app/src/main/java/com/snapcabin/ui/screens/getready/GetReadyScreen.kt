@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -230,21 +231,27 @@ fun GetReadyScreen(
             )
         }
 
-        // Back link, bottom-left
+        // Back link, bottom-left. Scrim chip over the live preview so it stays
+        // legible, with a finger-sized hit area.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 24.dp, bottom = 22.dp)
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Espresso.copy(alpha = 0.45f))
+                .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(999.dp))
                 .clickable { onBack() }
-                .padding(8.dp)
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = stringResource(R.string.getready_change_mode).uppercase(),
                 fontFamily = HankenGrotesk,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
+                fontSize = 15.sp,
                 letterSpacing = 0.22f.em,
-                color = Color.White.copy(alpha = 0.7f)
+                color = Color.White.copy(alpha = 0.92f)
             )
         }
     }

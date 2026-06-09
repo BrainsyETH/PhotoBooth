@@ -149,6 +149,20 @@ internal fun BrandingSection(
 
         if (settings.customOverlayPath.isNotEmpty()) {
             OverlayPlacementControls(settings = settings, viewModel = viewModel)
+
+            SettingRow("Show my logo on the welcome screen") {
+                Switch(
+                    checked = settings.showCustomLogoOnAttract,
+                    onCheckedChange = { v -> viewModel.updateSetting { copy(showCustomLogoOnAttract = v) } },
+                    colors = adminSwitchColors()
+                )
+            }
+            Text(
+                text = "Replaces the SnapCabin logo on the idle/welcome screen with your logo. A small SnapCabin mark stays in the bottom corner.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = Spacing.xs)
+            )
         }
     }
 }

@@ -137,7 +137,10 @@ fun NavGraph(settingsManager: SettingsManager) {
                     // no event name set. Show the one-time setup hint.
                     isFirstRun = settings.adminPin == "1234" &&
                         settings.currentEventStartedAt == 0L &&
-                        settings.eventName.isBlank()
+                        settings.eventName.isBlank(),
+                    customLogoPath = settings.customOverlayPath,
+                    useCustomLogo = settings.showCustomLogoOnAttract &&
+                        settings.customOverlayPath.isNotBlank()
                 )
             }
 
