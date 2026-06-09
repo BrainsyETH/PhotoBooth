@@ -15,8 +15,9 @@ running on an emulator or device, not from mocks.
 Suggested copy:
 
 > **SnapCabin turns any Android tablet into a private, self-hosted photo
-> booth for weddings, parties, and gatherings.** No analytics. No
-> telemetry. Runs entirely on hardware you bring.
+> booth for weddings, parties, and gatherings.** $2.99 once, per device.
+> Six months of updates. No analytics. No telemetry. Runs entirely on
+> hardware you bring.
 >
 > **Three modes for any moment**
 >   • **Single** — one perfect shot. Tap, smile, send.
@@ -48,7 +49,8 @@ Suggested copy:
 >   • Full privacy policy at https://snapcabin.app/privacy
 >
 > Built for hosts running 1–10 events per year who want a real photo
-> booth they fully control.
+> booth they fully control. Refunds follow Google Play's standard
+> refund policy.
 
 ## Graphics
 

@@ -47,6 +47,10 @@ function Hero() {
           Ask a question
         </a>
       </div>
+      <p className="text-sm text-espresso/70">
+        <span className="font-sans font-semibold text-espresso">$2.99</span>{" "}
+        one-time on Google Play · runs on the tablet you already own
+      </p>
     </section>
   );
 }
@@ -216,6 +220,14 @@ function Faq() {
     <section className="mt-28">
       <SectionHeading eyebrow="FAQ" title="Quick answers" />
       <div className="mt-10 space-y-4">
+        <FaqRow
+          q="What does it cost?"
+          a="$2.99 on Google Play, per device. Pay once, install on the tablet you're using as the booth. If you run more than one tablet at the same event, each tablet is a separate $2.99 install. Whatever you spend at Resend or Cloudinary for delivery and hosting is between you and them — we don't take a cut."
+        />
+        <FaqRow
+          q="What about updates and refunds?"
+          a="Every install comes with six months of updates from the date of purchase. After that, the app keeps working — it just may stop receiving new features and fixes from us. Refunds follow Google Play's standard refund policy. Reach out through Play if you need one."
+        />
         <FaqRow
           q="Do I have to use Resend and Cloudinary?"
           a="Only if you want photos to travel off the tablet. Resend emails the photo to a guest as an attachment; Cloudinary hosts a copy so a QR code can deliver it. Both are optional and independent. Without them, guests can still save locally, share via the Android system share sheet, or print. There's no local-WiFi QR option any more because modern mobile browsers block plain-HTTP downloads."
