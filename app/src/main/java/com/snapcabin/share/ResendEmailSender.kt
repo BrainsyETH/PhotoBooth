@@ -64,6 +64,38 @@ class ResendEmailSender @Inject constructor() {
         subject: String,
         htmlBody: String,
         photo: Bitmap
+    ): Result {
+        val jpegBytes = ByteArrayOutputStream().use { out ->
+            photo.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            out.toByteArray()
+        }
+        return send(
+            apiKey = apiKey,
+            fromAddress = fromAddress,
+            replyToAddress = replyToAddress,
+            toAddress = toAddress,
+            subject = subject,
+            htmlBody = htmlBody,
+            attachmentBytes = jpegBytes,
+            attachmentFilename = "photo.jpg",
+            attachmentContentType = "image/jpeg"
+        )
+    }
+
+    /**
+     * Sends an email with an arbitrary already-encoded image attachment (JPEG
+     * still or animated GIF). The Bitmap overload above funnels into this.
+     */
+    suspend fun send(
+        apiKey: String,
+        fromAddress: String,
+        replyToAddress: String,
+        toAddress: String,
+        subject: String,
+        htmlBody: String,
+        attachmentBytes: ByteArray,
+        attachmentFilename: String,
+        attachmentContentType: String
     ): Result = withContext(Dispatchers.IO) {
         if (apiKey.isBlank() || fromAddress.isBlank()) {
             return@withContext Result.Err("Resend isn't configured.")
@@ -72,11 +104,7 @@ class ResendEmailSender @Inject constructor() {
             return@withContext Result.Err("That email address doesn't look right.")
         }
 
-        val jpegBytes = ByteArrayOutputStream().use { out ->
-            photo.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            out.toByteArray()
-        }
-        val base64 = Base64.getEncoder().encodeToString(jpegBytes)
+        val base64 = Base64.getEncoder().encodeToString(attachmentBytes)
 
         val payload = JSONObject().apply {
             put("from", fromAddress)
@@ -88,9 +116,9 @@ class ResendEmailSender @Inject constructor() {
             }
             put("attachments", JSONArray().apply {
                 put(JSONObject().apply {
-                    put("filename", "photo.jpg")
+                    put("filename", attachmentFilename)
                     put("content", base64)
-                    put("content_type", "image/jpeg")
+                    put("content_type", attachmentContentType)
                 })
             })
         }.toString().toByteArray(Charsets.UTF_8)

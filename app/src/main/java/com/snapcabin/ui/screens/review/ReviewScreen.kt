@@ -83,6 +83,7 @@ fun ReviewScreen(
     settings: BoothSettings = BoothSettings()
 ) {
     val total = photos.size
+    val isEmpty = photos.isEmpty()
     val initialPick = if (total > 0) total / 2 else 0
     var picked by remember { mutableIntStateOf(initialPick) }
 
@@ -102,8 +103,10 @@ fun ReviewScreen(
         }
     }
 
-    LaunchedEffect(autoAcceptSeconds, paused) {
-        if (paused || autoAcceptSeconds <= 0) return@LaunchedEffect
+    LaunchedEffect(autoAcceptSeconds, paused, isEmpty) {
+        // Never auto-accept when there's nothing to accept — that used to push
+        // the guest to a Share screen with no photo and dead buttons.
+        if (paused || autoAcceptSeconds <= 0 || isEmpty) return@LaunchedEffect
         startTime = System.currentTimeMillis()
         while (!paused && remaining > 0f) {
             delay(100)
@@ -116,6 +119,11 @@ fun ReviewScreen(
     }
 
     val pauseTimer: () -> Unit = { paused = true }
+
+    if (isEmpty) {
+        EmptyCaptureRecovery(onRetake = onRetake)
+        return
+    }
 
     Box(
         modifier = Modifier
@@ -183,9 +191,12 @@ fun ReviewScreen(
                     RetakeButton(onClick = onRetake)
                 }
 
-                // Center caption
+                // Center caption. The single-photo "tap a shot above" copy only
+                // makes sense when there's actually a row of shots to tap.
                 val caption = when (mode) {
-                    CaptureMode.Single -> stringResource(R.string.review_caption_single)
+                    CaptureMode.Single ->
+                        if (photos.size > 1) stringResource(R.string.review_caption_single)
+                        else stringResource(R.string.review_caption_single_one)
                     CaptureMode.Collage -> stringResource(R.string.review_caption_collage)
                     CaptureMode.Gif -> stringResource(R.string.review_caption_gif)
                 }
@@ -193,7 +204,7 @@ fun ReviewScreen(
                     text = caption,
                     fontFamily = HankenGrotesk,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    fontSize = 18.sp,
                     letterSpacing = 0.04f.em,
                     color = Espresso.copy(alpha = 0.72f),
                     modifier = Modifier.weight(1f),
@@ -215,13 +226,59 @@ fun ReviewScreen(
             }
         }
 
-        if (photos.isEmpty()) {
+    }
+}
+
+/**
+ * Shown when capture produced nothing (every shot failed, or the guest skipped
+ * before any frame). One warm, obvious path back to the camera — never a
+ * dead-end Share screen.
+ */
+@Composable
+private fun EmptyCaptureRecovery(onRetake: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Parchment),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.padding(40.dp)
+        ) {
             Text(
-                text = "No photos captured",
+                text = "Hmm, that didn't take.",
                 style = MaterialTheme.typography.headlineMedium,
                 color = Espresso,
-                modifier = Modifier.align(Alignment.Center)
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+            Text(
+                text = "No worries — let's give it another go.",
+                fontFamily = HankenGrotesk,
+                fontSize = 18.sp,
+                color = Espresso.copy(alpha = 0.7f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Box(
+                modifier = Modifier
+                    .height(96.dp)
+                    .shadow(elevation = 2.dp, shape = RoundedCornerShape(999.dp))
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Pine)
+                    .clickable(onClick = onRetake)
+                    .padding(horizontal = 56.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "LET'S TRY AGAIN",
+                    fontFamily = HankenGrotesk,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    letterSpacing = 0.08f.em,
+                    color = Color.White
+                )
+            }
         }
     }
 }
@@ -343,10 +400,13 @@ private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
 @Composable
 private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
     var frame by remember { mutableIntStateOf(0) }
-    LaunchedEffect(photos) {
+    // Animate at the SAME cadence the delivered GIF will use, so the preview
+    // doesn't promise a speed the final file won't keep.
+    val frameDelayMs = settings.gifFrameDelayMs.coerceIn(60, 2000).toLong()
+    LaunchedEffect(photos, frameDelayMs) {
         if (photos.isEmpty()) return@LaunchedEffect
         while (true) {
-            delay(125) // ~8fps
+            delay(frameDelayMs)
             frame = (frame + 1) % photos.size
         }
     }

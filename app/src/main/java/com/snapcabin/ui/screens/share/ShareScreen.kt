@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -79,7 +82,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ShareScreen(
-    photo: Bitmap?,
+    input: ShareInput?,
     onSessionEnd: () -> Unit,
     viewModel: ShareViewModel = hiltViewModel()
 ) {
@@ -89,8 +92,8 @@ fun ShareScreen(
     var showEmailDialog by remember { mutableStateOf(false) }
     var emailInput by remember { mutableStateOf("") }
 
-    LaunchedEffect(photo) {
-        photo?.let { viewModel.setPhoto(it, context) }
+    LaunchedEffect(input) {
+        input?.let { viewModel.setInput(it, context) }
     }
 
     // The ViewModel is the single source of truth for "we're done." It emits
@@ -106,7 +109,7 @@ fun ShareScreen(
 
     LaunchedEffect(uiState.message) {
         if (uiState.message != null) {
-            delay(2000)
+            delay(4000)
             viewModel.clearMessage()
         }
     }
@@ -132,7 +135,7 @@ fun ShareScreen(
                     .padding(Spacing.xl),
                 contentAlignment = Alignment.Center
             ) {
-                photo?.let { bitmap ->
+                uiState.photo?.let { bitmap ->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = stringResource(R.string.share_photo_desc),
@@ -175,11 +178,14 @@ fun ShareScreen(
                     if (settings.enableQrSharing) {
                         QrSharingBlock(
                             isUploading = uiState.isUploading,
+                            uploadFailed = uiState.uploadFailed,
                             qrBitmap = uiState.qrCodeBitmap,
                             shareUrl = uiState.shareUrl,
                             cloudinaryConfigured = settings.cloudinaryEnabled &&
                                 settings.cloudinaryCloudName.isNotBlank() &&
                                 settings.cloudinaryUploadPreset.isNotBlank(),
+                            emailAvailable = settings.resendEnabled,
+                            onRetry = { viewModel.retryUpload() },
                             qrBoxSize = qrBoxSize,
                             qrImageSize = qrImageSize
                         )
@@ -312,21 +318,58 @@ fun ShareScreen(
 @Composable
 private fun QrSharingBlock(
     isUploading: Boolean,
+    uploadFailed: Boolean,
     qrBitmap: Bitmap?,
     shareUrl: String?,
     cloudinaryConfigured: Boolean,
+    emailAvailable: Boolean,
+    onRetry: () -> Unit,
     qrBoxSize: androidx.compose.ui.unit.Dp,
     qrImageSize: androidx.compose.ui.unit.Dp
 ) {
     when {
         !cloudinaryConfigured -> {
-            // Admin hasn't configured Cloudinary. Show a quiet hint instead of
-            // letting the slot disappear; otherwise a host who toggled QR on
-            // would think the feature was broken.
+            // Admin hasn't configured Cloudinary. A guest can't act on this, so
+            // keep it gentle and non-technical rather than naming admin sections.
             Text(
-                text = "QR sharing needs Cloudinary. Add it under QR DOWNLOADS in admin.",
+                text = "Ask your host about getting a QR code for your photo.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.55f)
+            )
+        }
+        uploadFailed && qrBitmap == null -> {
+            // Configured but the upload failed (commonly no signal at the venue).
+            // Persistent, readable, and actionable — never a 2-second flash.
+            Text(
+                text = stringResource(R.string.share_scan_download),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Espresso.copy(alpha = 0.72f)
+            )
+            Box(
+                modifier = Modifier
+                    .size(qrBoxSize)
+                    .clip(RoundedCornerShape(Radii.s))
+                    .background(Oat)
+                    .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                    .clickable(onClick = onRetry),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Tap to try again",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = HoneyDeep,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+            Text(
+                text = if (emailAvailable) {
+                    "Couldn't upload — no connection. Tap above to retry, or use Email below."
+                } else {
+                    "Couldn't upload — no connection. Tap above to retry."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.6f)
             )
         }
         isUploading -> {
@@ -405,7 +448,10 @@ private fun ThankYouOverlay() {
         modifier = Modifier
             .fillMaxSize()
             .background(CabinBackground)
-            .background(backdrop),
+            .background(backdrop)
+            // Consume taps so a guest tapping "Thank you." can't fire the
+            // sidebar buttons (PRINT / email) sitting underneath the overlay.
+            .pointerInput(Unit) { detectTapGestures { } },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -427,7 +473,7 @@ private fun ThankYouOverlay() {
             )
             Spacer(modifier = Modifier.height(Spacing.lg + Spacing.xs))
             Text(
-                text = "Your photo is ready",
+                text = "See you out there",
                 fontSize = subtitleSize,
                 fontFamily = FrankRuhlLibre,
                 fontWeight = FontWeight.Medium,

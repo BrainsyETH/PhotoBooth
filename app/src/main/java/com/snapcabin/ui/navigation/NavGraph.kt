@@ -11,8 +11,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.snapcabin.collage.CollageLayout
-import com.snapcabin.collage.CollageRenderer
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.ui.components.InactivityHandler
@@ -28,6 +26,7 @@ import com.snapcabin.ui.screens.getready.GetReadyScreen
 import com.snapcabin.ui.screens.modeselect.ModeSelectScreen
 import com.snapcabin.ui.screens.privacy.PrivacyPolicyScreen
 import com.snapcabin.ui.screens.review.ReviewScreen
+import com.snapcabin.ui.screens.share.ShareInput
 import com.snapcabin.ui.screens.share.ShareScreen
 
 object Routes {
@@ -133,7 +132,12 @@ fun NavGraph(settingsManager: SettingsManager) {
                     },
                     onAdminLongPress = { navController.navigate(Routes.ADMIN) },
                     eventName = settings.eventName,
-                    subtext = settings.attractSubtext
+                    subtext = settings.attractSubtext,
+                    // Fresh install: still the default PIN, no event ever started,
+                    // no event name set. Show the one-time setup hint.
+                    isFirstRun = settings.adminPin == "1234" &&
+                        settings.currentEventStartedAt == 0L &&
+                        settings.eventName.isBlank()
                 )
             }
 
@@ -227,25 +231,16 @@ fun NavGraph(settingsManager: SettingsManager) {
                         navController.popBackStack(Routes.CAPTURE, inclusive = false)
                     },
                     onAccept = { pickedIndex ->
-                        when (mode) {
-                            CaptureMode.Single -> {
-                                photos.getOrNull(pickedIndex)?.let { bmp ->
-                                    captureViewModel.setActiveSinglePhoto(bmp)
-                                }
-                                navController.navigate(Routes.SHARE)
-                            }
-                            CaptureMode.Collage -> {
-                                val assembled = CollageRenderer.render(photos, CollageLayout.GRID_2X2)
-                                captureViewModel.setActiveSinglePhoto(assembled)
-                                navController.navigate(Routes.SHARE)
-                            }
-                            CaptureMode.Gif -> {
-                                photos.firstOrNull()?.let { bmp ->
-                                    captureViewModel.setActiveSinglePhoto(bmp)
-                                }
-                                navController.navigate(Routes.SHARE)
+                        // For Single we record the picked frame; Collage assembly
+                        // and GIF encoding are deferred to the Share pipeline so
+                        // they run off the main thread (the old inline collage
+                        // render janked the accept tap).
+                        if (mode == CaptureMode.Single) {
+                            photos.getOrNull(pickedIndex)?.let { bmp ->
+                                captureViewModel.setActiveSinglePhoto(bmp)
                             }
                         }
+                        navController.navigate(Routes.SHARE)
                     }
                 )
             }
@@ -261,8 +256,14 @@ fun NavGraph(settingsManager: SettingsManager) {
                 val captureViewModel: CaptureViewModel = hiltViewModel(captureEntry)
                 val uiState by captureViewModel.uiState.collectAsState()
 
+                val shareInput = when (uiState.mode) {
+                    CaptureMode.Single -> uiState.capturedPhoto?.let { ShareInput.Still(it) }
+                    CaptureMode.Collage -> ShareInput.Collage(uiState.photos)
+                    CaptureMode.Gif -> ShareInput.AnimatedGif(uiState.photos)
+                }
+
                 ShareScreen(
-                    photo = uiState.capturedPhoto,
+                    input = shareInput,
                     onSessionEnd = goHome
                 )
             }

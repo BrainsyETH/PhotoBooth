@@ -7,10 +7,13 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.snapcabin.collage.CollageLayout
+import com.snapcabin.collage.CollageRenderer
 import com.snapcabin.event.SendLog
 import com.snapcabin.event.SendLogEntry
 import com.snapcabin.filter.CustomBrandingRenderer
 import com.snapcabin.filter.WatermarkRenderer
+import com.snapcabin.gif.GifEncoder
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.share.CloudinaryUploader
@@ -33,7 +36,10 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class ShareUiState(
+    /** The still shown in the preview pane. For a GIF this is a representative frame. */
     val photo: Bitmap? = null,
+    /** Encoded animated GIF bytes when the session output is a GIF; null for stills. */
+    val gifBytes: ByteArray? = null,
     val qrCodeBitmap: Bitmap? = null,
     val savedPath: String? = null,
     val isSaving: Boolean = false,
@@ -41,10 +47,27 @@ data class ShareUiState(
     val isUploading: Boolean = false,
     /** Public Cloudinary URL once the upload succeeds. Empty when Cloudinary is off. */
     val shareUrl: String? = null,
+    /** True when a configured Cloudinary upload failed (e.g. offline). Drives the retry affordance. */
+    val uploadFailed: Boolean = false,
     /** Thank-you overlay is rendered when this is true. */
     val endingSession: Boolean = false,
     val message: String? = null
 )
+
+/**
+ * What the booth is about to hand the guest. The Share pipeline brands, encodes,
+ * and uploads each kind off the main thread — so a slow collage render or a GIF
+ * encode never janks the UI thread (the old code rendered collages inline on the
+ * accept tap).
+ */
+sealed interface ShareInput {
+    /** A single already-picked still (Single mode); branding still applies. */
+    data class Still(val bitmap: Bitmap) : ShareInput
+    /** Raw frames to assemble into a 2x2 collage, then brand. */
+    data class Collage(val frames: List<Bitmap>) : ShareInput
+    /** Raw frames to brand per-frame and encode into an animated GIF. */
+    data class AnimatedGif(val frames: List<Bitmap>) : ShareInput
+}
 
 /**
  * One-shot navigation events. The NavGraph collects these and reacts; the
@@ -86,15 +109,21 @@ class ShareViewModel @Inject constructor(
     /** Guards against double-ending if Done is tapped twice or races with the timer. */
     private var sessionEndScheduled: Boolean = false
 
-    fun setPhoto(bitmap: Bitmap, context: Context) {
-        // New photo — invalidate previous upload + per-session counter.
+    /**
+     * Hand the session output to the Share pipeline. Branding, collage assembly,
+     * and GIF encoding all happen on [Dispatchers.Default]; the Cloudinary
+     * upload (and its retry) is set up once the artifact is ready.
+     */
+    fun setInput(input: ShareInput, context: Context) {
+        // New output — invalidate previous upload + per-session counter.
         cachedPublicUrl = null
         emailSendsThisSession = 0
         sessionEndScheduled = false
+        pendingUpload = null
         viewModelScope.launch {
             // Snapshot the REAL stored settings before touching the photo.
             // This ViewModel is created fresh on Share entry and its stateIn
-            // starts at BoothSettings() defaults; setPhoto races the first
+            // starts at BoothSettings() defaults; this races the first
             // DataStore emission. Reading settings.value here used to brand
             // with empty paths (no logo, no watermark) and then upload that
             // unbranded photo once the late-loading settings enabled
@@ -103,31 +132,12 @@ class ShareViewModel @Inject constructor(
             // whole pipeline consistent.
             val s = settingsManager.settings.first()
 
-            // Bake in admin-configured branding (border + overlay PNGs, then watermark text).
-            // Failure-isolated: any decode/out-of-memory issue falls back to the raw
-            // capture so a bad branding asset can never crash the booth mid-session.
-            val processedPhoto = withContext(Dispatchers.Default) {
-                try {
-                    val branded = CustomBrandingRenderer.apply(
-                        source = bitmap,
-                        borderPath = s.customBorderPath,
-                        overlayPath = s.customOverlayPath,
-                        overlayPlacement = s.overlayPlacement,
-                        overlayCorner = s.overlayCorner,
-                        overlaySizePct = s.overlaySizePct
-                    )
-                    if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
-                        WatermarkRenderer.apply(branded, s.watermarkText)
-                    } else {
-                        branded
-                    }
-                } catch (t: Throwable) {
-                    Log.e(TAG, "Photo processing failed; using the raw capture", t)
-                    bitmap
-                }
-            }
+            val prepared = withContext(Dispatchers.Default) { prepareOutput(input, s) }
 
-            _uiState.value = _uiState.value.copy(photo = processedPhoto)
+            _uiState.value = _uiState.value.copy(
+                photo = prepared.preview,
+                gifBytes = prepared.gifBytes
+            )
 
             // Auto-save if enabled.
             if (s.autoSaveToGallery) {
@@ -140,20 +150,94 @@ class ShareViewModel @Inject constructor(
             if (s.cloudinaryEnabled && s.cloudinaryCloudName.isNotBlank() &&
                 s.cloudinaryUploadPreset.isNotBlank()
             ) {
-                uploadToCloudinary(s, processedPhoto)
+                val cloudName = s.cloudinaryCloudName
+                val preset = s.cloudinaryUploadPreset
+                val folder = s.currentEventSlug.takeIf { it.isNotBlank() }?.let { "events/$it" }
+                val gif = prepared.gifBytes
+                val preview = prepared.preview
+                pendingUpload = if (gif != null) {
+                    { cloudinaryUploader.uploadBytes(cloudName, preset, gif, "photo.gif", "image/gif", folder) }
+                } else if (preview != null) {
+                    { cloudinaryUploader.upload(cloudName, preset, preview, folder) }
+                } else {
+                    null
+                }
+                runUpload()
             }
         }
     }
 
-    private suspend fun uploadToCloudinary(s: BoothSettings, photo: Bitmap) {
-        _uiState.value = _uiState.value.copy(isUploading = true)
-        val result = cloudinaryUploader.upload(
-            cloudName = s.cloudinaryCloudName,
-            uploadPreset = s.cloudinaryUploadPreset,
-            bitmap = photo,
-            folder = s.currentEventSlug.takeIf { it.isNotBlank() }?.let { "events/$it" }
+    private data class PreparedOutput(val preview: Bitmap?, val gifBytes: ByteArray?)
+
+    /** Longest edge of a GIF frame — keeps the encode fast and the file emailable. */
+    private val gifMaxDimension = 640
+
+    private fun prepareOutput(input: ShareInput, s: BoothSettings): PreparedOutput = when (input) {
+        is ShareInput.Still -> PreparedOutput(brand(input.bitmap, s), null)
+        is ShareInput.Collage -> {
+            val collage = CollageRenderer.render(input.frames, CollageLayout.GRID_2X2)
+            PreparedOutput(brand(collage, s), null)
+        }
+        is ShareInput.AnimatedGif -> {
+            val brandedFrames = input.frames.map { scaleToMax(brand(it, s), gifMaxDimension) }
+            val preview = brandedFrames.firstOrNull()
+            val bytes = try {
+                if (brandedFrames.isNotEmpty()) {
+                    GifEncoder().encodeToBytes(
+                        frames = brandedFrames,
+                        delayMs = s.gifFrameDelayMs.coerceIn(60, 2000)
+                    )
+                } else null
+            } catch (t: Throwable) {
+                // A GIF encode failure must not strand the guest — fall back to
+                // delivering the first frame as a still.
+                Log.e(TAG, "GIF encode failed; falling back to a still frame", t)
+                null
+            }
+            PreparedOutput(preview, bytes)
+        }
+    }
+
+    /**
+     * Bakes in admin-configured branding (border + overlay PNGs, then watermark text).
+     * Failure-isolated: any decode/out-of-memory issue falls back to the raw capture
+     * so a bad branding asset can never crash the booth mid-session.
+     */
+    private fun brand(source: Bitmap, s: BoothSettings): Bitmap = try {
+        val branded = CustomBrandingRenderer.apply(
+            source = source,
+            borderPath = s.customBorderPath,
+            overlayPath = s.customOverlayPath,
+            overlayPlacement = s.overlayPlacement,
+            overlayCorner = s.overlayCorner,
+            overlaySizePct = s.overlaySizePct
         )
-        when (result) {
+        if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
+            WatermarkRenderer.apply(branded, s.watermarkText)
+        } else {
+            branded
+        }
+    } catch (t: Throwable) {
+        Log.e(TAG, "Photo processing failed; using the raw capture", t)
+        source
+    }
+
+    private fun scaleToMax(bitmap: Bitmap, maxDim: Int): Bitmap {
+        val longest = maxOf(bitmap.width, bitmap.height)
+        if (longest <= maxDim) return bitmap
+        val scale = maxDim.toFloat() / longest
+        val w = (bitmap.width * scale).toInt().coerceAtLeast(1)
+        val h = (bitmap.height * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(bitmap, w, h, true)
+    }
+
+    /** The most recent upload task, re-runnable for the retry button. */
+    private var pendingUpload: (suspend () -> CloudinaryUploader.Result)? = null
+
+    private suspend fun runUpload() {
+        val task = pendingUpload ?: return
+        _uiState.value = _uiState.value.copy(isUploading = true, uploadFailed = false)
+        when (val result = task()) {
             is CloudinaryUploader.Result.Ok -> {
                 cachedPublicUrl = result.secureUrl
                 val qr = withContext(Dispatchers.Default) {
@@ -161,41 +245,63 @@ class ShareViewModel @Inject constructor(
                 }
                 _uiState.value = _uiState.value.copy(
                     isUploading = false,
+                    uploadFailed = false,
                     shareUrl = result.secureUrl,
                     qrCodeBitmap = qr
                 )
             }
             is CloudinaryUploader.Result.Err -> {
+                // No transient snackbar here — the QR slot shows a persistent
+                // "couldn't upload, tap to retry" state instead, which a guest
+                // can actually read and act on at arm's length.
                 Log.w(TAG, "Cloudinary upload failed: ${result.message}")
                 _uiState.value = _uiState.value.copy(
                     isUploading = false,
-                    message = result.message
+                    uploadFailed = true
                 )
             }
         }
     }
 
+    /** Re-attempt the upload (offline-recovery affordance on the QR tile). */
+    fun retryUpload() {
+        viewModelScope.launch { runUpload() }
+    }
+
     fun saveToGallery(context: Context) {
-        val photo = _uiState.value.photo ?: return
+        val gif = _uiState.value.gifBytes
+        val photo = _uiState.value.photo
+        if (gif == null && photo == null) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true)
             val quality = settings.value.outputQuality
             val path = withContext(Dispatchers.IO) {
-                photoSaver.saveToGallery(context, photo, quality = quality)
+                if (gif != null) {
+                    photoSaver.saveBytesToGallery(context, gif, "image/gif", "gif")
+                } else {
+                    photoSaver.saveToGallery(context, photo!!, quality = quality)
+                }
             }
             _uiState.value = _uiState.value.copy(
                 isSaving = false,
                 savedPath = path,
-                message = if (path != null) "Saved to gallery!" else "Failed to save"
+                message = if (path != null) "Saved to gallery!" else "Couldn't save — check storage space."
             )
         }
     }
 
     fun shareViaIntent(context: Context) {
-        val photo = _uiState.value.photo ?: return
+        val gif = _uiState.value.gifBytes
+        val photo = _uiState.value.photo
+        if (gif == null && photo == null) return
         viewModelScope.launch {
+            val isGif = gif != null
             val file = withContext(Dispatchers.IO) {
-                photoSaver.saveToCacheForSharing(context, photo)
+                if (gif != null) {
+                    photoSaver.saveBytesToCacheForSharing(context, gif, "gif")
+                } else {
+                    photoSaver.saveToCacheForSharing(context, photo!!)
+                }
             }
             val uri = FileProvider.getUriForFile(
                 context,
@@ -203,7 +309,7 @@ class ShareViewModel @Inject constructor(
                 file
             )
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "image/jpeg"
+                type = if (isGif) "image/gif" else "image/jpeg"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -278,15 +384,30 @@ class ShareViewModel @Inject constructor(
             val htmlBody = buildHtmlBody(s, cachedPublicUrl)
             val subject = renderSubject(s)
 
-            val result = resendEmailSender.send(
-                apiKey = s.resendApiKey,
-                fromAddress = s.resendFromAddress,
-                replyToAddress = s.resendReplyToAddress,
-                toAddress = to,
-                subject = subject,
-                htmlBody = htmlBody,
-                photo = photo
-            )
+            val gif = _uiState.value.gifBytes
+            val result = if (gif != null) {
+                resendEmailSender.send(
+                    apiKey = s.resendApiKey,
+                    fromAddress = s.resendFromAddress,
+                    replyToAddress = s.resendReplyToAddress,
+                    toAddress = to,
+                    subject = subject,
+                    htmlBody = htmlBody,
+                    attachmentBytes = gif,
+                    attachmentFilename = "photo.gif",
+                    attachmentContentType = "image/gif"
+                )
+            } else {
+                resendEmailSender.send(
+                    apiKey = s.resendApiKey,
+                    fromAddress = s.resendFromAddress,
+                    replyToAddress = s.resendReplyToAddress,
+                    toAddress = to,
+                    subject = subject,
+                    htmlBody = htmlBody,
+                    photo = photo
+                )
+            }
             when (result) {
                 is ResendEmailSender.Result.Ok -> {
                     emailSendsThisSession++

@@ -118,8 +118,13 @@ class CaptureViewModel @Inject constructor(
                                     capturedPhoto = photo
                                 )
                             } catch (e: Exception) {
+                                // Guest-facing copy only — never raw exception
+                                // text mid-countdown. The technical detail goes
+                                // to logcat; if every shot fails, Review's empty
+                                // state catches it with a friendly retry.
+                                android.util.Log.e("CaptureViewModel", "Shot capture failed", e)
                                 _uiState.value = _uiState.value.copy(
-                                    error = "Failed to capture photo: ${e.message}"
+                                    error = "That one didn't take — hang tight."
                                 )
                             }
                             delay(step.durationMs)
@@ -138,8 +143,11 @@ class CaptureViewModel @Inject constructor(
                     isFinished = true
                 )
             } catch (e: Exception) {
+                android.util.Log.e("CaptureViewModel", "Burst failed", e)
                 _uiState.value = _uiState.value.copy(
-                    error = "Burst failed: ${e.message}",
+                    error = if (_uiState.value.photos.isEmpty()) {
+                        "Something interrupted us — let's try again."
+                    } else null,
                     isFinished = true,
                     currentStep = CaptureStep.Done
                 )
