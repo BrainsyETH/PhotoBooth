@@ -20,6 +20,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -84,6 +85,8 @@ internal fun CameraSection(
             color = Espresso.copy(alpha = 0.6f),
             modifier = Modifier.padding(horizontal = Spacing.xs)
         )
+
+        ExternalCameraStatusBlock(cameras = cameras, viewModel = viewModel)
 
         if (cameras.isNotEmpty()) {
             Column(
@@ -157,6 +160,60 @@ internal fun CameraSection(
                 color = Espresso.copy(alpha = 0.6f)
             )
         }
+    }
+}
+
+/**
+ * External (USB) camera diagnostics. The hard failure mode is silent: a webcam
+ * is plugged in, the tablet's USB stack sees it, but Android's camera service
+ * never exposes it as a camera (not every Android build supports UVC cameras).
+ * Surfacing the USB-device count next to the camera list turns "nothing
+ * happens" into something the operator can act on at the venue.
+ */
+@Composable
+private fun ExternalCameraStatusBlock(
+    cameras: List<CameraInfo>,
+    viewModel: AdminViewModel
+) {
+    val usbCount by viewModel.usbDeviceCount.collectAsState()
+    val hasExternal = cameras.any { it.isExternal }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+            .padding(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s)
+    ) {
+        Text(
+            "External camera (USB)",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Espresso
+        )
+        Text(
+            text = when {
+                hasExternal ->
+                    "External camera detected — select it in the camera list, then run TEST CAMERA below. " +
+                        "Tip: turn Mirror Image off for an external camera pointed at guests."
+                usbCount > 0 ->
+                    "A USB device is plugged in, but Android isn't showing it as a camera yet. " +
+                        "Wait a few seconds and tap REFRESH. Make sure the camera is a UVC webcam " +
+                        "(or a camera in \"webcam mode\") — if it never appears, this tablet's " +
+                        "Android build may not support USB cameras; a powered USB-C hub sometimes helps."
+                else ->
+                    "No USB device detected. Plug a UVC webcam into the tablet's USB-C port " +
+                        "(use an OTG adapter or powered hub if needed), then tap REFRESH."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.7f)
+        )
+        BigButton(
+            text = "REFRESH CAMERAS",
+            onClick = { viewModel.detectCameras() },
+            variant = BigButtonVariant.Surface
+        )
     }
 }
 

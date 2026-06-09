@@ -39,9 +39,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SnapCabin">
 
+        <!--
+          singleTask: plugging in a USB camera fires USB_DEVICE_ATTACHED at this
+          activity (intent-filter below). Without it, Android stacks a second
+          MainActivity instance mid-session and resets the booth UI; with it,
+          the existing instance is brought forward instead.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:screenOrientation="landscape"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.SnapCabin">
