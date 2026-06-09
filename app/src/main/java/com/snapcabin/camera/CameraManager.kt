@@ -101,11 +101,17 @@ class CameraManager @Inject constructor(
 
     /**
      * True when Android is exposing at least one external (USB/UVC) camera.
-     * Used to decide whether to request RECORD_AUDIO before opening it — UVC
-     * cameras are composite audio+video devices the camera service won't open
-     * without that permission.
      */
     fun hasExternalCamera(): Boolean = detectCameras().any { it.isExternal }
+
+    /**
+     * True when the mic permission should be requested before opening a camera:
+     * any USB device present OR an external camera exposed. UVC cameras are
+     * composite audio+video devices the camera service won't open without
+     * RECORD_AUDIO — and we must ask even before enumeration catches up, or the
+     * operator gets the "record permission" error with no prompt ever shown.
+     */
+    fun needsAudioPermissionForExternal(): Boolean = hasUsbDevices() || hasExternalCamera()
 
     fun bindCamera(
         lifecycleOwner: LifecycleOwner,
