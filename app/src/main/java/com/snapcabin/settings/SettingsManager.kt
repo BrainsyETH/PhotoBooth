@@ -52,20 +52,21 @@ data class BoothSettings(
     // Sharing
     val enableQrSharing: Boolean = true,
     val enableSaveToGallery: Boolean = true,
-    val enableShareIntent: Boolean = true,
+    val enableShareIntent: Boolean = false,
     val enablePrint: Boolean = true,
-    val enableEmail: Boolean = true,
-    val enableSms: Boolean = true,
+    val enableEmail: Boolean = true, // Gates the "Email me my photo" button (Resend)
 
-    // Twilio SMS (optional — disabled by default)
-    val twilioEnabled: Boolean = false,
-    val twilioAccountSid: String = "",
-    val twilioAuthToken: String = "",
-    val twilioFromNumber: String = "",
-    val twilioPhotoUrlBase: String = "",     // optional public URL prefix; falls back to LAN URL
-    val twilioMaxPerSession: Int = 10,       // rate limit to prevent abuse
+    // Resend email (optional — disabled by default). Resend's HTTP API delivers
+    // the photo as a JPEG attachment over WiFi. No phone numbers, no carrier.
+    val resendEnabled: Boolean = false,
+    val resendApiKey: String = "",
+    val resendFromAddress: String = "",       // e.g. "SnapCabin <booth@yourdomain.com>"
+    val resendReplyToAddress: String = "",    // optional; lands guest replies in the host's inbox
+    val resendSubject: String = "Your photo from {event}", // {event} expands to the event name
+    val resendMaxPerSession: Int = 3,         // rate limit to prevent abuse
+    val resendMaxPerAddress: Int = 3,         // per-recipient cap (anti-spam, per event)
 
-    // Cloudinary (public photo hosting for Twilio MMS — unsigned upload preset)
+    // Cloudinary (public photo hosting for QR sharing — unsigned upload preset)
     val cloudinaryEnabled: Boolean = false,
     val cloudinaryCloudName: String = "",
     val cloudinaryUploadPreset: String = "",
@@ -74,7 +75,6 @@ data class BoothSettings(
     val currentEventName: String = "",
     val currentEventSlug: String = "",
     val currentEventStartedAt: Long = 0L,
-    val twilioMaxPerNumber: Int = 3,         // per-phone SMS cap (anti-spam, per event)
     val sendLogJson: String = "[]",          // capped at 500 entries; auditable from admin
 
     // Modes
@@ -126,19 +126,19 @@ class SettingsManager @Inject constructor(
         val CAMERA_LENS_POSITION = stringPreferencesKey("camera_lens_position")
         val POSE_PROMPTS_COLLAGE = stringPreferencesKey("pose_prompts_collage")
         val POSE_PROMPTS_GIF = stringPreferencesKey("pose_prompts_gif")
-        val TWILIO_ENABLED = booleanPreferencesKey("twilio_enabled")
-        val TWILIO_ACCOUNT_SID = stringPreferencesKey("twilio_account_sid")
-        val TWILIO_AUTH_TOKEN = stringPreferencesKey("twilio_auth_token")
-        val TWILIO_FROM_NUMBER = stringPreferencesKey("twilio_from_number")
-        val TWILIO_PHOTO_URL_BASE = stringPreferencesKey("twilio_photo_url_base")
-        val TWILIO_MAX_PER_SESSION = intPreferencesKey("twilio_max_per_session")
+        val RESEND_ENABLED = booleanPreferencesKey("resend_enabled")
+        val RESEND_API_KEY = stringPreferencesKey("resend_api_key")
+        val RESEND_FROM_ADDRESS = stringPreferencesKey("resend_from_address")
+        val RESEND_REPLY_TO_ADDRESS = stringPreferencesKey("resend_reply_to_address")
+        val RESEND_SUBJECT = stringPreferencesKey("resend_subject")
+        val RESEND_MAX_PER_SESSION = intPreferencesKey("resend_max_per_session")
+        val RESEND_MAX_PER_ADDRESS = intPreferencesKey("resend_max_per_address")
         val CLOUDINARY_ENABLED = booleanPreferencesKey("cloudinary_enabled")
         val CLOUDINARY_CLOUD_NAME = stringPreferencesKey("cloudinary_cloud_name")
         val CLOUDINARY_UPLOAD_PRESET = stringPreferencesKey("cloudinary_upload_preset")
         val CURRENT_EVENT_NAME = stringPreferencesKey("current_event_name")
         val CURRENT_EVENT_SLUG = stringPreferencesKey("current_event_slug")
         val CURRENT_EVENT_STARTED_AT = longPreferencesKey("current_event_started_at")
-        val TWILIO_MAX_PER_NUMBER = intPreferencesKey("twilio_max_per_number")
         val SEND_LOG_JSON = stringPreferencesKey("send_log_json")
         val AUTO_SAVE = booleanPreferencesKey("auto_save_gallery")
         val OUTPUT_QUALITY = intPreferencesKey("output_quality")
@@ -153,7 +153,6 @@ class SettingsManager @Inject constructor(
         val ENABLE_SHARE_INTENT = booleanPreferencesKey("enable_share_intent")
         val ENABLE_PRINT = booleanPreferencesKey("enable_print")
         val ENABLE_EMAIL = booleanPreferencesKey("enable_email")
-        val ENABLE_SMS = booleanPreferencesKey("enable_sms")
         val ENABLE_SINGLE_PHOTO = booleanPreferencesKey("enable_single_photo_mode")
         val ENABLE_COLLAGE = booleanPreferencesKey("enable_collage_mode")
         val ENABLE_GIF = booleanPreferencesKey("enable_gif_mode")
@@ -168,118 +167,72 @@ class SettingsManager @Inject constructor(
         val COUNTDOWN_BEEP = booleanPreferencesKey("countdown_beep")
     }
 
+    private fun readSettings(prefs: Preferences): BoothSettings = BoothSettings(
+        useFrontCamera = prefs[Keys.USE_FRONT_CAMERA] ?: true,
+        cameraId = prefs[Keys.CAMERA_ID] ?: "",
+        mirrorImage = prefs[Keys.MIRROR_IMAGE] ?: true,
+        photoResolution = prefs[Keys.PHOTO_RESOLUTION]?.let {
+            try { PhotoResolution.valueOf(it) } catch (e: Exception) { PhotoResolution.FULL }
+        } ?: PhotoResolution.FULL,
+        countdownSeconds = prefs[Keys.COUNTDOWN_SECONDS] ?: 3,
+        autoCapture = prefs[Keys.AUTO_CAPTURE] ?: false,
+        collageShotCount = prefs[Keys.COLLAGE_SHOT_COUNT] ?: 4,
+        gifFrameCount = prefs[Keys.GIF_FRAME_COUNT] ?: 6,
+        gifFrameDelayMs = prefs[Keys.GIF_FRAME_DELAY_MS] ?: 250,
+        coachingEnabled = prefs[Keys.COACHING_ENABLED] ?: true,
+        framingGuideEnabled = prefs[Keys.FRAMING_GUIDE_ENABLED] ?: true,
+        flashColor = prefs[Keys.FLASH_COLOR] ?: "#FDFAF1",
+        cameraLensPosition = prefs[Keys.CAMERA_LENS_POSITION] ?: "top",
+        posePromptsCollage = prefs[Keys.POSE_PROMPTS_COLLAGE] ?: "",
+        posePromptsGif = prefs[Keys.POSE_PROMPTS_GIF] ?: "",
+        autoSaveToGallery = prefs[Keys.AUTO_SAVE] ?: false,
+        outputQuality = prefs[Keys.OUTPUT_QUALITY] ?: 95,
+        watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
+        watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
+        customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
+        customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
+        eventName = prefs[Keys.EVENT_NAME] ?: "",
+        attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
+        enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
+        enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
+        enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: false,
+        enablePrint = prefs[Keys.ENABLE_PRINT] ?: true,
+        enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
+        resendEnabled = prefs[Keys.RESEND_ENABLED] ?: false,
+        resendApiKey = prefs[Keys.RESEND_API_KEY] ?: "",
+        resendFromAddress = prefs[Keys.RESEND_FROM_ADDRESS] ?: "",
+        resendReplyToAddress = prefs[Keys.RESEND_REPLY_TO_ADDRESS] ?: "",
+        resendSubject = prefs[Keys.RESEND_SUBJECT] ?: "Your photo from {event}",
+        resendMaxPerSession = prefs[Keys.RESEND_MAX_PER_SESSION] ?: 3,
+        resendMaxPerAddress = prefs[Keys.RESEND_MAX_PER_ADDRESS] ?: 3,
+        cloudinaryEnabled = prefs[Keys.CLOUDINARY_ENABLED] ?: false,
+        cloudinaryCloudName = prefs[Keys.CLOUDINARY_CLOUD_NAME] ?: "",
+        cloudinaryUploadPreset = prefs[Keys.CLOUDINARY_UPLOAD_PRESET] ?: "",
+        currentEventName = prefs[Keys.CURRENT_EVENT_NAME] ?: "",
+        currentEventSlug = prefs[Keys.CURRENT_EVENT_SLUG] ?: "",
+        currentEventStartedAt = prefs[Keys.CURRENT_EVENT_STARTED_AT] ?: 0L,
+        sendLogJson = prefs[Keys.SEND_LOG_JSON] ?: "[]",
+        enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
+        enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
+        enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
+        kioskModeEnabled = prefs[Keys.KIOSK_MODE] ?: false,
+        adminPin = prefs[Keys.ADMIN_PIN] ?: "1234",
+        inactivityTimeoutSeconds = prefs[Keys.INACTIVITY_TIMEOUT] ?: 60,
+        reviewAutoAcceptSeconds = prefs[Keys.REVIEW_AUTO_ACCEPT] ?: 10,
+        screenBrightness = prefs[Keys.SCREEN_BRIGHTNESS] ?: 1.0f,
+        showFlashEffect = prefs[Keys.SHOW_FLASH] ?: true,
+        soundEnabled = prefs[Keys.SOUND_ENABLED] ?: true,
+        shutterSoundEnabled = prefs[Keys.SHUTTER_SOUND] ?: true,
+        countdownBeepEnabled = prefs[Keys.COUNTDOWN_BEEP] ?: true
+    )
+
     val settings: Flow<BoothSettings> = context.dataStore.data.map { prefs ->
-        BoothSettings(
-            useFrontCamera = prefs[Keys.USE_FRONT_CAMERA] ?: true,
-            cameraId = prefs[Keys.CAMERA_ID] ?: "",
-            mirrorImage = prefs[Keys.MIRROR_IMAGE] ?: true,
-            photoResolution = prefs[Keys.PHOTO_RESOLUTION]?.let {
-                try { PhotoResolution.valueOf(it) } catch (e: Exception) { PhotoResolution.FULL }
-            } ?: PhotoResolution.FULL,
-            countdownSeconds = prefs[Keys.COUNTDOWN_SECONDS] ?: 3,
-            autoCapture = prefs[Keys.AUTO_CAPTURE] ?: false,
-            collageShotCount = prefs[Keys.COLLAGE_SHOT_COUNT] ?: 4,
-            gifFrameCount = prefs[Keys.GIF_FRAME_COUNT] ?: 6,
-            gifFrameDelayMs = prefs[Keys.GIF_FRAME_DELAY_MS] ?: 250,
-            coachingEnabled = prefs[Keys.COACHING_ENABLED] ?: true,
-            framingGuideEnabled = prefs[Keys.FRAMING_GUIDE_ENABLED] ?: true,
-            flashColor = prefs[Keys.FLASH_COLOR] ?: "#FDFAF1",
-            cameraLensPosition = prefs[Keys.CAMERA_LENS_POSITION] ?: "top",
-            posePromptsCollage = prefs[Keys.POSE_PROMPTS_COLLAGE] ?: "",
-            posePromptsGif = prefs[Keys.POSE_PROMPTS_GIF] ?: "",
-            autoSaveToGallery = prefs[Keys.AUTO_SAVE] ?: false,
-            outputQuality = prefs[Keys.OUTPUT_QUALITY] ?: 95,
-            watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
-            watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
-            customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
-            customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
-            eventName = prefs[Keys.EVENT_NAME] ?: "",
-            attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
-            enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
-            enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
-            enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: true,
-            enablePrint = prefs[Keys.ENABLE_PRINT] ?: true,
-            enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
-            enableSms = prefs[Keys.ENABLE_SMS] ?: true,
-            twilioEnabled = prefs[Keys.TWILIO_ENABLED] ?: false,
-            twilioAccountSid = prefs[Keys.TWILIO_ACCOUNT_SID] ?: "",
-            twilioAuthToken = prefs[Keys.TWILIO_AUTH_TOKEN] ?: "",
-            twilioFromNumber = prefs[Keys.TWILIO_FROM_NUMBER] ?: "",
-            twilioPhotoUrlBase = prefs[Keys.TWILIO_PHOTO_URL_BASE] ?: "",
-            twilioMaxPerSession = prefs[Keys.TWILIO_MAX_PER_SESSION] ?: 10,
-            cloudinaryEnabled = prefs[Keys.CLOUDINARY_ENABLED] ?: false,
-            cloudinaryCloudName = prefs[Keys.CLOUDINARY_CLOUD_NAME] ?: "",
-            cloudinaryUploadPreset = prefs[Keys.CLOUDINARY_UPLOAD_PRESET] ?: "",
-            currentEventName = prefs[Keys.CURRENT_EVENT_NAME] ?: "",
-            currentEventSlug = prefs[Keys.CURRENT_EVENT_SLUG] ?: "",
-            currentEventStartedAt = prefs[Keys.CURRENT_EVENT_STARTED_AT] ?: 0L,
-            twilioMaxPerNumber = prefs[Keys.TWILIO_MAX_PER_NUMBER] ?: 3,
-            sendLogJson = prefs[Keys.SEND_LOG_JSON] ?: "[]",
-            enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
-            enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
-            enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
-            kioskModeEnabled = prefs[Keys.KIOSK_MODE] ?: false,
-            adminPin = prefs[Keys.ADMIN_PIN] ?: "1234",
-            inactivityTimeoutSeconds = prefs[Keys.INACTIVITY_TIMEOUT] ?: 60,
-            reviewAutoAcceptSeconds = prefs[Keys.REVIEW_AUTO_ACCEPT] ?: 10,
-            screenBrightness = prefs[Keys.SCREEN_BRIGHTNESS] ?: 1.0f,
-            showFlashEffect = prefs[Keys.SHOW_FLASH] ?: true,
-            soundEnabled = prefs[Keys.SOUND_ENABLED] ?: true,
-            shutterSoundEnabled = prefs[Keys.SHUTTER_SOUND] ?: true,
-            countdownBeepEnabled = prefs[Keys.COUNTDOWN_BEEP] ?: true
-        )
+        readSettings(prefs)
     }
 
     suspend fun update(transform: BoothSettings.() -> BoothSettings) {
-        // Read current, transform, then write
         context.dataStore.edit { prefs ->
-            val current = BoothSettings(
-                useFrontCamera = prefs[Keys.USE_FRONT_CAMERA] ?: true,
-                cameraId = prefs[Keys.CAMERA_ID] ?: "",
-                mirrorImage = prefs[Keys.MIRROR_IMAGE] ?: true,
-                photoResolution = prefs[Keys.PHOTO_RESOLUTION]?.let {
-                    try { PhotoResolution.valueOf(it) } catch (e: Exception) { PhotoResolution.FULL }
-                } ?: PhotoResolution.FULL,
-                countdownSeconds = prefs[Keys.COUNTDOWN_SECONDS] ?: 3,
-                autoCapture = prefs[Keys.AUTO_CAPTURE] ?: false,
-                collageShotCount = prefs[Keys.COLLAGE_SHOT_COUNT] ?: 4,
-                gifFrameCount = prefs[Keys.GIF_FRAME_COUNT] ?: 6,
-                gifFrameDelayMs = prefs[Keys.GIF_FRAME_DELAY_MS] ?: 250,
-                coachingEnabled = prefs[Keys.COACHING_ENABLED] ?: true,
-                framingGuideEnabled = prefs[Keys.FRAMING_GUIDE_ENABLED] ?: true,
-                flashColor = prefs[Keys.FLASH_COLOR] ?: "#FDFAF1",
-            cameraLensPosition = prefs[Keys.CAMERA_LENS_POSITION] ?: "top",
-            posePromptsCollage = prefs[Keys.POSE_PROMPTS_COLLAGE] ?: "",
-            posePromptsGif = prefs[Keys.POSE_PROMPTS_GIF] ?: "",
-                autoSaveToGallery = prefs[Keys.AUTO_SAVE] ?: false,
-                outputQuality = prefs[Keys.OUTPUT_QUALITY] ?: 95,
-                watermarkEnabled = prefs[Keys.WATERMARK_ENABLED] ?: false,
-                watermarkText = prefs[Keys.WATERMARK_TEXT] ?: "",
-                customBorderPath = prefs[Keys.CUSTOM_BORDER_PATH] ?: "",
-                customOverlayPath = prefs[Keys.CUSTOM_OVERLAY_PATH] ?: "",
-                eventName = prefs[Keys.EVENT_NAME] ?: "",
-                attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
-                enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
-                enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
-                enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: true,
-                enablePrint = prefs[Keys.ENABLE_PRINT] ?: true,
-                enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
-                enableSms = prefs[Keys.ENABLE_SMS] ?: true,
-                enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
-                enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
-                enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
-                kioskModeEnabled = prefs[Keys.KIOSK_MODE] ?: false,
-                adminPin = prefs[Keys.ADMIN_PIN] ?: "1234",
-                inactivityTimeoutSeconds = prefs[Keys.INACTIVITY_TIMEOUT] ?: 60,
-                reviewAutoAcceptSeconds = prefs[Keys.REVIEW_AUTO_ACCEPT] ?: 10,
-                screenBrightness = prefs[Keys.SCREEN_BRIGHTNESS] ?: 1.0f,
-                showFlashEffect = prefs[Keys.SHOW_FLASH] ?: true,
-                soundEnabled = prefs[Keys.SOUND_ENABLED] ?: true,
-                shutterSoundEnabled = prefs[Keys.SHUTTER_SOUND] ?: true,
-                countdownBeepEnabled = prefs[Keys.COUNTDOWN_BEEP] ?: true
-            )
-
-            val updated = current.transform()
+            val updated = readSettings(prefs).transform()
 
             prefs[Keys.USE_FRONT_CAMERA] = updated.useFrontCamera
             prefs[Keys.CAMERA_ID] = updated.cameraId
@@ -296,19 +249,19 @@ class SettingsManager @Inject constructor(
             prefs[Keys.CAMERA_LENS_POSITION] = updated.cameraLensPosition
             prefs[Keys.POSE_PROMPTS_COLLAGE] = updated.posePromptsCollage
             prefs[Keys.POSE_PROMPTS_GIF] = updated.posePromptsGif
-            prefs[Keys.TWILIO_ENABLED] = updated.twilioEnabled
-            prefs[Keys.TWILIO_ACCOUNT_SID] = updated.twilioAccountSid
-            prefs[Keys.TWILIO_AUTH_TOKEN] = updated.twilioAuthToken
-            prefs[Keys.TWILIO_FROM_NUMBER] = updated.twilioFromNumber
-            prefs[Keys.TWILIO_PHOTO_URL_BASE] = updated.twilioPhotoUrlBase
-            prefs[Keys.TWILIO_MAX_PER_SESSION] = updated.twilioMaxPerSession
+            prefs[Keys.RESEND_ENABLED] = updated.resendEnabled
+            prefs[Keys.RESEND_API_KEY] = updated.resendApiKey
+            prefs[Keys.RESEND_FROM_ADDRESS] = updated.resendFromAddress
+            prefs[Keys.RESEND_REPLY_TO_ADDRESS] = updated.resendReplyToAddress
+            prefs[Keys.RESEND_SUBJECT] = updated.resendSubject
+            prefs[Keys.RESEND_MAX_PER_SESSION] = updated.resendMaxPerSession
+            prefs[Keys.RESEND_MAX_PER_ADDRESS] = updated.resendMaxPerAddress
             prefs[Keys.CLOUDINARY_ENABLED] = updated.cloudinaryEnabled
             prefs[Keys.CLOUDINARY_CLOUD_NAME] = updated.cloudinaryCloudName
             prefs[Keys.CLOUDINARY_UPLOAD_PRESET] = updated.cloudinaryUploadPreset
             prefs[Keys.CURRENT_EVENT_NAME] = updated.currentEventName
             prefs[Keys.CURRENT_EVENT_SLUG] = updated.currentEventSlug
             prefs[Keys.CURRENT_EVENT_STARTED_AT] = updated.currentEventStartedAt
-            prefs[Keys.TWILIO_MAX_PER_NUMBER] = updated.twilioMaxPerNumber
             prefs[Keys.SEND_LOG_JSON] = updated.sendLogJson
             prefs[Keys.AUTO_SAVE] = updated.autoSaveToGallery
             prefs[Keys.OUTPUT_QUALITY] = updated.outputQuality
@@ -323,7 +276,6 @@ class SettingsManager @Inject constructor(
             prefs[Keys.ENABLE_SHARE_INTENT] = updated.enableShareIntent
             prefs[Keys.ENABLE_PRINT] = updated.enablePrint
             prefs[Keys.ENABLE_EMAIL] = updated.enableEmail
-            prefs[Keys.ENABLE_SMS] = updated.enableSms
             prefs[Keys.ENABLE_SINGLE_PHOTO] = updated.enableSinglePhotoMode
             prefs[Keys.ENABLE_COLLAGE] = updated.enableCollageMode
             prefs[Keys.ENABLE_GIF] = updated.enableGifMode

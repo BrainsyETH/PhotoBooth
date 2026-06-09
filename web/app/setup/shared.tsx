@@ -3,7 +3,7 @@ import Link from "next/link";
 export function BottomLinks({
   current,
 }: {
-  current: "twilio" | "cloudinary";
+  current: "resend" | "cloudinary";
 }) {
   return (
     <div className="mt-16 flex flex-col gap-3 sm:flex-row sm:justify-between">
@@ -13,7 +13,7 @@ export function BottomLinks({
       >
         ← All setup guides
       </Link>
-      {current === "twilio" ? (
+      {current === "resend" ? (
         <Link
           href="/setup/cloudinary"
           className="text-sm font-sans font-semibold uppercase tracking-widest text-pine no-underline hover:text-pine-deep"
@@ -22,10 +22,10 @@ export function BottomLinks({
         </Link>
       ) : (
         <Link
-          href="/setup/twilio"
+          href="/setup/resend"
           className="text-sm font-sans font-semibold uppercase tracking-widest text-pine no-underline hover:text-pine-deep"
         >
-          Next: Twilio →
+          Next: Resend →
         </Link>
       )}
     </div>

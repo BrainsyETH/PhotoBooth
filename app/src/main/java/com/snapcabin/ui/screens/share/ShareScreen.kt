@@ -73,7 +73,6 @@ import com.snapcabin.ui.theme.Parchment
 import com.snapcabin.ui.theme.Pine
 import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.ShareDenim
-import com.snapcabin.ui.theme.ShareLeaf
 import com.snapcabin.ui.theme.Spacing
 import com.snapcabin.ui.theme.Walnut
 import kotlinx.coroutines.delay
@@ -87,8 +86,8 @@ fun ShareScreen(
     val uiState by viewModel.uiState.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
-    var showSmsDialog by remember { mutableStateOf(false) }
-    var smsPhoneInput by remember { mutableStateOf("") }
+    var showEmailDialog by remember { mutableStateOf(false) }
+    var emailInput by remember { mutableStateOf("") }
 
     LaunchedEffect(photo) {
         photo?.let { viewModel.setPhoto(it, context) }
@@ -186,21 +185,24 @@ fun ShareScreen(
                         )
                     }
 
-                    if (settings.enableSaveToGallery) {
+                    // Email is the primary off-tablet path when Cloudinary isn't set up;
+                    // when it is, the QR above is primary and email is the keyboard fallback.
+                    if (settings.enableEmail && settings.resendEnabled) {
                         BigButton(
-                            text = stringResource(R.string.share_save_gallery),
-                            onClick = { viewModel.saveToGallery(context) },
-                            variant = BigButtonVariant.Primary,
-                            enabled = !uiState.isSaving,
+                            text = stringResource(R.string.share_email),
+                            onClick = { showEmailDialog = true },
+                            containerColor = ShareDenim,
+                            contentColor = Color.White,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    if (settings.enableShareIntent) {
+                    if (settings.enableSaveToGallery) {
                         BigButton(
-                            text = stringResource(R.string.share_button),
-                            onClick = { viewModel.shareViaIntent(context) },
+                            text = stringResource(R.string.share_save_gallery),
+                            onClick = { viewModel.saveToGallery(context) },
                             variant = BigButtonVariant.Secondary,
+                            enabled = !uiState.isSaving,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -213,21 +215,12 @@ fun ShareScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    if (settings.enableEmail) {
+
+                    if (settings.enableShareIntent) {
                         BigButton(
-                            text = stringResource(R.string.share_email),
-                            onClick = { viewModel.shareViaEmail(context) },
-                            containerColor = ShareDenim,
-                            contentColor = Color.White,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    if (settings.enableSms && settings.twilioEnabled) {
-                        BigButton(
-                            text = stringResource(R.string.share_message),
-                            onClick = { showSmsDialog = true },
-                            containerColor = ShareLeaf,
-                            contentColor = Color.White,
+                            text = stringResource(R.string.share_button),
+                            onClick = { viewModel.shareViaIntent(context) },
+                            variant = BigButtonVariant.Secondary,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -268,35 +261,33 @@ fun ShareScreen(
         }
     }
 
-    if (showSmsDialog) {
+    if (showEmailDialog) {
         AlertDialog(
-            onDismissRequest = { showSmsDialog = false },
-            title = { Text("Text me my photo") },
+            onDismissRequest = { showEmailDialog = false },
+            title = { Text("Email me my photo") },
             text = {
                 Column {
                     Text(
-                        text = "Enter your mobile number. Standard message rates may apply.",
+                        text = "Enter your email. The photo arrives as an attachment.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Espresso.copy(alpha = 0.72f)
                     )
                     Spacer(modifier = Modifier.height(Spacing.s))
                     OutlinedTextField(
-                        value = smsPhoneInput,
+                        value = emailInput,
                         onValueChange = { input ->
-                            smsPhoneInput = input.filter { c ->
-                                c.isDigit() || c == '+' || c == ' ' || c == '-' || c == '(' || c == ')'
-                            }.take(20)
+                            emailInput = input.trim().take(120)
                         },
-                        label = { Text("Phone (e.g. +15551234567)") },
+                        label = { Text("Email address") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(Radii.s),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ShareLeaf,
+                            focusedBorderColor = ShareDenim,
                             unfocusedBorderColor = CabinLine,
-                            focusedLabelColor = ShareLeaf,
-                            cursorColor = ShareLeaf
+                            focusedLabelColor = ShareDenim,
+                            cursorColor = ShareDenim
                         )
                     )
                 }
@@ -304,15 +295,15 @@ fun ShareScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.sendViaTwilio(smsPhoneInput)
-                        smsPhoneInput = ""
-                        showSmsDialog = false
+                        viewModel.sendViaEmail(emailInput)
+                        emailInput = ""
+                        showEmailDialog = false
                     },
-                    enabled = smsPhoneInput.isNotBlank()
+                    enabled = emailInput.isNotBlank()
                 ) { Text("SEND") }
             },
             dismissButton = {
-                TextButton(onClick = { showSmsDialog = false }) { Text("CANCEL") }
+                TextButton(onClick = { showEmailDialog = false }) { Text("CANCEL") }
             }
         )
     }
@@ -333,7 +324,7 @@ private fun QrSharingBlock(
             // letting the slot disappear; otherwise a host who toggled QR on
             // would think the feature was broken.
             Text(
-                text = "QR sharing needs Cloudinary. Add it under TWILIO SMS · CLOUDINARY in admin.",
+                text = "QR sharing needs Cloudinary. Add it under CLOUDINARY PHOTO HOSTING in admin.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.55f)
             )

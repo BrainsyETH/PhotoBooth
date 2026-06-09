@@ -10,9 +10,9 @@ How to provision a fresh tablet as a SnapCabin kiosk. Aimed at operators
 - A USB cable.
 - A Mac or PC with `adb` installed (Android Platform Tools).
 - The SnapCabin APK file (provided after purchase).
-- *(Optional)* A Twilio account if you want SMS delivery.
-- *(Optional)* A Cloudinary account if you want photos to deliver as MMS
-  over cellular.
+- *(Optional)* A Resend account if you want to email photos to guests.
+- *(Optional)* A Cloudinary account if you also want a QR-code download
+  option on the share screen.
 
 ## Step 1 — Factory reset the tablet (for kiosk lockdown)
 
@@ -66,9 +66,9 @@ In order:
    auto-generated.
 3. **Configure modes** you want to expose (MODES section).
 4. **Set the event name on the Attract screen** (BRANDING section).
-5. **Configure Twilio + Cloudinary** if you want SMS:
-   - Twilio: enter Account SID, Auth Token, From-number from
-     console.twilio.com.
+5. **Configure Resend + Cloudinary** if you want delivery to guests:
+   - Resend: paste API key from `resend.com/api-keys` and set a verified
+     From address.
    - Cloudinary: create an unsigned upload preset with image-format
      restrictions; enter cloud name and preset name.
 6. **Set the camera lens position** (CAPTURE section) so the LOOK HERE
@@ -80,8 +80,10 @@ In order:
 
 1. Close Admin → land on Attract → tap to start.
 2. Pick a mode → Get Ready → Capture → Review → Share.
-3. Confirm the QR works (scan it with your phone on the same WiFi).
-4. If Twilio is configured: send a test SMS to your own number.
+3. If Cloudinary is configured: confirm the QR code renders and a phone
+   on the same WiFi can open the link.
+4. If Resend is configured: tap EMAIL, enter your own address, and
+   confirm the photo arrives as an attachment.
 
 ## Step 7 — Lock it down for production
 
@@ -103,13 +105,17 @@ the activity is landscape-locked but the emulator/device may be portrait —
 rotate the device physically or in the emulator (Ctrl+Right).
 
 **QR code shows a URL that won't load on a phone**:
-the phone must be on the same WiFi as the kiosk. Many guest WiFi networks
-have client isolation enabled, which blocks this — use a dedicated kiosk
-WiFi or set up Cloudinary for off-network delivery.
+the QR points at the Cloudinary URL, which is public — any phone with
+internet should load it. If it doesn't load, double-check the Cloudinary
+preset is `Unsigned` and that `jpg, png` are in the allowed-formats list.
 
-**SMS doesn't send**:
-verify Twilio credentials in Admin; verify the From-number is in E.164
-format (`+15551234567`); check Twilio's own console for delivery status.
+**Email doesn't send**:
+- "Resend rejected the API key" → revoke the key in the Resend dashboard
+  and create a new one.
+- "The domain is not verified" → the From address uses a domain that
+  isn't verified in Resend. Either verify it (Domains → Add Domain) or
+  use `onboarding@resend.dev` for testing.
+- Check the AUDIT LOG section in Admin for the most recent error message.
 
 **Tablet falls asleep mid-event**:
 Kiosk Mode includes a "stay on while plugged in" policy — make sure it's

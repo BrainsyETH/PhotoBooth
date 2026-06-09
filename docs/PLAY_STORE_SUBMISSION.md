@@ -89,7 +89,7 @@ Recommended cadence:
 
 Closed testing requires a written description of "what testers will be
 testing" — keep it short ("Photo booth kiosk for event hosts; please report
-camera, SMS delivery, and kiosk lockdown bugs").
+camera, email delivery, and kiosk lockdown bugs").
 
 ## 8. What to expect from review
 

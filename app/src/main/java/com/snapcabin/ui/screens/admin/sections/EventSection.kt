@@ -159,7 +159,7 @@ private fun EventBlock(
             text = {
                 Column {
                     Text(
-                        text = "Event name will scope the Cloudinary folder, audit log, and per-phone SMS limits. Used through the event.",
+                        text = "Event name will scope the Cloudinary folder, audit log, and per-address email limits. Used through the event.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Espresso.copy(alpha = 0.72f)
                     )

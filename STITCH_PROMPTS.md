@@ -295,7 +295,6 @@ Right column (360dp, 24dp padding, vertically scrollable):
   - "SHARE" — Warm Wood Brown (#8D6E63)
   - "PRINT" — Dark Brown (#5D4037)
   - "EMAIL" — Blue (#2980B9)
-  - "SMS" — Green (#27AE60)
 
 - "DONE" button at bottom — Surface color, full width
 

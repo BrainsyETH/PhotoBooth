@@ -31,7 +31,7 @@ function Hero() {
       />
       <p className="max-w-xl text-lg leading-relaxed text-espresso/85">
         A photo booth for an Android tablet. Guests snap their photo, pick
-        how they want it, and walk away with it on their phone. No
+        how they want it, and walk away with it in their inbox. No
         subscription, no monthly bill, no surprise add-ons. One-time
         purchase, runs on the tablet you bring.
       </p>
@@ -64,8 +64,8 @@ function Features() {
       body: "Single photo, four-shot collage, or short looping GIF. Guests pick what feels right.",
     },
     {
-      title: "Photos straight to a phone",
-      body: "Guests scan a QR code or punch in their number and the photo arrives by text. Email works too. Both run through services you connect (Cloudinary and Twilio).",
+      title: "Photos straight to a guest's inbox",
+      body: "Guests type their email and the photo arrives as an attachment over your venue's WiFi. A QR code option lets them scan and download too. Both run through services you connect (Resend and Cloudinary).",
     },
     {
       title: "Make it look like your event",
@@ -77,7 +77,7 @@ function Features() {
     },
     {
       title: "A history of every send",
-      body: "An on-tablet log shows every text or email that went out, with timestamps and the last four digits of the number.",
+      body: "An on-tablet log shows every email that went out, with timestamps and a masked recipient address.",
     },
   ];
   return (
@@ -112,8 +112,8 @@ function HowItWorks() {
     },
     {
       n: "03",
-      title: "Plug in text and photo hosting",
-      body: "Paste your Twilio keys for SMS, and a Cloudinary preset so photos can travel by text. Both are optional and we link you to step-by-step guides.",
+      title: "Plug in email and photo hosting",
+      body: "Paste your Resend API key for email delivery, and a Cloudinary preset for the QR code. Both are optional and we link you to step-by-step guides.",
     },
     {
       n: "04",
@@ -158,8 +158,10 @@ function Comparison() {
       />
       <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-espresso/75">
         Most photo booth apps charge a monthly fee whether you run one event a
-        year or twenty. SnapCabin is a one-time purchase. Texting and hosting
-        are billed at cost by Twilio and Cloudinary, with no markup from us.
+        year or twenty. SnapCabin is a one-time purchase. Email delivery and
+        hosting are billed at cost by Resend and Cloudinary, with no markup
+        from us &mdash; and for a 250-photo event, both stay inside their
+        free tiers.
       </p>
 
       <div className="mt-10 overflow-x-auto rounded-3xl border border-walnut/15 bg-cream/70">
@@ -185,7 +187,7 @@ function Comparison() {
                   SnapCabin
                 </p>
                 <p className="text-xs text-mist">
-                  One-time app, pay-as-you-go text + hosting
+                  One-time app, pay-as-you-go email + hosting
                 </p>
               </td>
               <td className="px-5 py-4 font-sans text-espresso">
@@ -193,7 +195,7 @@ function Comparison() {
               </td>
               <td className="px-5 py-4 font-sans text-pine-deep">$0</td>
               <td className="px-5 py-4 font-sans font-semibold text-pine-deep">
-                ~$5 in text fees
+                $0 (inside free tiers)
               </td>
             </tr>
             <tr>
@@ -261,8 +263,9 @@ function Comparison() {
         >
           Simple Booth plans
         </a>
-        . SnapCabin&rsquo;s text cost is based on Twilio&rsquo;s published US
-        MMS rate of about $0.02 per message; international rates vary.
+        . Resend&rsquo;s free tier covers 3,000 emails per month and
+        Cloudinary&rsquo;s free tier covers 25 GB of storage and bandwidth,
+        which is enough for a typical wedding.
       </p>
 
       <div className="mt-12">
@@ -287,8 +290,8 @@ function Comparison() {
             </thead>
             <tbody className="divide-y divide-walnut/10 text-espresso/85">
               <FeatureRow label="Single photo, collage, GIF modes" />
-              <FeatureRow label="Send photo by text (SMS / MMS)" />
-              <FeatureRow label="QR-code on-WiFi download" snapcabin simplebooth={false} snappic={false} />
+              <FeatureRow label="Send photo by email (attachment)" />
+              <FeatureRow label="QR-code download via Cloudinary" />
               <FeatureRow
                 label="Photos stored on your own cloud account"
                 snapcabin
@@ -360,23 +363,22 @@ function Integrations() {
       />
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <IntegrationCard
-          name="Twilio"
-          tagline="Texts a photo to your guest"
-          body="When a guest types their phone number, Twilio sends the photo as a text. You bring the account and we use your keys on the tablet only. Pay Twilio per message at their published rate."
-          ctaHref="/setup/twilio"
+          name="Resend"
+          tagline="Emails the photo as an attachment"
+          body="When a guest types their email address, Resend delivers a tidy message with the photo attached. You bring the account; the tablet uses your API key only. Resend's free tier covers 3,000 emails per month."
+          ctaHref="/setup/resend"
         />
         <IntegrationCard
           name="Cloudinary"
-          tagline="Keeps photos available online"
-          body="So the text arrives with the photo attached instead of just a link, the tablet uploads each photo to your Cloudinary account first. The free tier covers a typical event."
+          tagline="Hosts the photo behind a QR code"
+          body="If you want a QR-code download option on the share screen, the tablet uploads each photo to your Cloudinary account and renders a code pointing at it. The free tier covers a typical event."
           ctaHref="/setup/cloudinary"
         />
       </div>
       <p className="mt-6 text-center text-sm text-mist">
-        Cloudinary powers the QR code and the photo attached to text
-        messages. Without it, the tablet still saves locally and the system
-        share menu still works, you just won&rsquo;t hand off the photo
-        over cellular.
+        The two integrations are independent. Turn on Resend for email
+        delivery, Cloudinary for the QR tile, or both. Without either, the
+        tablet still saves locally and the system share menu still works.
       </p>
     </section>
   );
@@ -422,20 +424,20 @@ function Faq() {
       <SectionHeading eyebrow="FAQ" title="Quick answers" />
       <div className="mt-10 space-y-4">
         <FaqRow
-          q="Do I have to use Twilio and Cloudinary?"
-          a="Only if you want photos to travel off the tablet. Cloudinary hosts the photo so a QR code or text can carry it; Twilio is the text-message service. Without them, guests can still save locally, share via the Android system share sheet, or print. There&rsquo;s no local-WiFi QR option any more because modern mobile browsers block plain-HTTP downloads."
+          q="Do I have to use Resend and Cloudinary?"
+          a="Only if you want photos to travel off the tablet. Resend emails the photo to a guest as an attachment; Cloudinary hosts a copy so a QR code can deliver it. Both are optional and independent. Without them, guests can still save locally, share via the Android system share sheet, or print. There's no local-WiFi QR option any more because modern mobile browsers block plain-HTTP downloads."
         />
         <FaqRow
           q="What kind of tablet do I need?"
-          a="An Android tablet, at least eight inches, ideally with a decent front-facing camera. We&rsquo;ve had good results with Samsung Galaxy Tab S6 and newer. Phones aren&rsquo;t supported. The app refuses to launch on devices below an 8-inch class screen so you don&rsquo;t end up with a broken layout at the event."
+          a="An Android tablet, at least eight inches, ideally with a decent front-facing camera. We've had good results with Samsung Galaxy Tab S6 and newer. Phones aren't supported. The app refuses to launch on devices below an 8-inch class screen so you don't end up with a broken layout at the event."
         />
         <FaqRow
           q="Does SnapCabin send any data back to you?"
-          a="The app does not include analytics SDKs, crash reporters, or other libraries that phone home. Whatever your guests send through Twilio or Cloudinary goes only to your account at those services. The privacy policy covers this in more detail."
+          a="The app does not include analytics SDKs, crash reporters, or other libraries that phone home. Whatever your guests send through Resend or Cloudinary goes only to your account at those services. The privacy policy covers this in more detail."
         />
         <FaqRow
           q="Can I run multiple events?"
-          a="Yes. You give each event a name and the app keeps photos, audit logs, and rate limits scoped to it. Today the kiosk handles one active event at a time. Start a new event when you&rsquo;re ready to switch."
+          a="Yes. You give each event a name and the app keeps photos, audit logs, and rate limits scoped to it. Today the kiosk handles one active event at a time. Start a new event when you're ready to switch."
         />
       </div>
     </section>
@@ -478,7 +480,7 @@ function Footer() {
         </a>
       </div>
       <p className="text-xs text-mist">
-        SnapCabin is not affiliated with Twilio, Cloudinary, Snappic, Simple
+        SnapCabin is not affiliated with Resend, Cloudinary, Snappic, Simple
         Booth, Samsung, or Google.
       </p>
     </footer>

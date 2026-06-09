@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "SnapCabin · Privacy Policy",
   description:
-    "How SnapCabin handles photos, phone numbers, and other data. What we collect, what stays on the tablet, and what flows through services the event host configures.",
+    "How SnapCabin handles photos, email addresses, and other data. What we collect, what stays on the tablet, and what flows through services the event host configures.",
 };
 
 const LAST_UPDATED = "May 19, 2026";
@@ -42,10 +42,10 @@ export default function PrivacyPage() {
           The app, as published, does not include analytics, advertising,
           crash-reporting, or tracking libraries from third parties. We have
           no user accounts and no server that the app talks to. Photos and
-          phone numbers travel through the services the host enables
-          (typically Cloudinary for hosting and Twilio for text messages),
-          and those services have their own privacy policies. SnapCabin
-          itself does not receive that data.
+          email addresses travel through the services the host enables
+          (typically Resend for email delivery and optionally Cloudinary for
+          a QR-code download), and those services have their own privacy
+          policies. SnapCabin itself does not receive that data.
         </p>
       </section>
 
@@ -100,16 +100,16 @@ export default function PrivacyPage() {
             the device.
           </li>
           <li>
-            <strong>Audit log.</strong> When the app sends a text or email,
-            it records a timestamp, the event name, the channel, the success
-            status, and a masked recipient (for example, the last four
-            digits of a phone number). The full recipient is not stored.
+            <strong>Audit log.</strong> When the app sends an email, it
+            records a timestamp, the event name, the channel, the success
+            status, and a masked recipient (for example,{" "}
+            <code>e***@example.com</code>). The full recipient is not stored.
             The log stays on the tablet and can be cleared from the admin
             screen. It is capped at the most recent 500 entries.
           </li>
           <li>
             <strong>Admin settings.</strong> Event name, branding choices,
-            Twilio and Cloudinary credentials if the host enters them,
+            Resend and Cloudinary credentials if the host enters them,
             kiosk preferences. Stored in the app&rsquo;s private data area
             on the device.
           </li>
@@ -127,8 +127,9 @@ export default function PrivacyPage() {
         <p>
           If the host has entered Cloudinary credentials and turned on the
           Cloudinary toggle, captured photos are uploaded to that host&rsquo;s
-          Cloudinary account before the photo URL is sent on. Cloudinary
-          returns a URL the app uses to deliver the photo to the guest.
+          Cloudinary account so a QR code on the share screen can point at
+          the hosted image (and so the link can be included as a fallback in
+          the email body).
         </p>
         <ul className="ml-6 list-disc space-y-2 mt-3">
           <li>The host is the data controller for their Cloudinary account.</li>
@@ -151,32 +152,32 @@ export default function PrivacyPage() {
         </ul>
       </Section>
 
-      <Section title="Optional: text delivery through Twilio">
+      <Section title="Optional: email delivery through Resend">
         <p>
-          If the host has entered Twilio credentials and a guest taps the
-          text-message button, the guest&rsquo;s phone number is sent to
-          Twilio along with the photo URL so Twilio can deliver a text
-          message. The phone number travels to Twilio&rsquo;s API over
-          HTTPS.
+          If the host has entered Resend credentials and a guest taps the
+          email button, the guest&rsquo;s email address is sent to Resend
+          along with the photo as a JPEG attachment so Resend can deliver
+          the message. The request travels to Resend&rsquo;s API over HTTPS.
         </p>
         <ul className="ml-6 list-disc space-y-2 mt-3">
           <li>
-            The full phone number is not kept on the tablet beyond the
-            masked entry in the audit log described above.
+            The full email address is not kept on the tablet beyond a
+            masked entry (for example,{" "}
+            <code>e***@example.com</code>) in the audit log described above.
           </li>
           <li>
-            The host is the data controller for their Twilio account. See{" "}
+            The host is the data controller for their Resend account. See{" "}
             <a
-              href="https://www.twilio.com/legal/privacy"
+              href="https://resend.com/legal/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Twilio&rsquo;s privacy policy
+              Resend&rsquo;s privacy policy
             </a>
             .
           </li>
           <li>
-            SnapCabin doesn&rsquo;t receive the phone number or the message
+            SnapCabin doesn&rsquo;t receive the email address or the message
             contents.
           </li>
         </ul>
@@ -191,7 +192,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Internet and network state.</strong> Needed for
-            Cloudinary uploads and Twilio text delivery.
+            Cloudinary uploads and Resend email delivery.
           </li>
           <li>
             <strong>Boot completed.</strong> So the tablet can relaunch the
@@ -254,7 +255,7 @@ export default function PrivacyPage() {
       </Section>
 
       <p className="mt-16 text-sm text-mist">
-        SnapCabin is not affiliated with Cloudinary, Twilio, Samsung,
+        SnapCabin is not affiliated with Cloudinary, Resend, Samsung,
         Google, or any other named service.
       </p>
     </main>

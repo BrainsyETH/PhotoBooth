@@ -54,10 +54,10 @@ import com.snapcabin.ui.screens.admin.sections.CloudinarySection
 import com.snapcabin.ui.screens.admin.sections.EventSection
 import com.snapcabin.ui.screens.admin.sections.KioskSection
 import com.snapcabin.ui.screens.admin.sections.ModesSection
+import com.snapcabin.ui.screens.admin.sections.ResendSection
 import com.snapcabin.ui.screens.admin.sections.ShareSection
 import com.snapcabin.ui.screens.admin.sections.SoundSection
 import com.snapcabin.ui.screens.admin.sections.ToolsSection
-import com.snapcabin.ui.screens.admin.sections.TwilioSection
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.Clay
 import com.snapcabin.ui.theme.Cream
@@ -72,7 +72,7 @@ import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
-private const val SETUP_GUIDE_TWILIO = "https://snapcabin.app/setup/twilio"
+private const val SETUP_GUIDE_RESEND = "https://snapcabin.app/setup/resend"
 private const val SETUP_GUIDE_CLOUDINARY = "https://snapcabin.app/setup/cloudinary"
 
 @Composable
@@ -118,11 +118,11 @@ fun AdminScreen(
                     ShareSection(settings = settings, viewModel = viewModel)
                 },
                 AdminSection(
-                    key = "twilio",
-                    label = "TWILIO SMS",
-                    helpUrl = SETUP_GUIDE_TWILIO
+                    key = "resend",
+                    label = "EMAIL (RESEND)",
+                    helpUrl = SETUP_GUIDE_RESEND
                 ) {
-                    TwilioSection(settings = settings, viewModel = viewModel)
+                    ResendSection(settings = settings, viewModel = viewModel)
                 },
                 AdminSection(
                     key = "cloudinary",

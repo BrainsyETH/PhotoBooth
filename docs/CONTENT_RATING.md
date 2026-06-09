@@ -43,7 +43,7 @@ questionnaire.
 - **Does your app allow users to interact or exchange content?** → **Yes**
 
 > Justify: "Guests can capture photos of themselves and send those photos
-> to themselves via SMS or email. There is no chat, no public posting, no
+> to themselves via email. There is no chat, no public posting, no
 > ability for one user to send content to another user via the app — all
 > sends are guest-to-self."
 
@@ -58,7 +58,7 @@ questionnaire.
 ### Miscellaneous
 - Does the app allow users to purchase digital goods? → **No**
 - Does the app share user location? → **No**
-- Internet access? → **Yes** (for Cloudinary uploads and Twilio API)
+- Internet access? → **Yes** (for Cloudinary uploads and Resend API)
 - Digital purchases? → **No**
 
 ## Expected outcome
