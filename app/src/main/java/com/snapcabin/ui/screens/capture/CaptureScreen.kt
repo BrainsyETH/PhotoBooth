@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.snapcabin.ui.components.BrandingLiveOverlay
 import com.snapcabin.ui.components.CoachLine
 import com.snapcabin.ui.components.FlashOverlay
 import com.snapcabin.ui.components.LookHereIndicator
@@ -145,6 +146,13 @@ fun CaptureScreen(
                             radius = 1400f
                         )
                     )
+            )
+
+            // Branding overlay — corner logo sits over the live preview as a
+            // composition guide so guests can see where the logo will land.
+            BrandingLiveOverlay(
+                settings = settings,
+                modifier = Modifier.fillMaxSize()
             )
 
             ShotIndicator(

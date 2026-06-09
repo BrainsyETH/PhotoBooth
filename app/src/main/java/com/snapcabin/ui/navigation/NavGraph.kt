@@ -202,6 +202,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                     mode = mode,
                     photos = photos,
                     autoAcceptSeconds = settings.reviewAutoAcceptSeconds,
+                    settings = settings,
                     onRetake = {
                         captureViewModel.resetCapture()
                         navController.popBackStack(Routes.CAPTURE, inclusive = false)
