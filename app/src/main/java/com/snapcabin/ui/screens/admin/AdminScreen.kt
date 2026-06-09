@@ -3,6 +3,7 @@ package com.snapcabin.ui.screens.admin
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -117,7 +118,8 @@ fun AdminScreen(
                 AdminSection("getstarted", "GET STARTED") {
                     GetStartedSection(
                         settings = settings,
-                        onJumpTo = { key -> jumpToSection(key) }
+                        onJumpTo = { key -> jumpToSection(key) },
+                        onCollapse = { v -> viewModel.updateSetting { copy(getStartedCollapsed = v) } }
                     )
                 },
                 AdminSection("event", "EVENT") {
@@ -170,8 +172,9 @@ fun AdminScreen(
                 val i = sections.indexOfFirst { it.key == key }
                 if (i >= 0) {
                     clickedIndexState.value = i
-                    // +1 skips the LazyColumn's title item.
-                    scope.launch { listState.animateScrollToItem(i + 1) }
+                    // Instant jump — animating through tall sections reads as
+                    // a laggy scroll. +1 skips the LazyColumn's title item.
+                    scope.launch { listState.scrollToItem(i + 1) }
                 }
             }
 
@@ -209,8 +212,13 @@ private fun AdminContent(
             (first - titleOffset).coerceIn(0, sections.size - 1)
         }
     }
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) clickedIndex = null
+    // Clear the clicked highlight only on an actual user drag — not on the
+    // programmatic jump, which would otherwise null it mid-scroll and make
+    // the highlight flicker back to wherever the list happened to land.
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) clickedIndex = null
+        }
     }
     val activeSectionIndex = clickedIndex ?: scrolledIndex
 
@@ -223,7 +231,7 @@ private fun AdminContent(
             activeIndex = activeSectionIndex,
             onSelect = { i ->
                 clickedIndex = i
-                scope.launch { listState.animateScrollToItem(i + titleOffset) }
+                scope.launch { listState.scrollToItem(i + titleOffset) }
             },
             onDismiss = onDismiss,
             modifier = Modifier
