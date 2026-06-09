@@ -16,15 +16,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -167,12 +167,21 @@ private fun AdminContent(
     // The LazyColumn has a title item at index 0 and a close button at the end.
     // Section indices in the side nav are offset by 1.
     val titleOffset = 1
-    val activeSectionIndex by remember {
+    // Track the side-nav-clicked index so the highlight updates immediately,
+    // even when the LazyColumn can't scroll the bottom sections all the way
+    // to the top. Reset to null when the user scrolls manually so the
+    // firstVisibleItemIndex-derived highlight takes over again.
+    var clickedIndex by remember { mutableStateOf<Int?>(null) }
+    val scrolledIndex by remember {
         derivedStateOf {
             val first = listState.firstVisibleItemIndex
             (first - titleOffset).coerceIn(0, sections.size - 1)
         }
     }
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) clickedIndex = null
+    }
+    val activeSectionIndex = clickedIndex ?: scrolledIndex
 
     val screen = rememberScreenClass()
     val navWidth = screen.scaledDp(240).dp
@@ -182,6 +191,7 @@ private fun AdminContent(
             sections = sections,
             activeIndex = activeSectionIndex,
             onSelect = { i ->
+                clickedIndex = i
                 scope.launch { listState.animateScrollToItem(i + titleOffset) }
             },
             onDismiss = onDismiss,
@@ -235,6 +245,14 @@ private fun AdminContent(
                 )
                 Spacer(modifier = Modifier.height(Spacing.xl))
             }
+
+            // Trailing spacer so the last sections (AUDIT, TOOLS, ABOUT) can
+            // animate-scroll all the way to the top. Without this, clicking
+            // those side-nav items appears to do nothing because the list
+            // is already pinned to its natural end.
+            item(key = "__tail_pad") {
+                Spacer(modifier = Modifier.fillParentMaxHeight(0.7f))
+            }
         }
     }
 }
@@ -267,14 +285,13 @@ private fun SideNav(
             modifier = Modifier.padding(start = Spacing.sm, bottom = Spacing.md)
         )
 
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+                .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            sections.forEachIndexed { i, section ->
+            itemsIndexed(sections, key = { _, s -> s.key }) { i, section ->
                 SideNavItem(
                     label = section.label,
                     active = i == activeIndex,
