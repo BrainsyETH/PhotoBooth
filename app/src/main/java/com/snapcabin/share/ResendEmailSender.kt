@@ -42,22 +42,24 @@ class ResendEmailSender @Inject constructor() {
 
     sealed class Result {
         data class Ok(val emailId: String) : Result()
-        data class Err(val message: String) : Result()
+        data class Err(val message: String, val isQuotaError: Boolean = false) : Result()
     }
 
     /**
      * Send an email with the photo attached as a JPEG.
      *
-     * @param apiKey    Resend API key (re_...)
-     * @param fromAddress  e.g. "SnapCabin <booth@yourdomain.com>"
-     * @param toAddress    recipient
-     * @param subject      subject line
-     * @param htmlBody     HTML body of the email
-     * @param photo        the bitmap to compress and attach
+     * @param apiKey         Resend API key (re_...)
+     * @param fromAddress    e.g. "SnapCabin <booth@yourdomain.com>"
+     * @param replyToAddress optional Reply-To so guest replies land in the host's inbox
+     * @param toAddress      recipient
+     * @param subject        subject line
+     * @param htmlBody       HTML body of the email
+     * @param photo          the bitmap to compress and attach
      */
     suspend fun send(
         apiKey: String,
         fromAddress: String,
+        replyToAddress: String,
         toAddress: String,
         subject: String,
         htmlBody: String,
@@ -81,6 +83,9 @@ class ResendEmailSender @Inject constructor() {
             put("to", JSONArray().apply { put(toAddress) })
             put("subject", subject)
             put("html", htmlBody)
+            if (replyToAddress.isNotBlank() && isValidEmail(replyToAddress)) {
+                put("reply_to", replyToAddress)
+            }
             put("attachments", JSONArray().apply {
                 put(JSONObject().apply {
                     put("filename", "photo.jpg")
@@ -112,8 +117,8 @@ class ResendEmailSender @Inject constructor() {
                 Result.Ok(id)
             } else {
                 Log.w(TAG, "Resend API responded $code: ${response.take(500)}")
-                val human = humanizeError(code, response)
-                Result.Err(human)
+                val (human, isQuota) = humanizeError(code, response)
+                Result.Err(human, isQuotaError = isQuota)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Resend send failed", e)
@@ -130,17 +135,18 @@ class ResendEmailSender @Inject constructor() {
         return regex.find(json)?.groupValues?.get(1) ?: ""
     }
 
-    private fun humanizeError(code: Int, response: String): String = when (code) {
-        401, 403 -> "Resend rejected the API key."
+    /** Returns (human message, true if quota/rate-limit-related). */
+    private fun humanizeError(code: Int, response: String): Pair<String, Boolean> = when (code) {
+        401, 403 -> "Resend rejected the API key." to false
         422 -> {
             // Resend's most common 422 is a from-address that isn't on a
             // verified domain. Surface the API's own message so the operator
             // can act on it.
             val msg = extractField(response, "message").ifBlank { "Resend rejected the request." }
-            msg
+            msg to false
         }
-        429 -> "Resend rate limit hit. Try again in a moment."
-        in 500..599 -> "Resend is having trouble. Try again in a moment."
-        else -> "Resend responded $code. Check the From address and API key."
+        429 -> "Email quota hit. The Resend free tier caps at 100/day." to true
+        in 500..599 -> "Resend is having trouble. Try again in a moment." to false
+        else -> "Resend responded $code. Check the From address and API key." to false
     }
 }

@@ -185,21 +185,24 @@ fun ShareScreen(
                         )
                     }
 
-                    if (settings.enableSaveToGallery) {
+                    // Email is the primary off-tablet path when Cloudinary isn't set up;
+                    // when it is, the QR above is primary and email is the keyboard fallback.
+                    if (settings.enableEmail && settings.resendEnabled) {
                         BigButton(
-                            text = stringResource(R.string.share_save_gallery),
-                            onClick = { viewModel.saveToGallery(context) },
-                            variant = BigButtonVariant.Primary,
-                            enabled = !uiState.isSaving,
+                            text = stringResource(R.string.share_email),
+                            onClick = { showEmailDialog = true },
+                            containerColor = ShareDenim,
+                            contentColor = Color.White,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    if (settings.enableShareIntent) {
+                    if (settings.enableSaveToGallery) {
                         BigButton(
-                            text = stringResource(R.string.share_button),
-                            onClick = { viewModel.shareViaIntent(context) },
+                            text = stringResource(R.string.share_save_gallery),
+                            onClick = { viewModel.saveToGallery(context) },
                             variant = BigButtonVariant.Secondary,
+                            enabled = !uiState.isSaving,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -212,12 +215,12 @@ fun ShareScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    if (settings.enableEmail && settings.resendEnabled) {
+
+                    if (settings.enableShareIntent) {
                         BigButton(
-                            text = stringResource(R.string.share_email),
-                            onClick = { showEmailDialog = true },
-                            containerColor = ShareDenim,
-                            contentColor = Color.White,
+                            text = stringResource(R.string.share_button),
+                            onClick = { viewModel.shareViaIntent(context) },
+                            variant = BigButtonVariant.Secondary,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

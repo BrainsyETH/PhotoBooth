@@ -65,7 +65,7 @@ to a non-Device-Owner kiosk can extract credentials.
 mail, eating into the operator's Resend quota or harassing recipients.
 
 **Mitigations**:
-- `resendMaxPerSession` (default 10) — caps emails per photo.
+- `resendMaxPerSession` (default 3) — caps emails per photo.
 - `resendMaxPerAddress` (default 3) — caps emails to the same address per
   event.
 - Email addresses validated against a basic RFC-5322 pattern before any

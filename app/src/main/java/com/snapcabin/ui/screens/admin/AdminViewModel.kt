@@ -4,6 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager as SystemCameraManager
 import android.hardware.usb.UsbManager
@@ -12,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.settings.SettingsManager
+import com.snapcabin.share.ResendEmailSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,11 +33,20 @@ data class CameraInfo(
     val isExternal: Boolean
 )
 
+enum class TestEmailStatus { Idle, Sending, Sent, Failed }
+
 @HiltViewModel
 class AdminViewModel @Inject constructor(
     private val settingsManager: SettingsManager,
+    private val resendEmailSender: ResendEmailSender,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val _testEmailStatus = MutableStateFlow(TestEmailStatus.Idle)
+    val testEmailStatus: StateFlow<TestEmailStatus> = _testEmailStatus.asStateFlow()
+
+    private val _testEmailMessage = MutableStateFlow("")
+    val testEmailMessage: StateFlow<String> = _testEmailMessage.asStateFlow()
 
     val settings: StateFlow<BoothSettings> = settingsManager.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BoothSettings())
@@ -76,6 +90,65 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             settingsManager.update(transform)
         }
+    }
+
+    /**
+     * Sends a small placeholder JPEG to the given address using whatever's
+     * currently saved in DataStore (so the operator can verify the API key
+     * and From address work end-to-end before the event starts).
+     */
+    fun sendResendTestEmail(toAddress: String) {
+        val s = settings.value
+        _testEmailStatus.value = TestEmailStatus.Sending
+        _testEmailMessage.value = ""
+        viewModelScope.launch {
+            val placeholder = buildPlaceholderBitmap()
+            val result = resendEmailSender.send(
+                apiKey = s.resendApiKey,
+                fromAddress = s.resendFromAddress,
+                replyToAddress = s.resendReplyToAddress,
+                toAddress = toAddress.trim(),
+                subject = "SnapCabin test email",
+                htmlBody = "<p style=\"font-family:Helvetica,Arial,sans-serif;\">" +
+                    "This is a test from the SnapCabin admin screen. If you got it, " +
+                    "your Resend setup is working." +
+                    "</p>",
+                photo = placeholder
+            )
+            when (result) {
+                is ResendEmailSender.Result.Ok -> {
+                    _testEmailStatus.value = TestEmailStatus.Sent
+                    _testEmailMessage.value = "Sent. Check your inbox."
+                }
+                is ResendEmailSender.Result.Err -> {
+                    _testEmailStatus.value = TestEmailStatus.Failed
+                    _testEmailMessage.value = result.message
+                }
+            }
+        }
+    }
+
+    fun resetTestEmailState() {
+        _testEmailStatus.value = TestEmailStatus.Idle
+        _testEmailMessage.value = ""
+    }
+
+    private fun buildPlaceholderBitmap(): Bitmap {
+        val size = 512
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawColor(Color.rgb(0x9C, 0xAF, 0x88)) // sage
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(0x3A, 0x2E, 0x20)
+            textSize = 36f
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
+        }
+        canvas.drawText("SnapCabin", size / 2f, size / 2f - 8f, paint)
+        paint.textSize = 22f
+        paint.isFakeBoldText = false
+        canvas.drawText("Test email", size / 2f, size / 2f + 28f, paint)
+        return bmp
     }
 
     fun detectCameras() {

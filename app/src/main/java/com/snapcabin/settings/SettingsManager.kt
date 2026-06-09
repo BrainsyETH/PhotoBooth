@@ -52,7 +52,7 @@ data class BoothSettings(
     // Sharing
     val enableQrSharing: Boolean = true,
     val enableSaveToGallery: Boolean = true,
-    val enableShareIntent: Boolean = true,
+    val enableShareIntent: Boolean = false,
     val enablePrint: Boolean = true,
     val enableEmail: Boolean = true, // Gates the "Email me my photo" button (Resend)
 
@@ -61,8 +61,9 @@ data class BoothSettings(
     val resendEnabled: Boolean = false,
     val resendApiKey: String = "",
     val resendFromAddress: String = "",       // e.g. "SnapCabin <booth@yourdomain.com>"
-    val resendSubject: String = "Your photo from the booth",
-    val resendMaxPerSession: Int = 10,        // rate limit to prevent abuse
+    val resendReplyToAddress: String = "",    // optional; lands guest replies in the host's inbox
+    val resendSubject: String = "Your photo from {event}", // {event} expands to the event name
+    val resendMaxPerSession: Int = 3,         // rate limit to prevent abuse
     val resendMaxPerAddress: Int = 3,         // per-recipient cap (anti-spam, per event)
 
     // Cloudinary (public photo hosting for QR sharing — unsigned upload preset)
@@ -128,6 +129,7 @@ class SettingsManager @Inject constructor(
         val RESEND_ENABLED = booleanPreferencesKey("resend_enabled")
         val RESEND_API_KEY = stringPreferencesKey("resend_api_key")
         val RESEND_FROM_ADDRESS = stringPreferencesKey("resend_from_address")
+        val RESEND_REPLY_TO_ADDRESS = stringPreferencesKey("resend_reply_to_address")
         val RESEND_SUBJECT = stringPreferencesKey("resend_subject")
         val RESEND_MAX_PER_SESSION = intPreferencesKey("resend_max_per_session")
         val RESEND_MAX_PER_ADDRESS = intPreferencesKey("resend_max_per_address")
@@ -193,14 +195,15 @@ class SettingsManager @Inject constructor(
         attractSubtext = prefs[Keys.ATTRACT_SUBTEXT] ?: "A photo booth in the woods",
         enableQrSharing = prefs[Keys.ENABLE_QR] ?: true,
         enableSaveToGallery = prefs[Keys.ENABLE_SAVE_GALLERY] ?: true,
-        enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: true,
+        enableShareIntent = prefs[Keys.ENABLE_SHARE_INTENT] ?: false,
         enablePrint = prefs[Keys.ENABLE_PRINT] ?: true,
         enableEmail = prefs[Keys.ENABLE_EMAIL] ?: true,
         resendEnabled = prefs[Keys.RESEND_ENABLED] ?: false,
         resendApiKey = prefs[Keys.RESEND_API_KEY] ?: "",
         resendFromAddress = prefs[Keys.RESEND_FROM_ADDRESS] ?: "",
-        resendSubject = prefs[Keys.RESEND_SUBJECT] ?: "Your photo from the booth",
-        resendMaxPerSession = prefs[Keys.RESEND_MAX_PER_SESSION] ?: 10,
+        resendReplyToAddress = prefs[Keys.RESEND_REPLY_TO_ADDRESS] ?: "",
+        resendSubject = prefs[Keys.RESEND_SUBJECT] ?: "Your photo from {event}",
+        resendMaxPerSession = prefs[Keys.RESEND_MAX_PER_SESSION] ?: 3,
         resendMaxPerAddress = prefs[Keys.RESEND_MAX_PER_ADDRESS] ?: 3,
         cloudinaryEnabled = prefs[Keys.CLOUDINARY_ENABLED] ?: false,
         cloudinaryCloudName = prefs[Keys.CLOUDINARY_CLOUD_NAME] ?: "",
@@ -249,6 +252,7 @@ class SettingsManager @Inject constructor(
             prefs[Keys.RESEND_ENABLED] = updated.resendEnabled
             prefs[Keys.RESEND_API_KEY] = updated.resendApiKey
             prefs[Keys.RESEND_FROM_ADDRESS] = updated.resendFromAddress
+            prefs[Keys.RESEND_REPLY_TO_ADDRESS] = updated.resendReplyToAddress
             prefs[Keys.RESEND_SUBJECT] = updated.resendSubject
             prefs[Keys.RESEND_MAX_PER_SESSION] = updated.resendMaxPerSession
             prefs[Keys.RESEND_MAX_PER_ADDRESS] = updated.resendMaxPerAddress

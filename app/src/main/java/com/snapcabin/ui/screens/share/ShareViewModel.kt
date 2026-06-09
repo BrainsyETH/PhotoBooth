@@ -256,11 +256,12 @@ class ShareViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(message = "Sending to $to…")
 
             val htmlBody = buildHtmlBody(s, cachedPublicUrl)
-            val subject = s.resendSubject.ifBlank { "Your photo from the booth" }
+            val subject = renderSubject(s)
 
             val result = resendEmailSender.send(
                 apiKey = s.resendApiKey,
                 fromAddress = s.resendFromAddress,
+                replyToAddress = s.resendReplyToAddress,
                 toAddress = to,
                 subject = subject,
                 htmlBody = htmlBody,
@@ -275,10 +276,21 @@ class ShareViewModel @Inject constructor(
                 }
                 is ResendEmailSender.Result.Err -> {
                     appendToSendLog(s, "email", SendLog.maskEmail(to), "err", note = result.message)
-                    _uiState.value = _uiState.value.copy(message = result.message)
+                    val msg = if (result.isQuotaError && cachedPublicUrl != null) {
+                        "${result.message} Guests can still scan the QR."
+                    } else {
+                        result.message
+                    }
+                    _uiState.value = _uiState.value.copy(message = msg)
                 }
             }
         }
+    }
+
+    private fun renderSubject(s: BoothSettings): String {
+        val template = s.resendSubject.ifBlank { "Your photo from {event}" }
+        val event = s.eventName.ifBlank { "the booth" }
+        return template.replace("{event}", event)
     }
 
     private fun buildHtmlBody(s: BoothSettings, publicUrl: String?): String {
