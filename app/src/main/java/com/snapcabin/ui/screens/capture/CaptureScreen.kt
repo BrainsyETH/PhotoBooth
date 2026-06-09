@@ -150,10 +150,14 @@ fun CaptureScreen(
 
             // Branding overlay — corner logo sits over the live preview as a
             // composition guide so guests can see where the logo will land.
-            BrandingLiveOverlay(
-                settings = settings,
-                modifier = Modifier.fillMaxSize()
-            )
+            // Hidden for collage: its final 16:9 frame places the logo
+            // differently from a single 4:3 capture, so the guide would lie.
+            if (mode != CaptureMode.Collage) {
+                BrandingLiveOverlay(
+                    settings = settings,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             ShotIndicator(
                 mode = indicatorMode,
