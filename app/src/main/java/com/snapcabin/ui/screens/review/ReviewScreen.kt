@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import com.snapcabin.R
 import com.snapcabin.collage.CollageLayout
 import com.snapcabin.collage.CollageRenderer
+import com.snapcabin.settings.BoothSettings
+import com.snapcabin.ui.components.BrandingPreviewOverlay
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.Clay
@@ -75,7 +77,8 @@ fun ReviewScreen(
     photos: List<Bitmap>,
     autoAcceptSeconds: Int = 10,
     onAccept: (pickedIndex: Int) -> Unit,
-    onRetake: () -> Unit
+    onRetake: () -> Unit,
+    settings: BoothSettings = BoothSettings()
 ) {
     val total = photos.size
     val initialPick = if (total > 0) total / 2 else 0
@@ -127,9 +130,9 @@ fun ReviewScreen(
                 contentAlignment = Alignment.Center
             ) {
                 when (mode) {
-                    CaptureMode.Single -> SinglePreview(photos = photos, picked = picked)
-                    CaptureMode.Collage -> CollagePreview(photos = photos)
-                    CaptureMode.Gif -> GifPreview(photos = photos)
+                    CaptureMode.Single -> SinglePreview(photos = photos, picked = picked, settings = settings)
+                    CaptureMode.Collage -> CollagePreview(photos = photos, settings = settings)
+                    CaptureMode.Gif -> GifPreview(photos = photos, settings = settings)
                 }
             }
 
@@ -210,7 +213,7 @@ fun ReviewScreen(
 }
 
 @Composable
-private fun SinglePreview(photos: List<Bitmap>, picked: Int) {
+private fun SinglePreview(photos: List<Bitmap>, picked: Int, settings: BoothSettings) {
     val photo = photos.getOrNull(picked)
     Box(
         modifier = Modifier
@@ -229,6 +232,10 @@ private fun SinglePreview(photos: List<Bitmap>, picked: Int) {
                 contentScale = ContentScale.Crop
             )
         }
+        BrandingPreviewOverlay(
+            settings = settings,
+            modifier = Modifier.fillMaxSize()
+        )
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -250,7 +257,7 @@ private fun SinglePreview(photos: List<Bitmap>, picked: Int) {
 }
 
 @Composable
-private fun CollagePreview(photos: List<Bitmap>) {
+private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
     var rendered by remember { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(photos) {
@@ -289,11 +296,15 @@ private fun CollagePreview(photos: List<Bitmap>) {
                 modifier = Modifier.align(Alignment.Center)
             )
         }
+        BrandingPreviewOverlay(
+            settings = settings,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
 @Composable
-private fun GifPreview(photos: List<Bitmap>) {
+private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
     var frame by remember { mutableIntStateOf(0) }
     LaunchedEffect(photos) {
         if (photos.isEmpty()) return@LaunchedEffect
@@ -331,6 +342,10 @@ private fun GifPreview(photos: List<Bitmap>) {
                 contentScale = ContentScale.Crop
             )
         }
+        BrandingPreviewOverlay(
+            settings = settings,
+            modifier = Modifier.fillMaxSize()
+        )
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
