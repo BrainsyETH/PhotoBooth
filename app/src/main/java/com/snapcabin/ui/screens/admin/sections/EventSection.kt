@@ -64,6 +64,7 @@ private fun EventBlock(
     viewModel: AdminViewModel
 ) {
     var showStartDialog by remember { mutableStateOf(false) }
+    var showEndDialog by remember { mutableStateOf(false) }
     var newEventName by remember { mutableStateOf("") }
 
     Column(
@@ -137,6 +138,26 @@ private fun EventBlock(
             if (settings.currentEventName.isNotBlank()) {
                 BigButton(
                     text = "END EVENT",
+                    onClick = { showEndDialog = true },
+                    variant = BigButtonVariant.Surface
+                )
+            }
+        }
+    }
+
+    if (showEndDialog) {
+        AlertDialog(
+            onDismissRequest = { showEndDialog = false },
+            title = { Text("End \"${settings.currentEventName}\"?") },
+            text = {
+                Text(
+                    text = "New photos will upload to events/unassigned/ and per-guest email limits reset. This can't be undone — but you can start a fresh event any time.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Espresso.copy(alpha = 0.72f)
+                )
+            },
+            confirmButton = {
+                TextButton(
                     onClick = {
                         viewModel.updateSetting {
                             copy(
@@ -145,11 +166,14 @@ private fun EventBlock(
                                 currentEventStartedAt = 0L
                             )
                         }
-                    },
-                    variant = BigButtonVariant.Surface
-                )
+                        showEndDialog = false
+                    }
+                ) { Text("END EVENT") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDialog = false }) { Text("CANCEL") }
             }
-        }
+        )
     }
 
     if (showStartDialog) {
@@ -159,7 +183,7 @@ private fun EventBlock(
             text = {
                 Column {
                     Text(
-                        text = "Event name will scope the Cloudinary folder, audit log, and per-address email limits. Used through the event.",
+                        text = "Scopes the photo folder, audit log, and per-guest email limits — and becomes the headline on the welcome screen (editable under BRANDING).",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Espresso.copy(alpha = 0.72f)
                     )
@@ -192,7 +216,13 @@ private fun EventBlock(
                             copy(
                                 currentEventName = newEventName.trim(),
                                 currentEventSlug = slug,
-                                currentEventStartedAt = now
+                                currentEventStartedAt = now,
+                                // One name everywhere: starting an event also
+                                // sets the Attract headline + email {event}.
+                                // BRANDING's field stays an override for hosts
+                                // who want a fancier headline than the slug
+                                // source.
+                                eventName = newEventName.trim()
                             )
                         }
                         showStartDialog = false

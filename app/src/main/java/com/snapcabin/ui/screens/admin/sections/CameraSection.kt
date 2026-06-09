@@ -1,11 +1,13 @@
 package com.snapcabin.ui.screens.admin.sections
 
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,13 +19,18 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
@@ -51,7 +58,16 @@ internal fun CameraSection(
             Switch(
                 checked = settings.useFrontCamera,
                 onCheckedChange = { v -> viewModel.updateSetting { copy(useFrontCamera = v) } },
-                colors = adminSwitchColors()
+                colors = adminSwitchColors(),
+                enabled = settings.cameraId.isEmpty()
+            )
+        }
+        if (settings.cameraId.isNotEmpty()) {
+            Text(
+                text = "A specific camera is selected below, so this toggle is ignored. Choose \"Auto\" to use it again.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = Spacing.xs)
             )
         }
 
@@ -62,6 +78,12 @@ internal fun CameraSection(
                 colors = adminSwitchColors()
             )
         }
+        Text(
+            text = "Mirrored = photos match what guests see on screen, like a mirror. Most booths leave this on.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.6f),
+            modifier = Modifier.padding(horizontal = Spacing.xs)
+        )
 
         if (cameras.isNotEmpty()) {
             Column(
@@ -73,23 +95,28 @@ internal fun CameraSection(
                     .padding(Spacing.md)
             ) {
                 Text(
-                    "Available Cameras",
+                    "Camera",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Espresso.copy(alpha = 0.72f),
                     modifier = Modifier.padding(bottom = Spacing.s)
                 )
+                val autoSelected = settings.cameraId.isEmpty()
+                BigButton(
+                    text = "Auto (follows the Front Camera toggle)",
+                    onClick = { viewModel.updateSetting { copy(cameraId = "") } },
+                    variant = if (autoSelected) BigButtonVariant.Accent else BigButtonVariant.Surface,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = Spacing.xs)
+                )
                 cameras.forEach { cam ->
-                    val isSelected = settings.cameraId == cam.id ||
-                        (settings.cameraId.isEmpty() && !cam.isExternal && (
-                            (settings.useFrontCamera && cam.facing == "Front") ||
-                                (!settings.useFrontCamera && cam.facing == "Back")
-                            ))
+                    val isSelected = settings.cameraId == cam.id
                     val label = "${cam.facing} (ID: ${cam.id})${if (cam.isExternal) " — External" else ""}"
 
                     BigButton(
-                        text = if (isSelected) "● $label" else "○ $label",
+                        text = label,
                         onClick = { viewModel.updateSetting { copy(cameraId = cam.id) } },
-                        variant = if (isSelected) BigButtonVariant.Primary else BigButtonVariant.Surface,
+                        variant = if (isSelected) BigButtonVariant.Accent else BigButtonVariant.Surface,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = Spacing.xs)
@@ -97,6 +124,8 @@ internal fun CameraSection(
                 }
             }
         }
+
+        CameraPreviewBlock(settings = settings, viewModel = viewModel)
 
         Column(
             modifier = Modifier
@@ -121,6 +150,78 @@ internal fun CameraSection(
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(Spacing.s))
+            Text(
+                text = "Full-resolution photos make 3–8 MB email attachments. Medium keeps emails snappy and still looks great on phones.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+/**
+ * On-demand live preview so the operator can verify the selected camera and
+ * mirror setting without leaving admin. Deliberately opt-in (a button) rather
+ * than always-on: LazyColumn disposes off-screen items, and an always-bound
+ * preview would churn camera rebinds while scrolling the settings list.
+ */
+@Composable
+private fun CameraPreviewBlock(
+    settings: BoothSettings,
+    viewModel: AdminViewModel
+) {
+    var showPreview by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+            .padding(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s)
+    ) {
+        BigButton(
+            text = if (showPreview) "HIDE PREVIEW" else "TEST CAMERA",
+            onClick = { showPreview = !showPreview },
+            variant = if (showPreview) BigButtonVariant.Surface else BigButtonVariant.Primary,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (showPreview) {
+            // key() forces a fresh PreviewView + rebind whenever the operator
+            // changes camera selection or mirror while the preview is open.
+            key(settings.cameraId, settings.useFrontCamera, settings.mirrorImage) {
+                AndroidView(
+                    factory = { ctx ->
+                        PreviewView(ctx).also { previewView ->
+                            previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                            previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                            viewModel.cameraManager.bindCamera(
+                                lifecycleOwner = lifecycleOwner,
+                                previewView = previewView,
+                                useFront = settings.useFrontCamera,
+                                cameraId = settings.cameraId,
+                                mirror = settings.mirrorImage,
+                                maxResolution = settings.photoResolution.maxDimension
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .clip(RoundedCornerShape(Radii.xs))
+                )
+            }
+            DisposableEffect(Unit) {
+                onDispose { viewModel.cameraManager.release() }
+            }
+            Text(
+                text = "This is the camera guests will get. Capture screens rebind it automatically when you leave admin.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.6f)
+            )
         }
     }
 }
@@ -258,10 +359,16 @@ internal fun CaptureSection(
                 )
                 flashOptions.forEach { (label, hex) ->
                     val isSel = settings.flashColor.equals(hex, ignoreCase = true)
+                    // The button IS the swatch — painted in the actual flash
+                    // color so the operator isn't guessing what "Champagne" is.
+                    val swatch = remember(hex) {
+                        Color(android.graphics.Color.parseColor(hex))
+                    }
                     BigButton(
-                        text = label,
+                        text = if (isSel) "● $label" else label,
                         onClick = { viewModel.updateSetting { copy(flashColor = hex) } },
-                        variant = if (isSel) BigButtonVariant.Accent else BigButtonVariant.Surface
+                        containerColor = swatch,
+                        contentColor = Espresso
                     )
                 }
             }
@@ -275,14 +382,34 @@ internal fun CaptureSection(
             )
         }
 
-        SettingRow("Review Auto-Accept: ${if (settings.reviewAutoAcceptSeconds == 0) "Off" else "${settings.reviewAutoAcceptSeconds}s"}") {
-            Slider(
-                value = settings.reviewAutoAcceptSeconds.toFloat(),
-                onValueChange = { v -> viewModel.updateSetting { copy(reviewAutoAcceptSeconds = v.toInt()) } },
-                valueRange = 0f..30f,
-                steps = 29,
-                modifier = Modifier.width(200.dp),
-                colors = adminSliderColors()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(Radii.s))
+                .background(Cream)
+                .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+                .padding(Spacing.md)
+        ) {
+            Text(
+                "Review auto-accept",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Espresso
+            )
+            Spacer(modifier = Modifier.height(Spacing.s))
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                listOf(0 to "Off", 5 to "5s", 10 to "10s", 20 to "20s", 30 to "30s").forEach { (secs, label) ->
+                    BigButton(
+                        text = label,
+                        onClick = { viewModel.updateSetting { copy(reviewAutoAcceptSeconds = secs) } },
+                        variant = if (settings.reviewAutoAcceptSeconds == secs) BigButtonVariant.Accent else BigButtonVariant.Surface
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(Spacing.s))
+            Text(
+                text = "What guests see: a countdown on the USE THIS ONE button. When it hits zero the photo is accepted automatically — tapping anywhere pauses it. Off means guests must tap to continue.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.6f)
             )
         }
 

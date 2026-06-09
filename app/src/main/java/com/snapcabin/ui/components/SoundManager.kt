@@ -65,6 +65,25 @@ class SoundManager @Inject constructor() {
         }
     }
 
+    // Sample playback for the admin SOUND section — bypasses the enable
+    // flags because the operator explicitly tapped Play to audition the tone.
+
+    fun playShutterSample() {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_ACK, 200)
+        } catch (e: Exception) {
+            // Ignore audio errors
+        }
+    }
+
+    fun playBeepSample() {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+        } catch (e: Exception) {
+            // Ignore audio errors
+        }
+    }
+
     fun release() {
         toneGenerator?.release()
         toneGenerator = null

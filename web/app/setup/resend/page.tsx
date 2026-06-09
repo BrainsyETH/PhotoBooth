@@ -100,7 +100,7 @@ export default function ResendSetup() {
             before your event.)
           </li>
           <li>
-            Open <strong>EMAIL (RESEND)</strong> and turn on &ldquo;Enable
+            Open <strong>EMAIL DELIVERY</strong> and turn on &ldquo;Enable
             email delivery via Resend&rdquo;.
           </li>
           <li>

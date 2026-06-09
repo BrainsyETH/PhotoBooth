@@ -187,7 +187,7 @@ fun ShareScreen(
 
                     // Email is the primary off-tablet path when Cloudinary isn't set up;
                     // when it is, the QR above is primary and email is the keyboard fallback.
-                    if (settings.enableEmail && settings.resendEnabled) {
+                    if (settings.resendEnabled) {
                         BigButton(
                             text = stringResource(R.string.share_email),
                             onClick = { showEmailDialog = true },
@@ -324,7 +324,7 @@ private fun QrSharingBlock(
             // letting the slot disappear; otherwise a host who toggled QR on
             // would think the feature was broken.
             Text(
-                text = "QR sharing needs Cloudinary. Add it under CLOUDINARY PHOTO HOSTING in admin.",
+                text = "QR sharing needs Cloudinary. Add it under QR DOWNLOADS in admin.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.55f)
             )

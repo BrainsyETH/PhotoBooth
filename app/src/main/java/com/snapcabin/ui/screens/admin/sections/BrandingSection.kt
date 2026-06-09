@@ -69,18 +69,26 @@ internal fun BrandingSection(
     viewModel: AdminViewModel
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        var name by remember { mutableStateOf(settings.eventName) }
+        // Keyed on settings.eventName so Start Event's auto-fill (EVENT
+        // section) shows up here without re-entering admin.
+        var name by remember(settings.eventName) { mutableStateOf(settings.eventName) }
         OutlinedTextField(
             value = name,
             onValueChange = {
                 name = it
                 viewModel.updateSetting { copy(eventName = it) }
             },
-            label = { Text("Event Name (Attract headline)") },
+            label = { Text("Attract headline") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(Radii.s),
             colors = adminTextFieldColors()
+        )
+        Text(
+            text = "Set automatically when you start an event — edit here to show something different on the welcome screen.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.6f),
+            modifier = Modifier.padding(horizontal = Spacing.xs)
         )
 
         var sub by remember { mutableStateOf(settings.attractSubtext) }
@@ -147,9 +155,14 @@ internal fun BrandingSection(
 
 @Composable
 private fun BrandingPreview(settings: BoothSettings) {
-    // A neutral 4:3 stand-in photo (gradient + a faux subject) so the operator
-    // can see how the border/logo compose — including whether a corner logo
-    // overlaps the subject — without taking a real photo.
+    // Photo (4:3) vs Collage (16:9) — the two shapes branding actually lands
+    // on. Operators were judging collage placement against the photo preview.
+    var previewCollage by remember { mutableStateOf(false) }
+    val ratio = if (previewCollage) 16f / 9f else 4f / 3f
+
+    // A neutral stand-in (gradient + a faux subject) so the operator can see
+    // how the border/logo compose — including whether a corner logo overlaps
+    // the subject — without taking a real photo.
     //
     // The stand-in is rebuilt on every recompute: apply() paints in place on
     // mutable bitmaps, so reusing one source would accumulate ghost logos as
@@ -160,10 +173,11 @@ private fun BrandingPreview(settings: BoothSettings) {
         settings.customOverlayPath,
         settings.overlayPlacement,
         settings.overlayCorner,
-        settings.overlaySizePct
+        settings.overlaySizePct,
+        previewCollage
     ) {
         CustomBrandingRenderer.apply(
-            source = buildPreviewSource(),
+            source = buildPreviewSource(wide = previewCollage),
             borderPath = settings.customBorderPath,
             overlayPath = settings.customOverlayPath,
             overlayPlacement = settings.overlayPlacement,
@@ -182,30 +196,66 @@ private fun BrandingPreview(settings: BoothSettings) {
             .padding(Spacing.md),
         verticalArrangement = Arrangement.spacedBy(Spacing.s)
     ) {
-        Text(
-            text = "PREVIEW",
-            fontFamily = HankenGrotesk,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            color = Espresso.copy(alpha = 0.6f)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "PREVIEW",
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                color = Espresso.copy(alpha = 0.6f),
+                modifier = Modifier.weight(1f)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                PreviewModeChip("PHOTO", selected = !previewCollage) { previewCollage = false }
+                PreviewModeChip("COLLAGE", selected = previewCollage) { previewCollage = true }
+            }
+        }
         Image(
             bitmap = composed.asImageBitmap(),
             contentDescription = "Branding preview",
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(4f / 3f)
+                .aspectRatio(ratio)
                 .clip(RoundedCornerShape(Radii.xs))
         )
         Text(
             text = if (hasBranding) {
-                "Roughly how a 4:3 photo will look. Real photos vary in aspect ratio."
+                if (previewCollage) "How the 16:9 collage will carry your branding."
+                else "Roughly how a 4:3 photo will look."
             } else {
                 "Upload a border or logo below to see it composed here."
             },
             style = MaterialTheme.typography.bodySmall,
             color = Espresso.copy(alpha = 0.6f)
+        )
+    }
+}
+
+@Composable
+private fun PreviewModeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(Radii.xs))
+            .background(if (selected) Pine else Cream)
+            .border(1.dp, if (selected) Pine else CabinLine, RoundedCornerShape(Radii.xs))
+            .clickable(onClick = onClick)
+            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontFamily = HankenGrotesk,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+            color = if (selected) Color.White else Espresso.copy(alpha = 0.75f)
         )
     }
 }
@@ -330,9 +380,10 @@ private fun CornerCell(
 
 /** A neutral placeholder "photo" for the branding preview: a soft sage→cream
  *  gradient with a faux subject (head + shoulders) so corner logos can be
- *  judged against where a person would stand. */
-private fun buildPreviewSource(): android.graphics.Bitmap {
-    val w = 600
+ *  judged against where a person would stand. [wide] renders the collage's
+ *  16:9 shape instead of the photo's 4:3. */
+private fun buildPreviewSource(wide: Boolean = false): android.graphics.Bitmap {
+    val w = if (wide) 800 else 600
     val h = 450
     val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bmp)

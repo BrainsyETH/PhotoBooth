@@ -14,9 +14,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +56,32 @@ internal fun AuditSection(
     val entries = remember(settings.sendLogJson) { SendLog.parse(settings.sendLogJson) }
     val recent = entries.takeLast(50).reversed()
     val fmt = remember { SimpleDateFormat("MMM d, h:mm a", Locale.US) }
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text("Clear the send log?") },
+            text = {
+                Text(
+                    text = "Deletes all ${entries.size} entries — your only record of which guests were sent photos. This can't be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Espresso.copy(alpha = 0.72f)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.updateSetting { copy(sendLogJson = "[]") }
+                        showClearDialog = false
+                    }
+                ) { Text("CLEAR LOG") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) { Text("CANCEL") }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -72,7 +104,7 @@ internal fun AuditSection(
             )
             BigButton(
                 text = "CLEAR LOG",
-                onClick = { viewModel.updateSetting { copy(sendLogJson = "[]") } },
+                onClick = { showClearDialog = true },
                 variant = BigButtonVariant.Surface
             )
         }

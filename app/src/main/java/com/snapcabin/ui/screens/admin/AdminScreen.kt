@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -58,7 +60,6 @@ import com.snapcabin.ui.screens.admin.sections.ModesSection
 import com.snapcabin.ui.screens.admin.sections.ResendSection
 import com.snapcabin.ui.screens.admin.sections.ShareSection
 import com.snapcabin.ui.screens.admin.sections.SoundSection
-import com.snapcabin.ui.screens.admin.sections.ToolsSection
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.Clay
 import com.snapcabin.ui.theme.Cream
@@ -71,6 +72,7 @@ import com.snapcabin.ui.theme.Parchment
 import com.snapcabin.ui.theme.Pine
 import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val SETUP_GUIDE_RESEND = "https://snapcabin.app/setup/resend"
@@ -99,15 +101,30 @@ fun AdminScreen(
                 showDefaultHint = settings.adminPin == "1234"
             )
         } else {
+            val listState = rememberLazyListState()
+            val scope = rememberCoroutineScope()
+            val clickedIndexState = remember { mutableStateOf<Int?>(null) }
+
+            // Reassigned right after `sections` is built; content lambdas only
+            // invoke it at click time, long after assignment. Lets the
+            // GET STARTED checklist deep-link into other sections.
+            var jumpToSection: (String) -> Unit = {}
+
+            // Section order follows the operator's setup journey: identity
+            // first (event, branding), then the guest experience, then
+            // delivery, then device/maintenance.
             val sections = listOf(
                 AdminSection("getstarted", "GET STARTED") {
-                    GetStartedSection(settings = settings)
+                    GetStartedSection(
+                        settings = settings,
+                        onJumpTo = { key -> jumpToSection(key) }
+                    )
                 },
                 AdminSection("event", "EVENT") {
                     EventSection(settings = settings, viewModel = viewModel)
                 },
-                AdminSection("camera", "CAMERA") {
-                    CameraSection(settings = settings, cameras = cameras, viewModel = viewModel)
+                AdminSection("branding", "BRANDING") {
+                    BrandingSection(settings = settings, viewModel = viewModel)
                 },
                 AdminSection("modes", "MODES") {
                     ModesSection(settings = settings, viewModel = viewModel)
@@ -115,46 +132,54 @@ fun AdminScreen(
                 AdminSection("capture", "CAPTURE") {
                     CaptureSection(settings = settings, viewModel = viewModel)
                 },
-                AdminSection("sound", "SOUND") {
-                    SoundSection(settings = settings, viewModel = viewModel)
-                },
                 AdminSection("share", "SHARE OPTIONS") {
                     ShareSection(settings = settings, viewModel = viewModel)
                 },
                 AdminSection(
                     key = "resend",
-                    label = "EMAIL (RESEND)",
+                    label = "EMAIL DELIVERY",
                     helpUrl = SETUP_GUIDE_RESEND
                 ) {
                     ResendSection(settings = settings, viewModel = viewModel)
                 },
                 AdminSection(
                     key = "cloudinary",
-                    label = "CLOUDINARY PHOTO HOSTING",
+                    label = "QR DOWNLOADS",
                     helpUrl = SETUP_GUIDE_CLOUDINARY
                 ) {
                     CloudinarySection(settings = settings, viewModel = viewModel)
                 },
+                AdminSection("camera", "CAMERA") {
+                    CameraSection(settings = settings, cameras = cameras, viewModel = viewModel)
+                },
+                AdminSection("sound", "SOUND") {
+                    SoundSection(settings = settings, viewModel = viewModel)
+                },
                 AdminSection("kiosk", "KIOSK") {
                     KioskSection(settings = settings, viewModel = viewModel)
-                },
-                AdminSection("branding", "BRANDING") {
-                    BrandingSection(settings = settings, viewModel = viewModel)
                 },
                 AdminSection("audit", "AUDIT LOG") {
                     AuditSection(settings = settings, viewModel = viewModel)
                 },
-                AdminSection("tools", "TOOLS") {
-                    ToolsSection(onGallery = onGallery)
-                },
-                AdminSection("about", "ABOUT") {
-                    AboutSection(onPrivacyPolicy = onPrivacyPolicy)
+                AdminSection("about", "TOOLS & ABOUT") {
+                    AboutSection(onGallery = onGallery, onPrivacyPolicy = onPrivacyPolicy)
                 }
             )
 
+            jumpToSection = { key ->
+                val i = sections.indexOfFirst { it.key == key }
+                if (i >= 0) {
+                    clickedIndexState.value = i
+                    // +1 skips the LazyColumn's title item.
+                    scope.launch { listState.animateScrollToItem(i + 1) }
+                }
+            }
+
             AdminContent(
                 sections = sections,
-                onDismiss = onDismiss
+                onDismiss = onDismiss,
+                listState = listState,
+                clickedIndexState = clickedIndexState
             )
         }
     }
@@ -163,9 +188,10 @@ fun AdminScreen(
 @Composable
 private fun AdminContent(
     sections: List<AdminSection>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    listState: LazyListState,
+    clickedIndexState: MutableState<Int?>
 ) {
-    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     // The LazyColumn has a title item at index 0 and a close button at the end.
@@ -174,8 +200,9 @@ private fun AdminContent(
     // Track the side-nav-clicked index so the highlight updates immediately,
     // even when the LazyColumn can't scroll the bottom sections all the way
     // to the top. Reset to null when the user scrolls manually so the
-    // firstVisibleItemIndex-derived highlight takes over again.
-    var clickedIndex by remember { mutableStateOf<Int?>(null) }
+    // firstVisibleItemIndex-derived highlight takes over again. Hoisted to
+    // AdminScreen so the GET STARTED checklist's deep links share it.
+    var clickedIndex by clickedIndexState
     val scrolledIndex by remember {
         derivedStateOf {
             val first = listState.firstVisibleItemIndex
@@ -363,6 +390,32 @@ private fun SideNavItem(
     }
 }
 
+/**
+ * Process-wide PIN attempt throttle. Deliberately not persisted — it's a
+ * speed bump against a bored guest grinding 4-digit PINs at the kiosk, not a
+ * vault. Living outside composition means backing out of the PIN screen and
+ * re-entering doesn't reset the lockout.
+ */
+private object PinGuard {
+    const val MAX_ATTEMPTS = 5
+    const val LOCKOUT_MS = 30_000L
+    var failedAttempts = 0
+    var lockedUntilMs = 0L
+
+    fun registerFailure(now: Long) {
+        failedAttempts++
+        if (failedAttempts >= MAX_ATTEMPTS) {
+            lockedUntilMs = now + LOCKOUT_MS
+            failedAttempts = 0
+        }
+    }
+
+    fun reset() {
+        failedAttempts = 0
+        lockedUntilMs = 0L
+    }
+}
+
 @Composable
 private fun PinEntry(
     onPinSubmit: (String) -> Boolean,
@@ -371,6 +424,16 @@ private fun PinEntry(
 ) {
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
+
+    var lockRemainingS by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            lockRemainingS = ((PinGuard.lockedUntilMs - System.currentTimeMillis()) / 1000L)
+                .coerceAtLeast(0L).toInt()
+            delay(250)
+        }
+    }
+    val locked = lockRemainingS > 0
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -418,10 +481,19 @@ private fun PinEntry(
                 )
             }
 
-            if (error) {
+            if (error && !locked) {
                 Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
                     text = "Incorrect PIN",
+                    color = Clay,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (locked) {
+                Spacer(modifier = Modifier.height(Spacing.s))
+                Text(
+                    text = "Too many attempts — try again in ${lockRemainingS}s",
                     color = Clay,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -438,12 +510,16 @@ private fun PinEntry(
                 BigButton(
                     text = "ENTER",
                     onClick = {
-                        if (!onPinSubmit(pin)) {
+                        if (onPinSubmit(pin)) {
+                            PinGuard.reset()
+                        } else {
+                            PinGuard.registerFailure(System.currentTimeMillis())
                             error = true
                             pin = ""
                         }
                     },
-                    variant = BigButtonVariant.Primary
+                    variant = BigButtonVariant.Primary,
+                    enabled = !locked
                 )
             }
         }

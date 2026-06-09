@@ -2,6 +2,7 @@ package com.snapcabin.ui.screens.admin.sections
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +33,10 @@ import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
 
 @Composable
-internal fun GetStartedSection(settings: BoothSettings) {
+internal fun GetStartedSection(
+    settings: BoothSettings,
+    onJumpTo: (String) -> Unit = {}
+) {
     val pinChanged = settings.adminPin != "1234"
     val eventStarted = settings.currentEventName.isNotBlank()
 
@@ -49,7 +53,7 @@ internal fun GetStartedSection(settings: BoothSettings) {
 
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Text(
-            text = "A quick checklist before guests arrive. Each item links to the section that finishes it.",
+            text = "A quick checklist before guests arrive. Tap any item to jump to the section that finishes it.",
             style = MaterialTheme.typography.bodyMedium,
             color = Espresso.copy(alpha = 0.75f)
         )
@@ -71,17 +75,20 @@ internal fun GetStartedSection(settings: BoothSettings) {
         ChecklistRow(
             done = pinChanged,
             label = "Change the admin PIN",
-            hint = if (pinChanged) "No longer the default." else "Still 1234 — change it under KIOSK so guests can't reach settings."
+            hint = if (pinChanged) "No longer the default." else "Still 1234 — tap to set a new one under KIOSK.",
+            onClick = { onJumpTo("kiosk") }
         )
         ChecklistRow(
             done = eventStarted,
             label = "Start your event",
-            hint = if (eventStarted) "Active: ${settings.currentEventName}." else "Name it under EVENT so photos, logs, and limits are scoped to it."
+            hint = if (eventStarted) "Active: ${settings.currentEventName}." else "Tap to name it under EVENT — photos, logs, and limits get scoped to it.",
+            onClick = { onJumpTo("event") }
         )
         ChecklistRow(
             done = deliveryReady,
             label = "Set up photo delivery",
-            hint = if (deliveryReady) "Guests can get their photos." else "Turn on Email under EMAIL (RESEND), or QR under CLOUDINARY PHOTO HOSTING."
+            hint = if (deliveryReady) "Guests can get their photos." else "Tap to set up EMAIL DELIVERY (or QR DOWNLOADS for scan-to-save).",
+            onClick = { onJumpTo("resend") }
         )
 
         Spacer(modifier = Modifier.height(Spacing.xs))
@@ -89,7 +96,8 @@ internal fun GetStartedSection(settings: BoothSettings) {
             emailTone = emailTone(settings.resendEnabled, emailConfigured, emailVerified),
             emailLabel = emailLabel(settings.resendEnabled, emailConfigured, emailVerified),
             qrTone = qrTone(settings.cloudinaryEnabled, qrConfigured, qrVerified),
-            qrLabel = qrLabel(settings.cloudinaryEnabled, qrConfigured, qrVerified)
+            qrLabel = qrLabel(settings.cloudinaryEnabled, qrConfigured, qrVerified),
+            onJumpTo = onJumpTo
         )
     }
 }
@@ -127,7 +135,8 @@ private fun DeliverySummary(
     emailTone: StatusTone,
     emailLabel: String,
     qrTone: StatusTone,
-    qrLabel: String
+    qrLabel: String,
+    onJumpTo: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -139,14 +148,18 @@ private fun DeliverySummary(
         verticalArrangement = Arrangement.spacedBy(Spacing.s)
     ) {
         Text(
-            text = "DELIVERY METHODS",
+            text = "DELIVERY METHODS · tap to configure",
             fontFamily = HankenGrotesk,
             fontWeight = FontWeight.Bold,
             fontSize = 11.sp,
             color = Espresso.copy(alpha = 0.6f)
         )
-        DeliveryRow("Email", "Photo as an attachment via Resend", emailLabel, emailTone)
-        DeliveryRow("QR code", "Scan-to-download via Cloudinary", qrLabel, qrTone)
+        DeliveryRow("Email", "Photo as an attachment via Resend", emailLabel, emailTone) {
+            onJumpTo("resend")
+        }
+        DeliveryRow("QR code", "Scan-to-download via Cloudinary", qrLabel, qrTone) {
+            onJumpTo("cloudinary")
+        }
     }
 }
 
@@ -155,10 +168,15 @@ private fun DeliveryRow(
     name: String,
     desc: String,
     statusLabel: String,
-    statusTone: StatusTone
+    statusTone: StatusTone,
+    onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.xs))
+            .clickable(onClick = onClick)
+            .padding(vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)
     ) {
