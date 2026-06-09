@@ -72,6 +72,15 @@ class AdminViewModel @Inject constructor(
     private val _availableCameras = MutableStateFlow<List<CameraInfo>>(emptyList())
     val availableCameras: StateFlow<List<CameraInfo>> = _availableCameras.asStateFlow()
 
+    /**
+     * Number of raw USB devices the tablet currently sees. The key external-
+     * camera diagnostic: a webcam can be plugged in (count > 0) while Android's
+     * camera service exposes no LENS_FACING_EXTERNAL camera — without surfacing
+     * both facts the operator can't tell a bad cable from an unsupported tablet.
+     */
+    private val _usbDeviceCount = MutableStateFlow(0)
+    val usbDeviceCount: StateFlow<Int> = _usbDeviceCount.asStateFlow()
+
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             // Re-enumerate when a USB camera is plugged or unplugged
@@ -204,6 +213,11 @@ class AdminViewModel @Inject constructor(
     }
 
     fun detectCameras() {
+        _usbDeviceCount.value = try {
+            (context.getSystemService(Context.USB_SERVICE) as? UsbManager)?.deviceList?.size ?: 0
+        } catch (e: Exception) {
+            0
+        }
         try {
             val systemCameraManager = context.getSystemService(Context.CAMERA_SERVICE) as SystemCameraManager
             val cameras = systemCameraManager.cameraIdList.map { id ->

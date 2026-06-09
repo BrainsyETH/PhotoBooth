@@ -160,6 +160,28 @@ or rear), whether to mirror the front camera, and the photo resolution.
 Make sure the **LOOK HERE** pointer ends up next to the lens guests
 should look at.
 
+### Using an external (USB) camera
+
+For better image quality you can plug a USB webcam — or a camera that
+offers a "webcam mode" — into the tablet's USB-C port (use an OTG
+adapter or a powered hub if the camera needs more power).
+
+1. Plug the camera in **before the event**, while you're in admin.
+2. Open **CAMERA** and check the **External camera (USB)** box. It tells
+   you whether the tablet sees the USB device and whether Android is
+   exposing it as a camera. Tap **REFRESH CAMERAS** after plugging in.
+3. When it appears in the camera list marked **— External**, select it,
+   turn **Mirror Image** off (external cameras face guests like a rear
+   camera), and run **TEST CAMERA** to confirm the live preview.
+4. Take one full test photo end-to-end before guests arrive.
+
+If the USB device is detected but never shows up as a camera, that
+tablet's Android build doesn't support USB (UVC) cameras — not every
+tablet does. The booth works fine on the built-in camera; if an external
+camera matters, test the exact tablet + camera pair before event day.
+Keep the camera plugged in for the whole event: if it disconnects
+mid-session the booth automatically falls back to a built-in camera.
+
 ## 5. Tune the guest experience (optional)
 
 These sections are all optional — sensible defaults are already set:
