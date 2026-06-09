@@ -99,6 +99,14 @@ class CameraManager @Inject constructor(
         return usbManager?.deviceList?.isNotEmpty() == true
     }
 
+    /**
+     * True when Android is exposing at least one external (USB/UVC) camera.
+     * Used to decide whether to request RECORD_AUDIO before opening it — UVC
+     * cameras are composite audio+video devices the camera service won't open
+     * without that permission.
+     */
+    fun hasExternalCamera(): Boolean = detectCameras().any { it.isExternal }
+
     fun bindCamera(
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView,

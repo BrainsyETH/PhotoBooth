@@ -173,7 +173,16 @@ adapter or a powered hub if the camera needs more power).
 3. When it appears in the camera list marked **— External**, select it,
    turn **Mirror Image** off (external cameras face guests like a rear
    camera), and run **TEST CAMERA** to confirm the live preview.
-4. Take one full test photo end-to-end before guests arrive.
+4. **Allow the microphone prompt.** USB cameras are audio+video devices,
+   so Android won't open one unless the app has microphone permission.
+   SnapCabin never records audio — it only needs the permission to turn
+   the camera on. Tap **Allow**; if you tap Deny the external camera won't
+   start. (Built-in cameras never ask for this.)
+5. Take one full test photo end-to-end before guests arrive.
+
+> **Sounds:** booth beeps and the shutter play on the tablet's **media**
+> volume. If you can't hear them, turn media volume up and make sure the
+> tablet isn't in Do Not Disturb.
 
 If the USB device is detected but never shows up as a camera, that
 tablet's Android build doesn't support USB (UVC) cameras — not every

@@ -19,6 +19,14 @@
         android:requiresSmallestWidthDp="600" />
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <!--
+      USB (UVC) cameras present as composite audio+video devices, and Android's
+      camera service refuses to OPEN them unless RECORD_AUDIO is granted — even
+      for still capture. SnapCabin never records or transmits audio; it requests
+      this permission at runtime ONLY when an external camera is connected, and
+      built-in-camera setups are never prompted. See docs/DATA_SAFETY.md.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
