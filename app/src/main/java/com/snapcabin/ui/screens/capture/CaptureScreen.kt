@@ -88,8 +88,9 @@ fun CaptureScreen(
     LaunchedEffect(Unit) {
         val perms = buildList {
             add(Manifest.permission.CAMERA)
-            // Only ask for the mic when a USB camera is actually attached.
-            if (viewModel.cameraManager.hasExternalCamera()) {
+            // Ask for the mic when any USB device is attached — the camera
+            // service won't open a UVC camera without RECORD_AUDIO.
+            if (viewModel.cameraManager.needsAudioPermissionForExternal()) {
                 add(Manifest.permission.RECORD_AUDIO)
             }
         }

@@ -1,5 +1,6 @@
 package com.snapcabin.ui.screens.admin.sections
 
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
@@ -31,8 +32,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
@@ -47,6 +50,7 @@ import com.snapcabin.ui.screens.admin.adminTextFieldColors
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.Cream
 import com.snapcabin.ui.theme.Espresso
+import com.snapcabin.ui.theme.Pine
 import com.snapcabin.ui.theme.Radii
 import com.snapcabin.ui.theme.Spacing
 
@@ -180,6 +184,24 @@ private fun ExternalCameraStatusBlock(
     val usbCount by viewModel.usbDeviceCount.collectAsState()
     val hasExternal = cameras.any { it.isExternal }
 
+    val context = LocalContext.current
+    // Bumped after each grant attempt so the check below re-runs.
+    var micCheckTick by remember { mutableStateOf(0) }
+    val micGranted = remember(micCheckTick) {
+        ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+    // True once a request came back denied WITHOUT Android showing a dialog —
+    // either "don't ask again" or a stale install missing the manifest entry.
+    var micRequestDenied by remember { mutableStateOf(false) }
+    val micLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        micCheckTick++
+        if (!granted) micRequestDenied = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -211,6 +233,44 @@ private fun ExternalCameraStatusBlock(
             style = MaterialTheme.typography.bodySmall,
             color = Espresso.copy(alpha = 0.7f)
         )
+
+        // USB cameras are audio+video devices: Android won't open one without
+        // microphone permission. Make the grant an explicit, visible step
+        // instead of hoping a hidden prompt fires at the right moment.
+        if (usbCount > 0 || hasExternal) {
+            if (micGranted) {
+                Text(
+                    text = "✓ Microphone access granted (needed only to open USB cameras — no audio is recorded).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Pine
+                )
+            } else {
+                Text(
+                    text = "USB cameras need microphone permission to turn on — Android treats them as " +
+                        "audio+video devices. SnapCabin never records audio.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Espresso.copy(alpha = 0.7f)
+                )
+                BigButton(
+                    text = "ALLOW MICROPHONE ACCESS",
+                    onClick = {
+                        micRequestDenied = false
+                        micLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                    },
+                    variant = BigButtonVariant.Primary
+                )
+                if (micRequestDenied) {
+                    Text(
+                        text = "Android denied without asking. Open Android Settings → Apps → SnapCabin → " +
+                            "Permissions and allow Microphone there. If Microphone isn't listed at all, " +
+                            "the installed app is an older build — reinstall the latest version.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Espresso.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+
         BigButton(
             text = "REFRESH CAMERAS",
             onClick = { viewModel.detectCameras() },
@@ -258,7 +318,7 @@ private fun CameraPreviewBlock(
                 } else {
                     val perms = buildList {
                         add(android.Manifest.permission.CAMERA)
-                        if (viewModel.cameraManager.hasExternalCamera()) {
+                        if (viewModel.cameraManager.needsAudioPermissionForExternal()) {
                             add(android.Manifest.permission.RECORD_AUDIO)
                         }
                     }
