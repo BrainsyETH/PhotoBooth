@@ -130,8 +130,9 @@
     <string name="review_use_this">Use this one</string>
     <string name="review_retake_all">← Retake all</string>
     <string name="review_caption_single">Tap a shot above to choose your favorite</string>
+    <string name="review_caption_single_one">Happy with it? Take one home.</string>
     <string name="review_caption_collage">Looks great. Take one home?</string>
-    <string name="review_caption_gif">Looping at 8 fps</string>
+    <string name="review_caption_gif">Your GIF, on a loop</string>
 
     <!-- Privacy -->
     <string name="privacy_title">Privacy Policy</string>

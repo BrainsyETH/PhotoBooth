@@ -60,11 +60,34 @@ internal fun KioskSection(
             )
         }
         Text(
-            text = "Locks the tablet to SnapCabin for the event: status bar, navigation, and other apps are blocked, and the screen stays on while plugged in. Exiting requires the admin PIN. Full lockdown needs one-time Device Owner provisioning over USB (see the kiosk setup guide) — without it this is a best-effort lock.",
+            text = "Locks the tablet to SnapCabin for the event: the status bar, navigation buttons, and other apps are blocked, and the screen stays on while it's plugged in. You can always get back out from here — turn this off, or tap “Exit kiosk mode” below (you're already past the PIN). For the strongest lock-down, a one-time setup with a computer is needed; without it this is a best-effort lock that some tablets can still be backed out of.",
             style = MaterialTheme.typography.bodySmall,
             color = Espresso.copy(alpha = 0.6f),
             modifier = Modifier.padding(horizontal = Spacing.xs)
         )
+
+        if (settings.kioskModeEnabled) {
+            var exitMessage by remember { mutableStateOf("") }
+            BigButton(
+                text = "EXIT KIOSK MODE",
+                onClick = {
+                    // Flipping the setting off makes MainActivity release
+                    // lock-task; the host can then leave the app or press home.
+                    viewModel.updateSetting { copy(kioskModeEnabled = false) }
+                    exitMessage = "Unlocked. You can now leave the app or press home."
+                },
+                variant = BigButtonVariant.Secondary,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (exitMessage.isNotEmpty()) {
+                Text(
+                    text = exitMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Pine,
+                    modifier = Modifier.padding(horizontal = Spacing.xs)
+                )
+            }
+        }
 
         Column(
             modifier = Modifier

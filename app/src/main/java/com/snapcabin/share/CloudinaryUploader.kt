@@ -44,14 +44,36 @@ class CloudinaryUploader @Inject constructor() {
         uploadPreset: String,
         bitmap: Bitmap,
         folder: String? = null
-    ): Result = withContext(Dispatchers.IO) {
-        if (cloudName.isBlank() || uploadPreset.isBlank()) {
-            return@withContext Result.Err("Cloudinary isn't configured.")
-        }
-
+    ): Result {
         val jpegBytes = ByteArrayOutputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
             out.toByteArray()
+        }
+        return uploadBytes(
+            cloudName = cloudName,
+            uploadPreset = uploadPreset,
+            fileBytes = jpegBytes,
+            filename = "photo.jpg",
+            contentType = "image/jpeg",
+            folder = folder
+        )
+    }
+
+    /**
+     * Uploads already-encoded image bytes (JPEG or animated GIF) to the same
+     * unsigned /image/upload endpoint. Cloudinary serves GIFs back as animated
+     * GIFs, so the QR/email link the booth hands out keeps moving.
+     */
+    suspend fun uploadBytes(
+        cloudName: String,
+        uploadPreset: String,
+        fileBytes: ByteArray,
+        filename: String,
+        contentType: String,
+        folder: String? = null
+    ): Result = withContext(Dispatchers.IO) {
+        if (cloudName.isBlank() || uploadPreset.isBlank()) {
+            return@withContext Result.Err("Cloudinary isn't configured.")
         }
 
         val boundary = "----snapcabin${System.currentTimeMillis()}"
@@ -74,7 +96,7 @@ class CloudinaryUploader @Inject constructor() {
                 if (!folder.isNullOrBlank()) {
                     writeFormField(out, boundary, "folder", folder)
                 }
-                writeFileField(out, boundary, "file", "photo.jpg", "image/jpeg", jpegBytes)
+                writeFileField(out, boundary, "file", filename, contentType, fileBytes)
                 out.writeBytes("--$boundary--\r\n")
                 out.flush()
             }

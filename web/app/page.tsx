@@ -1,16 +1,32 @@
 import Image from "next/image";
 import Link from "next/link";
+import { PLAY_STORE_URL, PRICE, SUPPORT_MAILTO } from "@/lib/links";
 
 export default function Home() {
   return (
     <main className="mx-auto max-w-5xl px-6 pb-24 pt-16 sm:pt-24">
       <Hero />
       <Features />
+      <Screenshots />
+      <PrivacyBand />
       <HowItWorks />
       <Integrations />
       <Faq />
       <Footer />
     </main>
+  );
+}
+
+/** Primary Play Store call-to-action, used in the hero, after How-It-Works,
+ *  and in the footer. Price lives on the button itself. */
+function PlayStoreButton({ className = "" }: { className?: string }) {
+  return (
+    <a
+      href={PLAY_STORE_URL}
+      className={`rounded-2xl bg-pine px-6 py-3 text-center font-sans text-base font-semibold text-white no-underline shadow-sm transition hover:bg-pine-deep ${className}`}
+    >
+      Get SnapCabin — {PRICE} on Google Play
+    </a>
   );
 }
 
@@ -28,30 +44,49 @@ function Hero() {
         priority
         className="h-auto w-full max-w-xl"
       />
+      <h1 className="font-display text-4xl font-bold text-espresso sm:text-5xl">
+        The photo booth that lives on your tablet.
+      </h1>
       <p className="max-w-xl text-lg leading-relaxed text-espresso/85">
-        A photo booth for an Android tablet. Guests snap their photo, pick
-        how they want it, and walk away with it in their inbox. Runs on the
-        tablet you bring, with the integrations you connect.
+        Guests snap their photo, pick how they want it, and walk away with it in
+        their inbox. Runs on the tablet you already own. Photos go straight to
+        your guests.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-4">
+        <PlayStoreButton />
         <Link
           href="/setup"
-          className="rounded-2xl bg-pine px-6 py-3 font-sans text-base font-semibold text-cream no-underline shadow-sm transition hover:bg-pine-deep"
+          className="rounded-2xl border border-walnut/40 px-6 py-3 font-sans text-base font-semibold text-walnut no-underline transition hover:border-walnut hover:text-walnut-deep"
         >
           See how to set it up
         </Link>
-        <a
-          href="mailto:hello@snapcabin.app"
-          className="rounded-2xl border border-walnut/40 px-6 py-3 font-sans text-base font-semibold text-walnut no-underline transition hover:border-walnut hover:text-walnut-deep"
-        >
-          Ask a question
-        </a>
       </div>
-      <p className="text-sm text-espresso/70">
-        <span className="font-sans font-semibold text-espresso">$2.99</span>{" "}
-        one-time on Google Play · runs on the tablet you already own
+      <p className="max-w-xl text-base italic leading-relaxed text-espresso/70">
+        Like a little cabin: everything it needs is inside, and nobody else has
+        a key.
       </p>
+      <HeroDevice />
     </section>
+  );
+}
+
+/** Tablet-on-a-stand framing for the hero screenshot. */
+function HeroDevice() {
+  return (
+    <div className="mt-6 flex w-full max-w-md flex-col items-center">
+      <div className="w-full rounded-[2rem] border-[10px] border-espresso/85 bg-espresso/85 p-1 shadow-xl">
+        <ScreenshotFrame
+          src="/screenshots/hero-tablet.png"
+          label="hero-tablet.png"
+          alt="SnapCabin running on a tablet"
+          className="aspect-[4/5] rounded-[1.5rem]"
+          priority
+        />
+      </div>
+      {/* simple stand */}
+      <div className="h-10 w-2 bg-espresso/70" />
+      <div className="h-2 w-40 rounded-full bg-espresso/70" />
+    </div>
   );
 }
 
@@ -67,7 +102,7 @@ function Features() {
     },
     {
       title: "Photos straight to a guest's inbox",
-      body: "Guests type their email and the photo arrives as an attachment over your venue's WiFi. A QR code option lets them scan and download too. Both run through services you connect (Resend and Cloudinary).",
+      body: "Guests type their email and the photo arrives as an attachment. A QR code option lets them scan and download too.",
     },
     {
       title: "Make it look like your event",
@@ -75,7 +110,7 @@ function Features() {
     },
     {
       title: "Your photos stay yours",
-      body: "Photos live on the tablet, or in your own Cloudinary account if you wire one up. SnapCabin never holds copies.",
+      body: "Photos live on the tablet, or in your own photo-hosting account if you wire one up. SnapCabin never holds copies.",
     },
     {
       title: "A history of every send",
@@ -100,6 +135,107 @@ function FeatureCard({ title, body }: { title: string; body: string }) {
   );
 }
 
+/** Three-screenshot strip: attract → capture → share. */
+function Screenshots() {
+  const shots = [
+    {
+      src: "/screenshots/attract.png",
+      label: "attract.png",
+      caption: "Attract",
+      alt: "SnapCabin attract screen inviting guests to tap to start",
+    },
+    {
+      src: "/screenshots/capture.png",
+      label: "capture.png",
+      caption: "Capture",
+      alt: "SnapCabin capture screen with photo, collage, and GIF options",
+    },
+    {
+      src: "/screenshots/share.png",
+      label: "share.png",
+      caption: "Share",
+      alt: "SnapCabin share screen with email entry and a QR code",
+    },
+  ];
+  return (
+    <section className="mt-20" aria-label="What guests see">
+      <div className="grid gap-6 sm:grid-cols-3">
+        {shots.map((s) => (
+          <figure key={s.src} className="flex flex-col items-center gap-3">
+            <ScreenshotFrame
+              src={s.src}
+              label={s.label}
+              alt={s.alt}
+              className="aspect-[2/3] w-full rounded-3xl border border-walnut/15"
+            />
+            <figcaption className="font-sans text-sm font-semibold uppercase tracking-widest text-honey-deep">
+              {s.caption}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Renders a screenshot with a clearly-labeled "REPLACE" overlay so the
+ *  parchment placeholders read as placeholders until real PNGs arrive. */
+function ScreenshotFrame({
+  src,
+  label,
+  alt,
+  className = "",
+  priority = false,
+}: {
+  src: string;
+  label: string;
+  alt: string;
+  className?: string;
+  priority?: boolean;
+}) {
+  return (
+    <div className={`relative overflow-hidden bg-parchment ${className}`}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 640px) 100vw, 33vw"
+        priority={priority}
+        className="object-cover"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 flex items-center justify-center p-4 text-center font-sans text-sm font-semibold uppercase tracking-widest text-walnut/70"
+      >
+        REPLACE: {label}
+      </span>
+    </div>
+  );
+}
+
+function PrivacyBand() {
+  return (
+    <section className="mt-20 rounded-3xl border border-pine/20 bg-pine/5 px-8 py-12 text-center">
+      <h2 className="font-display text-3xl font-bold text-espresso sm:text-4xl">
+        No accounts. No cloud. No subscription.
+      </h2>
+      <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-espresso/75">
+        Photos stay yours. They live on the tablet, or in your own photo-hosting
+        account if you connect one — SnapCabin never holds copies and never
+        phones home.
+      </p>
+      <div className="mt-6">
+        <Link
+          href="/privacy"
+          className="font-sans text-base font-semibold text-pine-deep"
+        >
+          Read the privacy policy
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function HowItWorks() {
   const steps = [
     {
@@ -110,12 +246,12 @@ function HowItWorks() {
     {
       n: "02",
       title: "Name your event",
-      body: "Tap a hidden corner, type the admin PIN, give the event a name and a tagline. The look of the booth updates right away.",
+      body: "Long-press a corner, type the admin PIN, give the event a name and a tagline. The look of the booth updates right away.",
     },
     {
       n: "03",
       title: "Plug in email and photo hosting",
-      body: "Paste your Resend API key for email delivery, and a Cloudinary preset for the QR code. Both are optional and we link you to step-by-step guides.",
+      body: "Add a key for email delivery and a preset for the QR code. Both are optional and we link you to step-by-step guides.",
     },
     {
       n: "04",
@@ -138,15 +274,18 @@ function HowItWorks() {
             <span className="font-display text-3xl font-semibold text-honey-deep">
               {s.n}
             </span>
-            <h4 className="mt-3 font-display text-xl font-medium text-espresso">
+            <h3 className="mt-3 font-display text-xl font-medium text-espresso">
               {s.title}
-            </h4>
+            </h3>
             <p className="mt-2 text-sm leading-relaxed text-espresso/75">
               {s.body}
             </p>
           </li>
         ))}
       </ol>
+      <div className="mt-12 flex justify-center">
+        <PlayStoreButton />
+      </div>
     </section>
   );
 }
@@ -172,10 +311,10 @@ function Integrations() {
           ctaHref="/setup/cloudinary"
         />
       </div>
-      <p className="mt-6 text-center text-sm text-mist">
-        The two integrations are independent. Turn on Resend for email
-        delivery, Cloudinary for the QR tile, or both. Without either, the
-        tablet still saves locally and the system share menu still works.
+      <p className="mx-auto mt-6 max-w-2xl text-center text-base leading-relaxed text-espresso/70">
+        The two integrations are independent. Turn on Resend for email delivery,
+        Cloudinary for the QR tile, or both. Without either, the tablet still
+        saves locally and the system share menu still works.
       </p>
     </section>
   );
@@ -195,7 +334,7 @@ function IntegrationCard({
   return (
     <article className="flex flex-col gap-4 rounded-3xl border border-walnut/20 bg-cream/80 p-8">
       <div>
-        <p className="font-sans text-xs font-semibold uppercase tracking-widest text-pine">
+        <p className="font-sans text-xs font-semibold uppercase tracking-widest text-pine-deep">
           {tagline}
         </p>
         <h3 className="mt-1 font-display text-3xl font-bold text-espresso">
@@ -206,7 +345,7 @@ function IntegrationCard({
       <div>
         <Link
           href={ctaHref}
-          className="inline-block rounded-xl bg-pine px-5 py-2.5 font-sans text-sm font-semibold text-cream no-underline transition hover:bg-pine-deep"
+          className="inline-block rounded-xl bg-pine px-5 py-2.5 font-sans text-sm font-semibold text-white no-underline transition hover:bg-pine-deep"
         >
           Read the setup guide
         </Link>
@@ -226,11 +365,11 @@ function Faq() {
         />
         <FaqRow
           q="Do I have to use Resend and Cloudinary?"
-          a="Only if you want photos to travel off the tablet. Resend emails the photo to a guest as an attachment; Cloudinary hosts a copy so a QR code can deliver it. Both are optional and independent. Without them, guests can still save locally, share via the Android system share sheet, or print. There's no local-WiFi QR option any more because modern mobile browsers block plain-HTTP downloads."
+          a="Only if you want photos to travel off the tablet. Resend emails the photo to a guest as an attachment; Cloudinary hosts a copy so a QR code can deliver it. Both are optional and independent. Without them, guests can still save locally, share via the Android system share sheet, or print."
         />
         <FaqRow
           q="What kind of tablet do I need?"
-          a="An Android tablet, at least eight inches, ideally with a decent front-facing camera. We've had good results with Samsung Galaxy Tab S6 and newer. Phones aren't supported. The app refuses to launch on devices below an 8-inch class screen so you don't end up with a broken layout at the event."
+          a="An Android tablet, at least eight inches, ideally with a decent front-facing camera. We've had good results with Samsung Galaxy Tab S6 and newer. Phones aren't supported. SnapCabin is built for 8-inch tablets and larger, so the layout always looks right at the event."
         />
         <FaqRow
           q="Does SnapCabin send any data back to you?"
@@ -248,8 +387,20 @@ function Faq() {
 function FaqRow({ q, a }: { q: string; a: string }) {
   return (
     <details className="group rounded-2xl border border-walnut/15 bg-cream/70 p-5 open:bg-cream/90">
-      <summary className="cursor-pointer list-none font-display text-xl font-medium text-espresso group-open:text-pine-deep">
-        {q}
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-display text-xl font-medium text-espresso group-open:text-pine-deep">
+        <span>{q}</span>
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="h-5 w-5 flex-shrink-0 text-honey-deep transition-transform duration-200 group-open:rotate-180"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </summary>
       <p className="mt-3 text-base leading-relaxed text-espresso/80">{a}</p>
     </details>
@@ -258,14 +409,15 @@ function FaqRow({ q, a }: { q: string; a: string }) {
 
 function Footer() {
   return (
-    <footer className="mt-28 flex flex-col items-center gap-4 border-t border-walnut/15 pt-10 text-sm text-mist">
+    <footer className="mt-28 flex flex-col items-center gap-6 border-t border-walnut/15 pt-10 text-sm text-espresso/70">
       <Image
         src="/snapcabin-logo.png"
-        alt="SnapCabin"
+        alt=""
         width={1536}
         height={1024}
         className="h-auto w-full max-w-[240px] opacity-80"
       />
+      <PlayStoreButton />
       <div className="flex flex-wrap items-center justify-center gap-6 font-sans">
         <Link href="/setup" className="font-semibold no-underline">
           Setup
@@ -276,16 +428,12 @@ function Footer() {
         <Link href="/terms" className="font-semibold no-underline">
           Terms
         </Link>
-        <a
-          href="mailto:hello@snapcabin.app"
-          className="font-semibold no-underline"
-        >
+        <a href={SUPPORT_MAILTO} className="font-semibold no-underline">
           hello@snapcabin.app
         </a>
       </div>
       <p className="text-xs text-mist">
-        SnapCabin is not affiliated with Resend, Cloudinary, Samsung, or
-        Google.
+        SnapCabin is not affiliated with Resend, Cloudinary, Samsung, or Google.
       </p>
     </footer>
   );

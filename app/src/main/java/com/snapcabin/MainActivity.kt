@@ -7,6 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.snapcabin.kiosk.KioskManager
@@ -25,7 +28,10 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var kioskManager: KioskManager
     @Inject lateinit var soundManager: SoundManager
 
-    private var kioskEnabled = false
+    // Compose snapshot state so the BackHandler below actually recomposes when
+    // kiosk mode flips. A plain `var` was captured at first composition (false)
+    // and never updated, so the hardware back button was never swallowed.
+    private var kioskEnabled by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -42,6 +48,10 @@ class MainActivity : ComponentActivity() {
 
                 if (settings.kioskModeEnabled) {
                     kioskManager.enterKioskMode(this@MainActivity)
+                } else {
+                    // Toggling Kiosk Mode off must actually release lock-task —
+                    // otherwise the tablet stayed pinned until reboot.
+                    kioskManager.exitKioskMode(this@MainActivity)
                 }
             }
         }

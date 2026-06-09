@@ -21,11 +21,11 @@
     letter-spacing: -0.015em;
   }
   a {
-    color: #6b8f73;
+    color: #52755a; /* pine-deep — AA contrast on parchment */
     text-decoration: underline;
     text-underline-offset: 3px;
   }
   a:hover {
-    color: #52755a;
+    color: #322619;
   }
 }

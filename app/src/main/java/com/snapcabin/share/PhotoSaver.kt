@@ -99,4 +99,72 @@ class PhotoSaver @Inject constructor() {
         }
         return file
     }
+
+    /**
+     * Saves already-encoded image bytes (e.g. an animated GIF) to the public
+     * gallery under Pictures/SnapCabin. Mirrors [saveToGallery] but skips
+     * re-compression so animation is preserved.
+     */
+    fun saveBytesToGallery(
+        context: Context,
+        bytes: ByteArray,
+        mimeType: String,
+        extension: String,
+        fileName: String = "SnapCabin_${System.currentTimeMillis()}"
+    ): String? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.$extension")
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/SnapCabin")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            if (uri == null) {
+                Log.e(TAG, "MediaStore.insert returned null for $mimeType")
+                return null
+            }
+            try {
+                resolver.openOutputStream(uri).use { stream ->
+                    if (stream == null) {
+                        Log.e(TAG, "openOutputStream returned null for $uri")
+                        resolver.delete(uri, null, null)
+                        return null
+                    }
+                    stream.write(bytes)
+                    stream.flush()
+                }
+                val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                resolver.update(uri, done, null, null)
+                Log.i(TAG, "Saved $extension to $uri")
+                uri.toString()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save bytes via MediaStore", e)
+                try { resolver.delete(uri, null, null) } catch (_: Exception) { }
+                null
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            val dir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                "SnapCabin"
+            )
+            if (!dir.exists()) dir.mkdirs()
+            val file = File(dir, "$fileName.$extension")
+            try {
+                FileOutputStream(file).use { it.write(bytes) }
+                file.absolutePath
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save bytes to external storage", e)
+                null
+            }
+        }
+    }
+
+    fun saveBytesToCacheForSharing(context: Context, bytes: ByteArray, extension: String): File {
+        val file = File(context.cacheDir, "share_photo_${System.currentTimeMillis()}.$extension")
+        FileOutputStream(file).use { it.write(bytes) }
+        return file
+    }
 }

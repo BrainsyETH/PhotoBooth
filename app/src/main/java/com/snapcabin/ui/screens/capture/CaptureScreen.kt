@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -234,24 +235,27 @@ fun CaptureScreen(
                 }
             }
 
-            // Skip pill — bottom-left
+            // Skip pill — bottom-left. Scrim-backed so it stays legible over a
+            // bright camera feed, with a finger-sized hit area.
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(start = 24.dp, bottom = 22.dp)
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
-                    .background(Color.Transparent)
+                    .background(Espresso.copy(alpha = 0.45f))
+                    .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(999.dp))
                     .clickable { viewModel.skipBurst() }
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "SKIP",
                     fontFamily = HankenGrotesk,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    fontSize = 15.sp,
                     letterSpacing = 0.22f.em,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.92f)
                 )
             }
 

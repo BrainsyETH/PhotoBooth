@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snapcabin.settings.BoothSettings
@@ -34,6 +36,7 @@ import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.screens.admin.AdminViewModel
 import com.snapcabin.ui.screens.admin.KioskSafeLink
 import com.snapcabin.ui.screens.admin.NumberedStep
+import com.snapcabin.ui.screens.admin.RevealToggle
 import com.snapcabin.ui.screens.admin.SettingRow
 import com.snapcabin.ui.screens.admin.StatusTone
 import com.snapcabin.ui.screens.admin.TestStatus
@@ -95,6 +98,11 @@ internal fun CloudinarySection(
                             style = MaterialTheme.typography.bodySmall,
                             color = Espresso.copy(alpha = 0.7f)
                         )
+                        Text(
+                            "\"Unsigned\" just lets the booth upload photos without storing a secret password on the tablet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Espresso.copy(alpha = 0.7f)
+                        )
                         KioskSafeLink("UPLOAD SETTINGS", "https://console.cloudinary.com/settings/upload")
                     }
                     NumberedStep(4, "Paste the cloud name and preset below, then run a test upload.")
@@ -105,7 +113,7 @@ internal fun CloudinarySection(
             OutlinedTextField(
                 value = name,
                 onValueChange = {
-                    name = it.trim()
+                    name = sanitizeCloudName(it)
                     viewModel.updateSetting { copy(cloudinaryCloudName = name, cloudinaryVerifiedAt = 0L) }
                 },
                 label = { Text("Cloud name") },
@@ -121,13 +129,16 @@ internal fun CloudinarySection(
             )
 
             var preset by remember { mutableStateOf(settings.cloudinaryUploadPreset) }
+            var presetVisible by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = preset,
                 onValueChange = {
                     preset = it.trim()
                     viewModel.updateSetting { copy(cloudinaryUploadPreset = preset, cloudinaryVerifiedAt = 0L) }
                 },
-                label = { Text("Unsigned upload preset name") },
+                label = { Text("Upload preset name") },
+                visualTransformation = if (presetVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = { RevealToggle(visible = presetVisible, onToggle = { presetVisible = !presetVisible }) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(Radii.s),
@@ -136,7 +147,7 @@ internal fun CloudinarySection(
             ValidationHint(
                 ok = preset.isNotBlank(),
                 okText = "Preset set.",
-                hintText = "Must match the preset name in Cloudinary exactly."
+                hintText = "Use the \"Unsigned\" preset name from Cloudinary, exactly as shown."
             )
 
             Text(
@@ -150,6 +161,25 @@ internal fun CloudinarySection(
             TestUploadBlock(viewModel = viewModel)
         }
     }
+}
+
+/**
+ * Cloud names are short, lowercase handles, but operators often paste a full
+ * dashboard URL like "https://console.cloudinary.com/app/c-abc123/...". Strip an
+ * obvious URL down to a plausible cloud name and lowercase it. Conservative: a
+ * plain name with no "/" or "http" is only trimmed + lowercased.
+ */
+internal fun sanitizeCloudName(raw: String): String {
+    var s = raw.trim()
+    if (s.contains("/") || s.contains("http", ignoreCase = true)) {
+        // Drop scheme, then take the last non-empty path-ish segment.
+        s = s.substringAfter("://", s)
+        val segment = s.split('/', '?', '#')
+            .map { it.trim() }
+            .lastOrNull { it.isNotEmpty() }
+        s = segment ?: s
+    }
+    return s.lowercase()
 }
 
 private fun cloudinaryConfigured(s: BoothSettings) =

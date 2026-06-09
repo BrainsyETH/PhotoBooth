@@ -67,7 +67,7 @@ export default function ResendSetup() {
           domain as <strong>Verified</strong> &mdash; this usually takes a
           few minutes.
         </p>
-        <p className="text-sm text-mist">
+        <p className="text-sm text-espresso/70">
           If you&rsquo;re just trying things out, skip this step and use{" "}
           <code>onboarding@resend.dev</code> as the From address. Emails will
           send but will arrive from a generic Resend address.

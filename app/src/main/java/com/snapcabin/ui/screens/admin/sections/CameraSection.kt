@@ -325,13 +325,19 @@ internal fun CaptureSection(
             )
         }
 
-        SettingRow("Coaching microcopy") {
+        SettingRow("On-screen tips") {
             Switch(
                 checked = settings.coachingEnabled,
                 onCheckedChange = { v -> viewModel.updateSetting { copy(coachingEnabled = v) } },
                 colors = adminSwitchColors()
             )
         }
+        Text(
+            text = "Fun prompts like \"Squeeze in!\" shown during the countdown.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.6f),
+            modifier = Modifier.padding(horizontal = Spacing.xs)
+        )
 
         SettingRow("Framing guide") {
             Switch(

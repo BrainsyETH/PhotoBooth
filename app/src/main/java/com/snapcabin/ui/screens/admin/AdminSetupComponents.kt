@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -204,6 +205,24 @@ internal fun KioskSafeLink(
                 color = Espresso.copy(alpha = 0.5f)
             )
         }
+    }
+}
+
+/** A small "Show"/"Hide" text button used as the trailingIcon of a masked
+ *  secret field, so an operator can verify a long pasted key on a tablet. Text
+ *  rather than an eye icon because the project doesn't bundle material-icons. */
+@Composable
+internal fun RevealToggle(
+    visible: Boolean,
+    onToggle: () -> Unit
+) {
+    TextButton(onClick = onToggle) {
+        Text(
+            text = if (visible) "Hide" else "Show",
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = Pine
+        )
     }
 }
 
