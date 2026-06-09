@@ -83,6 +83,9 @@ data class BoothSettings(
     val currentEventStartedAt: Long = 0L,
     val sendLogJson: String = "[]",          // capped at 500 entries; auditable from admin
 
+    // Admin UX
+    val getStartedCollapsed: Boolean = false, // operator minimized the GET STARTED checklist
+
     // Modes
     val enableSinglePhotoMode: Boolean = true,
     val enableCollageMode: Boolean = true,
@@ -149,6 +152,7 @@ class SettingsManager @Inject constructor(
         val CURRENT_EVENT_SLUG = stringPreferencesKey("current_event_slug")
         val CURRENT_EVENT_STARTED_AT = longPreferencesKey("current_event_started_at")
         val SEND_LOG_JSON = stringPreferencesKey("send_log_json")
+        val GET_STARTED_COLLAPSED = booleanPreferencesKey("get_started_collapsed")
         val AUTO_SAVE = booleanPreferencesKey("auto_save_gallery")
         val OUTPUT_QUALITY = intPreferencesKey("output_quality")
         val WATERMARK_ENABLED = booleanPreferencesKey("watermark_enabled")
@@ -229,6 +233,7 @@ class SettingsManager @Inject constructor(
         currentEventSlug = prefs[Keys.CURRENT_EVENT_SLUG] ?: "",
         currentEventStartedAt = prefs[Keys.CURRENT_EVENT_STARTED_AT] ?: 0L,
         sendLogJson = prefs[Keys.SEND_LOG_JSON] ?: "[]",
+        getStartedCollapsed = prefs[Keys.GET_STARTED_COLLAPSED] ?: false,
         enableSinglePhotoMode = prefs[Keys.ENABLE_SINGLE_PHOTO] ?: true,
         enableCollageMode = prefs[Keys.ENABLE_COLLAGE] ?: true,
         enableGifMode = prefs[Keys.ENABLE_GIF] ?: true,
@@ -283,6 +288,7 @@ class SettingsManager @Inject constructor(
             prefs[Keys.CURRENT_EVENT_SLUG] = updated.currentEventSlug
             prefs[Keys.CURRENT_EVENT_STARTED_AT] = updated.currentEventStartedAt
             prefs[Keys.SEND_LOG_JSON] = updated.sendLogJson
+            prefs[Keys.GET_STARTED_COLLAPSED] = updated.getStartedCollapsed
             prefs[Keys.AUTO_SAVE] = updated.autoSaveToGallery
             prefs[Keys.OUTPUT_QUALITY] = updated.outputQuality
             prefs[Keys.WATERMARK_ENABLED] = updated.watermarkEnabled

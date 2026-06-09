@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,7 +36,8 @@ import com.snapcabin.ui.theme.Spacing
 @Composable
 internal fun GetStartedSection(
     settings: BoothSettings,
-    onJumpTo: (String) -> Unit = {}
+    onJumpTo: (String) -> Unit = {},
+    onCollapse: (Boolean) -> Unit = {}
 ) {
     val pinChanged = settings.adminPin != "1234"
     val eventStarted = settings.currentEventName.isNotBlank()
@@ -49,14 +51,42 @@ internal fun GetStartedSection(
     val qrVerified = qrConfigured && settings.cloudinaryVerifiedAt > 0L
 
     val deliveryReady = emailConfigured || qrConfigured
-    val allReady = pinChanged && eventStarted && deliveryReady
+    val doneCount = listOf(pinChanged, eventStarted, deliveryReady).count { it }
+    val allReady = doneCount == 3
+
+    if (settings.getStartedCollapsed) {
+        CollapsedBar(
+            doneCount = doneCount,
+            allReady = allReady,
+            onExpand = { onCollapse(false) }
+        )
+        return
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(
-            text = "A quick checklist before guests arrive. Tap any item to jump to the section that finishes it.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Espresso.copy(alpha = 0.75f)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "A quick checklist before guests arrive. Tap any item to jump to the section that finishes it.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Espresso.copy(alpha = 0.75f),
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(Spacing.s))
+            Text(
+                text = "Minimize",
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = Pine,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Radii.xs))
+                    .clickable { onCollapse(true) }
+                    .padding(horizontal = Spacing.s, vertical = Spacing.xs)
+            )
+        }
 
         if (allReady) {
             Banner(
@@ -128,6 +158,50 @@ private fun qrLabel(enabled: Boolean, configured: Boolean, verified: Boolean): S
     !configured -> "Needs details"
     verified -> "Ready · tested"
     else -> "Run a test"
+}
+
+@Composable
+private fun CollapsedBar(
+    doneCount: Int,
+    allReady: Boolean,
+    onExpand: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
+            .clickable(onClick = onExpand)
+            .padding(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Setup checklist",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = Espresso
+            )
+            Text(
+                text = if (allReady) "All set — tap to review." else "$doneCount of 3 done — tap to finish setup.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.7f)
+            )
+        }
+        StatusPill(
+            text = if (allReady) "Ready" else "$doneCount/3",
+            tone = if (allReady) StatusTone.Good else StatusTone.Warn
+        )
+        Text(
+            text = "Show",
+            fontFamily = HankenGrotesk,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = Pine
+        )
+    }
 }
 
 @Composable
