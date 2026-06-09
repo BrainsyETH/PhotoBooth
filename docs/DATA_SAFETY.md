@@ -63,6 +63,15 @@ rejection vector too.)
 - ❌ **Phone number** — never collected; the SMS path was removed.
 - ❌ **Messages** — we never read SMS / MMS / chat messages.
 - ❌ **Audio / files / documents** — only photos taken by the kiosk camera.
+  The app declares the `RECORD_AUDIO` permission **but never records,
+  stores, or transmits audio**. It's required purely because Android's
+  camera service refuses to open a USB (UVC) camera — a composite
+  audio+video device — without it. The permission is requested at runtime
+  only when an external camera is attached. Because no audio is collected,
+  it is NOT disclosed as a collected data type; if the Play Console flags
+  the microphone permission, justify it as "required to open external USB
+  cameras; no audio is captured." See `camera/CameraManager.kt` and the
+  manifest comment on `RECORD_AUDIO`.
 - ❌ **Web browsing** — none.
 
 ## Section 4 — Why these answers are accurate

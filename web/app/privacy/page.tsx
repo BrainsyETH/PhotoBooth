@@ -202,6 +202,13 @@ export default function PrivacyPage() {
             <strong>USB host.</strong> Optional, used to detect a USB
             webcam if the host plugs one in.
           </li>
+          <li>
+            <strong>Microphone.</strong> Requested only when a USB camera is
+            connected, and only because Android refuses to open a USB camera
+            (an audio+video device) without it. SnapCabin never records,
+            stores, or transmits audio. Built-in cameras never trigger this
+            prompt.
+          </li>
         </ul>
       </Section>
 

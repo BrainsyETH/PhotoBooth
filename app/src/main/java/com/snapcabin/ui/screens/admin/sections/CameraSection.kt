@@ -1,5 +1,7 @@
 package com.snapcabin.ui.screens.admin.sections
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -231,6 +233,14 @@ private fun CameraPreviewBlock(
     var showPreview by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Request CAMERA (and RECORD_AUDIO for USB cameras) before binding — a UVC
+    // camera fails to open with "record permission not granted" otherwise.
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        if (result[android.Manifest.permission.CAMERA] != false) showPreview = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -242,7 +252,19 @@ private fun CameraPreviewBlock(
     ) {
         BigButton(
             text = if (showPreview) "HIDE PREVIEW" else "TEST CAMERA",
-            onClick = { showPreview = !showPreview },
+            onClick = {
+                if (showPreview) {
+                    showPreview = false
+                } else {
+                    val perms = buildList {
+                        add(android.Manifest.permission.CAMERA)
+                        if (viewModel.cameraManager.hasExternalCamera()) {
+                            add(android.Manifest.permission.RECORD_AUDIO)
+                        }
+                    }
+                    permissionLauncher.launch(perms.toTypedArray())
+                }
+            },
             variant = if (showPreview) BigButtonVariant.Surface else BigButtonVariant.Primary,
             modifier = Modifier.fillMaxWidth()
         )

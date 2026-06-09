@@ -1,8 +1,11 @@
 package com.snapcabin.ui.screens.capture
 
 import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -66,16 +69,31 @@ fun CaptureScreen(
     val settings by viewModel.settings.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var hasCameraPermission by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasCameraPermission = granted
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        // CAMERA gates the flow; RECORD_AUDIO is best-effort (only needed to
+        // open a USB camera, which is a composite audio+video device).
+        hasCameraPermission = result[Manifest.permission.CAMERA] ?: hasCameraPermission
     }
 
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(Manifest.permission.CAMERA)
+        val perms = buildList {
+            add(Manifest.permission.CAMERA)
+            // Only ask for the mic when a USB camera is actually attached.
+            if (viewModel.cameraManager.hasExternalCamera()) {
+                add(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+        permissionLauncher.launch(perms.toTypedArray())
     }
 
     LaunchedEffect(hasCameraPermission) {

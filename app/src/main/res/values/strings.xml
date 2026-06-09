@@ -142,7 +142,7 @@
 
     <!-- Privacy -->
     <string name="privacy_title">Privacy Policy</string>
-    <string name="privacy_body">SnapCabin captures photos using the tablet\'s camera. The published app does not bundle analytics, crash reporting, advertising, or telemetry libraries.\n\nPhotos stay on the tablet by default. They only leave the tablet if the event host has set up Cloudinary (which hosts the photo so a QR code can deliver it) or Resend (which emails the photo as an attachment). Both are optional.\n\nThe event host, not SnapCabin, is the data controller for those services.\n\nFor the full policy and the host\'s contact details, see https://snapcabin.app/privacy</string>
+    <string name="privacy_body">SnapCabin captures photos using the tablet\'s camera. The published app does not bundle analytics, crash reporting, advertising, or telemetry libraries.\n\nPhotos stay on the tablet by default. They only leave the tablet if the event host has set up Cloudinary (which hosts the photo so a QR code can deliver it) or Resend (which emails the photo as an attachment). Both are optional.\n\nThe event host, not SnapCabin, is the data controller for those services.\n\nSnapCabin never records audio. It requests microphone permission only when a USB camera is connected, because Android won\'t open a USB camera without it.\n\nFor the full policy and the host\'s contact details, see https://snapcabin.app/privacy</string>
     <string name="privacy_view_online">View full policy online</string>
     <string name="privacy_view_online_url">https://snapcabin.app/privacy</string>
 
