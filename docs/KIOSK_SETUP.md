@@ -170,9 +170,13 @@ adapter or a powered hub if the camera needs more power).
 2. Open **CAMERA** and check the **External camera (USB)** box. It tells
    you whether the tablet sees the USB device and whether Android is
    exposing it as a camera. Tap **REFRESH CAMERAS** after plugging in.
-3. When it appears in the camera list marked **— External**, select it,
-   turn **Mirror Image** off (external cameras face guests like a rear
-   camera), and run **TEST CAMERA** to confirm the live preview.
+3. Select the camera. If it appears in the camera list marked
+   **— External**, tap it. If it doesn't show up in that list (USB cameras
+   don't always enumerate there), tap **USE EXTERNAL USB CAMERA** in the
+   External camera box instead — that binds to whatever USB camera is
+   connected. Either way, turn **Mirror Image** off (external cameras face
+   guests like a rear camera) and run **TEST CAMERA** to confirm the live
+   preview.
 4. **Allow the microphone prompt.** USB cameras are audio+video devices,
    so Android won't open one unless the app has microphone permission.
    SnapCabin never records audio — it only needs the permission to turn

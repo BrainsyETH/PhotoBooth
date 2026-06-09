@@ -54,6 +54,14 @@ class CameraManager @Inject constructor(
 
     companion object {
         private const val TAG = "CameraManager"
+
+        /**
+         * Sentinel camera id meaning "bind to whatever external (USB) camera is
+         * present, by lens-facing." More robust than a specific Camera2 id:
+         * external cameras enumerate unreliably in cameraIdList, but CameraX can
+         * still select them by LENS_FACING_EXTERNAL.
+         */
+        const val EXTERNAL_CAMERA_ID = "external"
     }
 
     /**
@@ -185,6 +193,18 @@ class CameraManager @Inject constructor(
         cameraId: String,
         useFront: Boolean
     ): CameraSelector {
+        // "Use external camera" — bind to any external camera by lens-facing.
+        if (cameraId == EXTERNAL_CAMERA_ID) {
+            val external = externalCameraSelector()
+            try {
+                if (provider.hasCamera(external)) return external
+            } catch (e: Exception) {
+                Log.w(TAG, "External camera not bindable yet, falling back", e)
+            }
+            // Fall through to a built-in default if no external is ready.
+            return if (useFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+        }
+
         if (cameraId.isNotEmpty()) {
             try {
                 val selector = CameraSelector.Builder()
@@ -209,6 +229,21 @@ class CameraManager @Inject constructor(
         }
     }
 
+    /** A selector matching any LENS_FACING_EXTERNAL camera. */
+    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
+    private fun externalCameraSelector(): CameraSelector =
+        CameraSelector.Builder()
+            .addCameraFilter { infos ->
+                infos.filter { info ->
+                    try {
+                        Camera2CameraInfo.from(info)
+                            .getCameraCharacteristic(CameraCharacteristics.LENS_FACING) ==
+                            CameraCharacteristics.LENS_FACING_EXTERNAL
+                    } catch (e: Exception) { false }
+                }
+            }
+            .build()
+
     /**
      * If the primary bind failed, walk the fallback chain:
      * 1) the opposite built-in (back if we tried front, etc.)
@@ -222,20 +257,8 @@ class CameraManager @Inject constructor(
     ) {
         val candidates = buildList {
             add(if (useFrontCamera) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA)
-            // External camera selector — matches any LENS_FACING_EXTERNAL info
-            add(
-                CameraSelector.Builder()
-                    .addCameraFilter { infos ->
-                        infos.filter { info ->
-                            try {
-                                Camera2CameraInfo.from(info)
-                                    .getCameraCharacteristic(CameraCharacteristics.LENS_FACING) ==
-                                    CameraCharacteristics.LENS_FACING_EXTERNAL
-                            } catch (e: Exception) { false }
-                        }
-                    }
-                    .build()
-            )
+            // Any LENS_FACING_EXTERNAL camera.
+            add(externalCameraSelector())
         }
 
         for (selector in candidates) {

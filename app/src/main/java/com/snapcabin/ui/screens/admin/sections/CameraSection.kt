@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.snapcabin.camera.CameraManager
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
@@ -92,7 +93,7 @@ internal fun CameraSection(
             modifier = Modifier.padding(horizontal = Spacing.xs)
         )
 
-        ExternalCameraStatusBlock(cameras = cameras, viewModel = viewModel)
+        ExternalCameraStatusBlock(settings = settings, cameras = cameras, viewModel = viewModel)
 
         if (cameras.isNotEmpty()) {
             Column(
@@ -178,11 +179,13 @@ internal fun CameraSection(
  */
 @Composable
 private fun ExternalCameraStatusBlock(
+    settings: BoothSettings,
     cameras: List<CameraInfo>,
     viewModel: AdminViewModel
 ) {
     val usbCount by viewModel.usbDeviceCount.collectAsState()
     val hasExternal = cameras.any { it.isExternal }
+    val externalSelected = settings.cameraId == CameraManager.EXTERNAL_CAMERA_ID
 
     val context = LocalContext.current
     // Bumped after each grant attempt so the check below re-runs.
@@ -199,7 +202,12 @@ private fun ExternalCameraStatusBlock(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         micCheckTick++
-        if (!granted) micRequestDenied = true
+        if (granted) {
+            // The external camera often only enumerates once we can open it.
+            viewModel.detectCameras()
+        } else {
+            micRequestDenied = true
+        }
     }
 
     Column(
@@ -269,6 +277,24 @@ private fun ExternalCameraStatusBlock(
                     )
                 }
             }
+        }
+
+        // Explicit external selection — robust even when the USB camera never
+        // shows up in the list below (it binds by lens-facing, the way the
+        // capture fallback already does).
+        if (usbCount > 0 || hasExternal) {
+            BigButton(
+                text = if (externalSelected) "● USING EXTERNAL CAMERA" else "USE EXTERNAL USB CAMERA",
+                onClick = { viewModel.updateSetting { copy(cameraId = CameraManager.EXTERNAL_CAMERA_ID) } },
+                variant = if (externalSelected) BigButtonVariant.Accent else BigButtonVariant.Primary,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = "Pick this if your USB camera doesn't appear in the camera list below. " +
+                    "It uses whatever external camera is connected. Then run TEST CAMERA.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.7f)
+            )
         }
 
         BigButton(
