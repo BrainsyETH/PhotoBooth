@@ -100,7 +100,10 @@ class ShareViewModel @Inject constructor(
                     val branded = CustomBrandingRenderer.apply(
                         source = bitmap,
                         borderPath = s.customBorderPath,
-                        overlayPath = s.customOverlayPath
+                        overlayPath = s.customOverlayPath,
+                        overlayPlacement = s.overlayPlacement,
+                        overlayCorner = s.overlayCorner,
+                        overlaySizePct = s.overlaySizePct
                     )
                     if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
                         WatermarkRenderer.apply(branded, s.watermarkText)
