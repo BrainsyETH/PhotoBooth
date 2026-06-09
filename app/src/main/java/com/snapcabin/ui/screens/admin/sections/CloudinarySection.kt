@@ -34,8 +34,6 @@ import com.snapcabin.settings.BoothSettings
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.screens.admin.AdminViewModel
-import com.snapcabin.ui.screens.admin.KioskSafeLink
-import com.snapcabin.ui.screens.admin.NumberedStep
 import com.snapcabin.ui.screens.admin.RevealToggle
 import com.snapcabin.ui.screens.admin.SettingRow
 import com.snapcabin.ui.screens.admin.StatusTone
@@ -73,40 +71,10 @@ internal fun CloudinarySection(
         }
 
         if (settings.cloudinaryEnabled) {
-            InstructionsCard(
-                title = "Set up Cloudinary (about 5 minutes)",
-                steps = {
-                    NumberedStep(1, "Create a free Cloudinary account.") {
-                        Text(
-                            "The free tier — about 25 GB storage and bandwidth — covers a typical event.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Espresso.copy(alpha = 0.7f)
-                        )
-                        KioskSafeLink("OPEN CLOUDINARY", "https://cloudinary.com/users/register_free")
-                    }
-                    NumberedStep(2, "Copy your cloud name.") {
-                        Text(
-                            "It's on the dashboard under Account Details — usually your account handle.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Espresso.copy(alpha = 0.7f)
-                        )
-                        KioskSafeLink("OPEN DASHBOARD", "https://console.cloudinary.com")
-                    }
-                    NumberedStep(3, "Create an Unsigned upload preset.") {
-                        Text(
-                            "Settings → Upload → Add upload preset. Set Signing Mode to Unsigned, allow jpg/png, and cap file size around 10 MB.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Espresso.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            "\"Unsigned\" just lets the booth upload photos without storing a secret password on the tablet.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Espresso.copy(alpha = 0.7f)
-                        )
-                        KioskSafeLink("UPLOAD SETTINGS", "https://console.cloudinary.com/settings/upload")
-                    }
-                    NumberedStep(4, "Paste the cloud name and preset below, then run a test upload.")
-                }
+            GuideCard(
+                title = "Set up QR downloads (about 5 minutes)",
+                blurb = "Follow the step-by-step guide at snapcabin.app/setup/cloudinary — open it on your phone (scan the QR) or any computer. It walks you through a free Cloudinary account, finding your cloud name, and creating an Unsigned upload preset (so the booth can upload without storing a password on the tablet). Then paste them below and run a test upload.",
+                guideUrl = "https://snapcabin.app/setup/cloudinary"
             )
 
             var name by remember { mutableStateOf(settings.cloudinaryCloudName) }

@@ -39,7 +39,6 @@ import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.screens.admin.AdminViewModel
 import com.snapcabin.ui.screens.admin.KioskSafeLink
-import com.snapcabin.ui.screens.admin.NumberedStep
 import com.snapcabin.ui.screens.admin.RevealToggle
 import com.snapcabin.ui.screens.admin.SettingRow
 import com.snapcabin.ui.screens.admin.StatusPill
@@ -89,35 +88,10 @@ internal fun ResendSection(
         }
 
         if (settings.resendEnabled) {
-            InstructionsCard(
-                title = "Set up Resend (about 10 minutes)",
-                steps = {
-                    NumberedStep(1, "Create a free Resend account.") {
-                        Text(
-                            "The free tier covers 3,000 emails a month, 100 a day.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Espresso.copy(alpha = 0.7f)
-                        )
-                        KioskSafeLink("OPEN RESEND", "https://resend.com/signup")
-                    }
-                    NumberedStep(2, "Verify a sending domain.") {
-                        Text(
-                            "Add the DNS records Resend shows you. To just test first, skip this and use onboarding@resend.dev as the From address.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Espresso.copy(alpha = 0.7f)
-                        )
-                        KioskSafeLink("ADD A DOMAIN", "https://resend.com/domains")
-                    }
-                    NumberedStep(3, "Create an API key with Sending access.") {
-                        Text(
-                            "Copy it — Resend shows the key only once. It starts with re_.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Espresso.copy(alpha = 0.7f)
-                        )
-                        KioskSafeLink("API KEYS", "https://resend.com/api-keys")
-                    }
-                    NumberedStep(4, "Paste the key and From address below, then send a test.")
-                }
+            GuideCard(
+                title = "Set up email delivery (about 10 minutes)",
+                blurb = "Follow the step-by-step guide at snapcabin.app/setup/resend — open it on your phone (scan the QR) or any computer. It walks you through a free Resend account, verifying a sending domain (or using onboarding@resend.dev to test first), and creating an API key. Then paste the key and From address below and send a test.",
+                guideUrl = "https://snapcabin.app/setup/resend"
             )
 
             var key by remember { mutableStateOf(settings.resendApiKey) }
@@ -438,5 +412,41 @@ internal fun InstructionsCard(
             color = Pine
         )
         steps()
+    }
+}
+
+/**
+ * Points the operator at the full step-by-step guide on snapcabin.app instead
+ * of duplicating it in-app. The [KioskSafeLink] opens it, shows the raw URL, and
+ * offers a scannable QR for when the kiosk's own browser is locked down.
+ */
+@Composable
+internal fun GuideCard(
+    title: String,
+    blurb: String,
+    guideUrl: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, Pine.copy(alpha = 0.35f), RoundedCornerShape(Radii.s))
+            .padding(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s)
+    ) {
+        Text(
+            text = title,
+            fontFamily = HankenGrotesk,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = Pine
+        )
+        Text(
+            text = blurb,
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.72f)
+        )
+        KioskSafeLink("OPEN THE GUIDE", guideUrl)
     }
 }

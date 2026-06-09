@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -24,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +33,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -41,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.snapcabin.R
+import com.snapcabin.filter.CustomBrandingRenderer
 import com.snapcabin.ui.components.rememberScreenClass
 import com.snapcabin.ui.components.scaledDp
 import com.snapcabin.ui.theme.CabinBackground
@@ -65,10 +70,22 @@ fun AttractScreen(
     onAdminLongPress: () -> Unit = {},
     eventName: String = "",
     subtext: String = "",
-    isFirstRun: Boolean = false
+    isFirstRun: Boolean = false,
+    customLogoPath: String = "",
+    useCustomLogo: Boolean = false
 ) {
     val screen = rememberScreenClass()
     val logoSize = screen.scaledDp(220).dp
+
+    // When the host opts in and a logo is configured, show their logo as the
+    // hero mark instead of the SnapCabin one. SnapCabin moves to a small
+    // attribution in the bottom-left.
+    val customLogo = remember(customLogoPath, useCustomLogo) {
+        if (useCustomLogo && customLogoPath.isNotBlank()) {
+            CustomBrandingRenderer.loadOverlayForPreview(customLogoPath)
+        } else null
+    }
+    val showingCustomLogo = customLogo != null
     val titleLarge = screen.scaledDp(88).sp
     val titleSmall = screen.scaledDp(64).sp
     val subtextSize = screen.scaledDp(26).sp
@@ -130,25 +147,43 @@ fun AttractScreen(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.snapcabin_logov2),
-                contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(logoSize)
-            )
+            if (customLogo != null) {
+                Image(
+                    bitmap = customLogo.asImageBitmap(),
+                    contentDescription = if (eventName.isNotBlank()) eventName else null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(logoSize)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.snapcabin_logov2),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.size(logoSize)
+                )
+            }
 
             Spacer(modifier = Modifier.height(Spacing.md))
 
-            val headline = if (eventName.isNotBlank()) eventName else stringResource(R.string.app_name)
-            Text(
-                text = headline,
-                fontSize = if (headline.length > 16) titleSmall else titleLarge,
-                fontFamily = FrankRuhlLibre,
-                fontWeight = FontWeight.Bold,
-                color = Espresso,
-                textAlign = TextAlign.Center,
-                letterSpacing = (-0.015f).em,
-                maxLines = 2
-            )
+            // With a custom logo we only add a text headline when the host has
+            // named the event — otherwise the logo stands on its own (no big
+            // "SnapCabin" wordmark, which now lives in the corner mark below).
+            val headline = when {
+                eventName.isNotBlank() -> eventName
+                showingCustomLogo -> ""
+                else -> stringResource(R.string.app_name)
+            }
+            if (headline.isNotBlank()) {
+                Text(
+                    text = headline,
+                    fontSize = if (headline.length > 16) titleSmall else titleLarge,
+                    fontFamily = FrankRuhlLibre,
+                    fontWeight = FontWeight.Bold,
+                    color = Espresso,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (-0.015f).em,
+                    maxLines = 2
+                )
+            }
 
             if (subtext.isNotBlank()) {
                 Spacer(modifier = Modifier.height(Spacing.sm))
@@ -202,6 +237,31 @@ fun AttractScreen(
                         color = Color.White
                     )
                 }
+            }
+        }
+
+        // SnapCabin attribution, bottom-left, when the host's logo has taken
+        // over the hero. Keeps the brand present without competing with it.
+        if (showingCustomLogo) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = Spacing.lg, bottom = Spacing.lg)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.snapcabin_logov2),
+                    contentDescription = null,
+                    modifier = Modifier.size(screen.scaledDp(36).dp)
+                )
+                Text(
+                    text = stringResource(R.string.app_name),
+                    fontFamily = FrankRuhlLibre,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = screen.scaledDp(18).sp,
+                    color = Espresso.copy(alpha = 0.55f)
+                )
             }
         }
 
