@@ -91,18 +91,25 @@ class ShareViewModel @Inject constructor(
         emailSendsThisSession = 0
         sessionEndScheduled = false
         viewModelScope.launch {
-            // Bake in admin-configured branding (border + overlay PNGs, then watermark text)
+            // Bake in admin-configured branding (border + overlay PNGs, then watermark text).
+            // Failure-isolated: any decode/out-of-memory issue falls back to the raw
+            // capture so a bad branding asset can never crash the booth mid-session.
             val processedPhoto = withContext(Dispatchers.Default) {
-                val s = settings.value
-                val branded = CustomBrandingRenderer.apply(
-                    source = bitmap,
-                    borderPath = s.customBorderPath,
-                    overlayPath = s.customOverlayPath
-                )
-                if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
-                    WatermarkRenderer.apply(branded, s.watermarkText)
-                } else {
-                    branded
+                try {
+                    val s = settings.value
+                    val branded = CustomBrandingRenderer.apply(
+                        source = bitmap,
+                        borderPath = s.customBorderPath,
+                        overlayPath = s.customOverlayPath
+                    )
+                    if (s.watermarkEnabled && s.watermarkText.isNotBlank()) {
+                        WatermarkRenderer.apply(branded, s.watermarkText)
+                    } else {
+                        branded
+                    }
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Photo processing failed; using the raw capture", t)
+                    bitmap
                 }
             }
 
