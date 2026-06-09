@@ -256,7 +256,16 @@ class CameraManager @Inject constructor(
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val rawBitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+                    // Decode mutable so downstream branding/watermark stamps can
+                    // write into the same buffer instead of allocating a second
+                    // full-resolution copy. Without this, BitmapFactory returns
+                    // an immutable bitmap and the share pipeline silently falls
+                    // back to the unbranded photo on memory pressure.
+                    val decodeOpts = BitmapFactory.Options().apply {
+                        inMutable = true
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+                    val rawBitmap = BitmapFactory.decodeFile(photoFile.absolutePath, decodeOpts)
                     if (rawBitmap == null) {
                         photoFile.delete()
                         continuation.resumeWithException(IllegalStateException("Failed to decode photo"))
@@ -287,6 +296,8 @@ class CameraManager @Inject constructor(
                         matrix.preScale(-1f, 1f)
                     }
 
+                    // createBitmap with a non-identity matrix returns a mutable
+                    // bitmap; the identity case already is one (we set inMutable).
                     val finalBitmap = if (!matrix.isIdentity) {
                         Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
                     } else {

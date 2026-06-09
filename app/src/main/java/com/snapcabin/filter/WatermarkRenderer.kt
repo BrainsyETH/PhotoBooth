@@ -17,7 +17,15 @@ object WatermarkRenderer {
     ): Bitmap {
         if (text.isBlank()) return bitmap
 
-        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        // Avoid a second full-resolution copy when the caller already handed us a
+        // mutable ARGB_8888 bitmap. The branding renderer just stamped onto the
+        // same buffer; doing the same here keeps peak memory at one full-res
+        // bitmap instead of two.
+        val result = if (bitmap.isMutable && bitmap.config == Bitmap.Config.ARGB_8888) {
+            bitmap
+        } else {
+            bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        }
         val canvas = Canvas(result)
 
         val textSize = result.width * textSizeFraction
