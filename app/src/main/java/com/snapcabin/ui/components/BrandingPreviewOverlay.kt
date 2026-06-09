@@ -1,9 +1,14 @@
 package com.snapcabin.ui.components
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -12,18 +17,18 @@ import com.snapcabin.settings.BoothSettings
 
 /**
  * Renders the *full* configured branding — border + overlay, both placement
- * modes — over a 4:3 photo preview as a transparent layer. Used on the Review
- * screen so guests see how their photo will be branded before accepting,
- * without waiting for the Share screen to bake it in.
+ * modes — over a 4:3 photo preview as a transparent overlay. Used on the
+ * Review screen so guests see how their photo will be branded before
+ * accepting, without waiting for the Share screen to bake it in.
+ *
+ * Composes the layers directly with Compose Images instead of building an
+ * intermediate bitmap, so each layer renders at its native source resolution
+ * and stays sharp at any screen size.
  *
  * Differs from [BrandingLiveOverlay]:
  *  - Includes the border (Review previews show the final composition; a frame
  *    is welcome there, while during framing it would obscure the live view).
- *  - Includes the stretched overlay (not just corner placement).
- *
- * Renders to an 800x600 transparent canvas and lets Image FillBounds it over
- * a parent that's also 4:3, so border edges and corner logos align pixel-for-
- * pixel with the photo behind it.
+ *  - Supports the stretched overlay placement in addition to corner.
  */
 @Composable
 fun BrandingPreviewOverlay(
@@ -34,28 +39,56 @@ fun BrandingPreviewOverlay(
     val hasOverlay = settings.customOverlayPath.isNotBlank()
     if (!hasBorder && !hasOverlay) return
 
-    val bitmap = remember(
-        settings.customBorderPath,
-        settings.customOverlayPath,
-        settings.overlayPlacement,
-        settings.overlayCorner,
-        settings.overlaySizePct
-    ) {
-        val src = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888)
-        CustomBrandingRenderer.apply(
-            source = src,
-            borderPath = settings.customBorderPath,
-            overlayPath = settings.customOverlayPath,
-            overlayPlacement = settings.overlayPlacement,
-            overlayCorner = settings.overlayCorner,
-            overlaySizePct = settings.overlaySizePct
-        )
+    val border = remember(settings.customBorderPath) {
+        if (hasBorder) CustomBrandingRenderer.loadOverlayForPreview(settings.customBorderPath) else null
     }
+    val overlay = remember(settings.customOverlayPath) {
+        if (hasOverlay) CustomBrandingRenderer.loadOverlayForPreview(settings.customOverlayPath) else null
+    }
+    if (border == null && overlay == null) return
 
-    Image(
-        bitmap = bitmap.asImageBitmap(),
-        contentDescription = null,
-        contentScale = ContentScale.FillBounds,
-        modifier = modifier
-    )
+    Box(modifier = modifier) {
+        // Border stretches edge-to-edge over the 4:3 preview area.
+        border?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        overlay?.let { ov ->
+            if (settings.overlayPlacement.equals("corner", ignoreCase = true)) {
+                val sizePct = settings.overlaySizePct.coerceIn(5, 60)
+                val cornerAlignment = when (settings.overlayCorner.lowercase()) {
+                    "tl" -> Alignment.TopStart
+                    "tr" -> Alignment.TopEnd
+                    "bl" -> Alignment.BottomStart
+                    else -> Alignment.BottomEnd
+                }
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val marginDp = maxWidth * CornerMarginFraction
+                    Box(modifier = Modifier.fillMaxSize().padding(marginDp)) {
+                        Image(
+                            bitmap = ov.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxWidth(sizePct / 100f)
+                                .align(cornerAlignment)
+                        )
+                    }
+                }
+            } else {
+                Image(
+                    bitmap = ov.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+    }
 }
+
+private const val CornerMarginFraction = 0.04f

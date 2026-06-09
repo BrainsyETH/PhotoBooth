@@ -55,7 +55,17 @@ object CustomBrandingRenderer {
         if (border == null && overlay == null) return source
 
         return try {
-            val result = source.copy(Bitmap.Config.ARGB_8888, true) ?: return source
+            // Draw directly onto the source when it's already a mutable ARGB_8888
+            // bitmap. Allocating a second full-resolution copy doubles the peak
+            // memory and is the main reason a high-MP capture used to fall back
+            // to the unbranded photo. The caller (ShareViewModel) uses the
+            // returned bitmap as its only reference, so an in-place mutation is
+            // safe.
+            val result: Bitmap = if (source.isMutable && source.config == Bitmap.Config.ARGB_8888) {
+                source
+            } else {
+                source.copy(Bitmap.Config.ARGB_8888, true) ?: return source
+            }
             val canvas = Canvas(result)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
             val full = Rect(0, 0, result.width, result.height)
@@ -139,6 +149,15 @@ object CustomBrandingRenderer {
             null
         }
     }
+
+    /**
+     * Load the overlay PNG for use as a Compose [Image] in admin/live previews.
+     * Decoded at native resolution with a 2048-pixel cap on the long edge so a
+     * pathologically large source doesn't blow the heap on a high-res tablet.
+     * Returns null when the file is missing or undecodable.
+     */
+    fun loadOverlayForPreview(path: String, maxLongEdge: Int = 2048): Bitmap? =
+        loadScaled(path, maxLongEdge, maxLongEdge)
 
     /** Largest power-of-two sample size that keeps the layer >= the target size. */
     private fun computeInSampleSize(srcW: Int, srcH: Int, dstW: Int, dstH: Int): Int {
