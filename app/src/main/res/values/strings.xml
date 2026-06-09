@@ -93,6 +93,11 @@
     <!-- Share extras -->
     <string name="share_print">PRINT</string>
     <string name="share_email">EMAIL</string>
+    <string name="share_email_dialog_title">Email me my photo</string>
+    <string name="share_email_dialog_body">Enter your email. The photo arrives as an attachment.</string>
+    <string name="share_email_dialog_label">Email address</string>
+    <string name="share_email_dialog_send">SEND</string>
+    <string name="share_email_dialog_cancel">CANCEL</string>
 
 
     <!-- Gallery -->
@@ -127,6 +132,7 @@
     <string name="capture_skip">Skip</string>
 
     <!-- Review (burst) -->
+    <string name="review_photo_desc">Your photo preview</string>
     <string name="review_use_this">Use this one</string>
     <string name="review_retake_all">← Retake all</string>
     <string name="review_caption_single">Tap a shot above to choose your favorite</string>

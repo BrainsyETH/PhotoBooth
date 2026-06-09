@@ -298,7 +298,7 @@ private fun SinglePreview(photos: List<Bitmap>, picked: Int, settings: BoothSett
         if (photo != null) {
             Image(
                 bitmap = photo.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = stringResource(R.string.review_photo_desc),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -380,7 +380,7 @@ private fun CollagePreview(photos: List<Bitmap>, settings: BoothSettings) {
         if (bmp != null) {
             Image(
                 bitmap = bmp.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = stringResource(R.string.review_photo_desc),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
@@ -434,7 +434,7 @@ private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
         photos.getOrNull(frame)?.let { bmp ->
             Image(
                 bitmap = bmp.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = stringResource(R.string.review_photo_desc),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
