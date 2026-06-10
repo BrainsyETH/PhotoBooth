@@ -197,7 +197,8 @@ internal fun ResendSection(
                 colors = adminTextFieldColors()
             )
             Text(
-                text = "Shown above the attached photo. {event} expands to the event name; leave a blank line between paragraphs.",
+                text = "Shown above the attached photo. {event} expands to the event name; leave a blank line between paragraphs. " +
+                    "Links work too: paste a web address, or write [our gallery](https://…) to show friendly text.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.6f),
                 modifier = Modifier.padding(horizontal = Spacing.xs)
