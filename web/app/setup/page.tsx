@@ -37,6 +37,12 @@ export default function SetupIndex() {
           href="/setup/cloudinary"
           minutes="About 5 minutes"
         />
+        <SetupCard
+          title="Kiosk mode"
+          subtitle="Lock the tablet to the booth"
+          href="/setup/kiosk"
+          minutes="About 2 minutes"
+        />
       </section>
 
       <section className="mt-16 rounded-3xl border border-walnut/15 bg-cream/70 p-6">

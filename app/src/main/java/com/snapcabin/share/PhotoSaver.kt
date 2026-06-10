@@ -167,4 +167,21 @@ class PhotoSaver @Inject constructor() {
         FileOutputStream(file).use { it.write(bytes) }
         return file
     }
+
+    /**
+     * Delete leftover share-intent temp files. These are written so another app
+     * can read the photo via FileProvider, so they can't be deleted right after
+     * the share; instead we sweep older ones at the start of each session. Over
+     * a long event the cache would otherwise grow unbounded.
+     */
+    fun cleanShareCache(context: Context, olderThanMs: Long = 10 * 60 * 1000L) {
+        val cutoff = System.currentTimeMillis() - olderThanMs
+        try {
+            context.cacheDir.listFiles { f ->
+                f.name.startsWith("share_photo_") && f.lastModified() < cutoff
+            }?.forEach { it.delete() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Share-cache cleanup failed", e)
+        }
+    }
 }
