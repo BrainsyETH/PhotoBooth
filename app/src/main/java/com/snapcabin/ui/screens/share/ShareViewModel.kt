@@ -23,6 +23,7 @@ import com.snapcabin.share.QrCodeGenerator
 import com.snapcabin.share.ResendEmailSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -91,6 +92,13 @@ class ShareViewModel @Inject constructor(
         private const val TAG = "ShareViewModel"
         /** How long the Thank You overlay stays before we navigate back to Attract. */
         private const val THANK_YOU_DURATION_MS = 3_000L
+        /**
+         * After a successful email we keep the share screen (and QR) up this
+         * long so the guest reads "Sent ✓" and can still scan the QR, then we
+         * auto-advance to Thank You to keep the line moving. Cancelled if they
+         * reopen the email box to send to someone else.
+         */
+        private const val EMAIL_AUTO_ADVANCE_MS = 4_000L
     }
 
     private val _uiState = MutableStateFlow(ShareUiState())
@@ -108,6 +116,9 @@ class ShareViewModel @Inject constructor(
 
     /** Guards against double-ending if Done is tapped twice or races with the timer. */
     private var sessionEndScheduled: Boolean = false
+
+    /** Pending "auto-advance to Thank You after a successful email" job. */
+    private var autoAdvanceJob: Job? = null
 
     /**
      * Hand the session output to the Share pipeline. Branding, collage assembly,
@@ -330,6 +341,24 @@ class ShareViewModel @Inject constructor(
      * here. We show the Thank You overlay, then emit SessionEnded once. Calling
      * this more than once is a no-op so the user can spam Done safely.
      */
+    /** Auto-advance to Thank You a few seconds after a successful email send. */
+    private fun scheduleEmailAutoAdvance() {
+        autoAdvanceJob?.cancel()
+        autoAdvanceJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(EMAIL_AUTO_ADVANCE_MS)
+            endSession()
+        }
+    }
+
+    /**
+     * Cancel a pending post-email auto-advance — called when the guest reopens
+     * the email box, so emailing a second person isn't whisked away.
+     */
+    fun cancelEmailAutoAdvance() {
+        autoAdvanceJob?.cancel()
+        autoAdvanceJob = null
+    }
+
     fun endSession() {
         if (sessionEndScheduled) return
         sessionEndScheduled = true
@@ -417,6 +446,9 @@ class ShareViewModel @Inject constructor(
                     perAddressSendCounts[to] = (perAddressSendCounts[to] ?: 0) + 1
                     appendToSendLog(s, "email", SendLog.maskEmail(to), "ok", note = "")
                     _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
+                    // Keep the line moving: drift to Thank You after a beat,
+                    // unless they reopen the email box to send to someone else.
+                    scheduleEmailAutoAdvance()
                 }
                 is ResendEmailSender.Result.Err -> {
                     appendToSendLog(s, "email", SendLog.maskEmail(to), "err", note = result.message)

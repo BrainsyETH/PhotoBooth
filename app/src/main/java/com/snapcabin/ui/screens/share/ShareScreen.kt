@@ -196,7 +196,12 @@ fun ShareScreen(
                     if (settings.resendEnabled) {
                         BigButton(
                             text = stringResource(R.string.share_email),
-                            onClick = { showEmailDialog = true },
+                            onClick = {
+                                // Reopening to email a second person cancels the
+                                // post-send auto-advance to Thank You.
+                                viewModel.cancelEmailAutoAdvance()
+                                showEmailDialog = true
+                            },
                             containerColor = ShareDenim,
                             contentColor = Color.White,
                             modifier = Modifier.fillMaxWidth()
