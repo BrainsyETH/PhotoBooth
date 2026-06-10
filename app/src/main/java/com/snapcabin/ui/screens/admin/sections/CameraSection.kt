@@ -33,10 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.snapcabin.camera.CameraBindState
 import com.snapcabin.camera.CameraManager
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
@@ -49,6 +51,7 @@ import com.snapcabin.ui.screens.admin.adminSliderColors
 import com.snapcabin.ui.screens.admin.adminSwitchColors
 import com.snapcabin.ui.screens.admin.adminTextFieldColors
 import com.snapcabin.ui.theme.CabinLine
+import com.snapcabin.ui.theme.Clay
 import com.snapcabin.ui.theme.Cream
 import com.snapcabin.ui.theme.Espresso
 import com.snapcabin.ui.theme.Pine
@@ -381,6 +384,43 @@ private fun CameraPreviewBlock(
             }
             DisposableEffect(Unit) {
                 onDispose { viewModel.cameraManager.release() }
+            }
+
+            // Ground truth from the bind pipeline: which camera is ACTUALLY
+            // live. Fallbacks used to be silent — the preview showed *a*
+            // camera and the operator had no way to tell it wasn't the one
+            // they selected.
+            val bindState by viewModel.cameraManager.bindState.collectAsState()
+            when (val bs = bindState) {
+                is CameraBindState.Bound -> {
+                    Text(
+                        text = "Live now: ${bs.facingLabel} camera (ID ${bs.cameraId})" +
+                            if (bs.isExternal) " — external" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = Pine
+                    )
+                    if (!bs.matchedRequest) {
+                        Text(
+                            text = "This is NOT the camera you selected — it couldn't be opened, " +
+                                "so the booth fell back to this one. For a USB camera: check the " +
+                                "cable, allow microphone access above, then reopen TEST CAMERA.",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = Clay
+                        )
+                    }
+                }
+                is CameraBindState.Failed -> Text(
+                    text = bs.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Clay
+                )
+                CameraBindState.Idle -> Text(
+                    text = "Starting camera…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Espresso.copy(alpha = 0.6f)
+                )
             }
             Text(
                 text = "This is the camera guests will get. Capture screens rebind it automatically when you leave admin.",

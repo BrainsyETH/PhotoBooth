@@ -26,6 +26,9 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import javax.inject.Inject
@@ -41,6 +44,27 @@ data class DetectedCamera(
     val isExternal: Boolean
 )
 
+/**
+ * Observable truth about what the camera pipeline is ACTUALLY doing. Binding
+ * used to fail silently into a front-camera fallback, which made external
+ * camera setups undiagnosable — the preview showed *a* camera and nothing
+ * recorded whether it was the one the operator selected.
+ */
+sealed class CameraBindState {
+    /** Nothing bound (startup, released, or binding in flight). */
+    data object Idle : CameraBindState()
+
+    data class Bound(
+        val cameraId: String,
+        val facingLabel: String,
+        val isExternal: Boolean,
+        /** False when this is a fallback, not the camera the settings asked for. */
+        val matchedRequest: Boolean
+    ) : CameraBindState()
+
+    data class Failed(val message: String) : CameraBindState()
+}
+
 @Singleton
 class CameraManager @Inject constructor(
     private val context: Context
@@ -51,6 +75,10 @@ class CameraManager @Inject constructor(
     private var useFrontCamera: Boolean = true
     private var mirrorImage: Boolean = true
     private var selectedCameraId: String = ""
+
+    private val _bindState = MutableStateFlow<CameraBindState>(CameraBindState.Idle)
+    /** What's live right now — admin surfaces this under TEST CAMERA. */
+    val bindState: StateFlow<CameraBindState> = _bindState.asStateFlow()
 
     companion object {
         private const val TAG = "CameraManager"
@@ -132,6 +160,7 @@ class CameraManager @Inject constructor(
         useFrontCamera = useFront
         mirrorImage = mirror
         selectedCameraId = cameraId
+        _bindState.value = CameraBindState.Idle
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
@@ -168,14 +197,16 @@ class CameraManager @Inject constructor(
                 val cameraSelector = buildCameraSelector(provider, cameraId, useFront)
 
                 provider.unbindAll()
-                camera = provider.bindToLifecycle(
+                val bound = provider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
                     imageCapture
                 )
+                camera = bound
+                _bindState.value = describeBound(bound, cameraId)
 
-                Log.i(TAG, "Camera bound successfully. Front=$useFront, CameraId=$cameraId")
+                Log.i(TAG, "Camera bound: ${_bindState.value} (requested front=$useFront id=$cameraId)")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to bind camera, trying fallback", e)
                 tryFallbackCamera(cameraProviderFuture.get(), lifecycleOwner, previewView)
@@ -269,14 +300,52 @@ class CameraManager @Inject constructor(
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                     .build()
                 provider.unbindAll()
-                camera = provider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture)
-                Log.i(TAG, "Fallback camera bound via $selector")
+                val bound = provider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture)
+                camera = bound
+                _bindState.value = describeBound(bound, selectedCameraId)
+                Log.i(TAG, "Fallback camera bound: ${_bindState.value}")
                 return
             } catch (e: Exception) {
                 Log.w(TAG, "Fallback candidate failed", e)
             }
         }
         Log.e(TAG, "No usable cameras available")
+        _bindState.value = CameraBindState.Failed(
+            "No camera could be opened. Check the USB connection and that camera + microphone permissions are allowed."
+        )
+    }
+
+    /**
+     * Resolve which physical camera actually got bound, and whether it's the
+     * one the settings asked for ([requestedId] "" = auto, sentinel = any
+     * external, otherwise a specific Camera2 id).
+     */
+    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
+    private fun describeBound(bound: Camera, requestedId: String): CameraBindState.Bound {
+        val info = Camera2CameraInfo.from(bound.cameraInfo)
+        val facing = try {
+            info.getCameraCharacteristic(CameraCharacteristics.LENS_FACING)
+        } catch (e: Exception) {
+            null
+        }
+        val isExternal = facing == CameraCharacteristics.LENS_FACING_EXTERNAL
+        val facingLabel = when (facing) {
+            CameraCharacteristics.LENS_FACING_FRONT -> "Front"
+            CameraCharacteristics.LENS_FACING_BACK -> "Back"
+            CameraCharacteristics.LENS_FACING_EXTERNAL -> "External"
+            else -> "Camera"
+        }
+        val matched = when {
+            requestedId == EXTERNAL_CAMERA_ID -> isExternal
+            requestedId.isNotEmpty() -> info.cameraId == requestedId
+            else -> true
+        }
+        return CameraBindState.Bound(
+            cameraId = info.cameraId,
+            facingLabel = facingLabel,
+            isExternal = isExternal,
+            matchedRequest = matched
+        )
     }
 
     suspend fun takePhoto(): Bitmap = suspendCancellableCoroutine { continuation ->
@@ -381,5 +450,6 @@ class CameraManager @Inject constructor(
     fun release() {
         cameraProvider?.unbindAll()
         camera = null
+        _bindState.value = CameraBindState.Idle
     }
 }

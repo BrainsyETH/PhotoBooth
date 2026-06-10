@@ -10,8 +10,14 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -254,6 +260,23 @@ class SettingsManager @Inject constructor(
     val settings: Flow<BoothSettings> = context.dataStore.data.map { prefs ->
         readSettings(prefs)
     }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Hot, app-scoped settings: null only for the first few milliseconds of
+     * process life, then always the latest stored values.
+     *
+     * Exists because per-screen `stateIn(..., BoothSettings())` flows START AT
+     * DEFAULTS, and anything that runs once on first composition (like an
+     * AndroidView factory binding the camera) captures those defaults before
+     * the real DataStore emission arrives. The camera-selection bug — the
+     * operator picks an external camera and the booth opens the front camera
+     * anyway — was exactly this race. Bind cameras (and any other one-shot
+     * effect) from THIS flow, gated on non-null.
+     */
+    val loaded: StateFlow<BoothSettings?> = settings
+        .stateIn(scope, SharingStarted.Eagerly, null)
 
     suspend fun update(transform: BoothSettings.() -> BoothSettings) {
         context.dataStore.edit { prefs ->

@@ -19,4 +19,8 @@ class GetReadyViewModel @Inject constructor(
 
     val settings: StateFlow<BoothSettings> = settingsManager.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BoothSettings())
+
+    /** Real stored settings (null until first load) — bind the camera from THIS,
+     *  never from [settings], whose initial value is defaults. */
+    val loadedSettings: StateFlow<BoothSettings?> = settingsManager.loaded
 }
