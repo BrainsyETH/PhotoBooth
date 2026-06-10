@@ -23,6 +23,7 @@ import com.snapcabin.share.QrCodeGenerator
 import com.snapcabin.share.ResendEmailSender
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -91,6 +92,18 @@ class ShareViewModel @Inject constructor(
         private const val TAG = "ShareViewModel"
         /** How long the Thank You overlay stays before we navigate back to Attract. */
         private const val THANK_YOU_DURATION_MS = 3_000L
+        /**
+         * After a successful email we keep the share screen (and QR) up this
+         * long so the guest reads "Sent ✓" and can still scan the QR, then we
+         * auto-advance to Thank You to keep the line moving. Cancelled if they
+         * reopen the email box to send to someone else.
+         */
+        private const val EMAIL_AUTO_ADVANCE_MS = 4_000L
+
+        /** Matches `[label](https://url)` (groups 1,2) or a bare http(s) URL (group 3). */
+        private val LINK_PATTERN = Regex(
+            """\[([^\]]+)]\((https?://[^\s)]+)\)|(https?://[^\s<]+)"""
+        )
     }
 
     private val _uiState = MutableStateFlow(ShareUiState())
@@ -108,6 +121,9 @@ class ShareViewModel @Inject constructor(
 
     /** Guards against double-ending if Done is tapped twice or races with the timer. */
     private var sessionEndScheduled: Boolean = false
+
+    /** Pending "auto-advance to Thank You after a successful email" job. */
+    private var autoAdvanceJob: Job? = null
 
     /**
      * Hand the session output to the Share pipeline. Branding, collage assembly,
@@ -330,6 +346,24 @@ class ShareViewModel @Inject constructor(
      * here. We show the Thank You overlay, then emit SessionEnded once. Calling
      * this more than once is a no-op so the user can spam Done safely.
      */
+    /** Auto-advance to Thank You a few seconds after a successful email send. */
+    private fun scheduleEmailAutoAdvance() {
+        autoAdvanceJob?.cancel()
+        autoAdvanceJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(EMAIL_AUTO_ADVANCE_MS)
+            endSession()
+        }
+    }
+
+    /**
+     * Cancel a pending post-email auto-advance — called when the guest reopens
+     * the email box, so emailing a second person isn't whisked away.
+     */
+    fun cancelEmailAutoAdvance() {
+        autoAdvanceJob?.cancel()
+        autoAdvanceJob = null
+    }
+
     fun endSession() {
         if (sessionEndScheduled) return
         sessionEndScheduled = true
@@ -417,6 +451,9 @@ class ShareViewModel @Inject constructor(
                     perAddressSendCounts[to] = (perAddressSendCounts[to] ?: 0) + 1
                     appendToSendLog(s, "email", SendLog.maskEmail(to), "ok", note = "")
                     _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
+                    // Keep the line moving: drift to Thank You after a beat,
+                    // unless they reopen the email box to send to someone else.
+                    scheduleEmailAutoAdvance()
                 }
                 is ResendEmailSender.Result.Err -> {
                     appendToSendLog(s, "email", SendLog.maskEmail(to), "err", note = result.message)
@@ -438,9 +475,10 @@ class ShareViewModel @Inject constructor(
     }
 
     private fun buildHtmlBody(s: BoothSettings, publicUrl: String?): String {
-        // Operator-authored body. {event} expands to the event name; the text
-        // is HTML-escaped (it's plain text from a kiosk field, not trusted
-        // markup) and blank lines become separate paragraphs.
+        // Operator-authored body. {event} expands to the event name. The text is
+        // HTML-escaped (it's a plain kiosk field, not trusted markup); links are
+        // the one exception — see [renderInlineWithLinks]. Blank lines become
+        // separate paragraphs.
         val event = s.eventName.ifBlank { "the booth" }
         val rawBody = s.resendBodyText
             .ifBlank { "Your photo is attached — save it, share it, treasure it." }
@@ -450,11 +488,11 @@ class ShareViewModel @Inject constructor(
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .joinToString("\n") { para ->
-                val withBreaks = escapeHtml(para).replace("\n", "<br>")
+                val withBreaks = renderInlineWithLinks(para).replace("\n", "<br>")
                 "  <p>$withBreaks</p>"
             }
         val linkLine = publicUrl?.let {
-            "  <p style=\"color:#7a6a4f;font-size:14px;\">If the attachment doesn't come through, here's a link: <a href=\"${escapeHtml(it)}\">${escapeHtml(it)}</a></p>"
+            "  <p style=\"color:#7a6a4f;font-size:14px;\">If the attachment doesn't come through, here's a link: <a href=\"${escapeAttr(it)}\">${escapeHtml(it)}</a></p>"
         }.orEmpty()
         return """
             <div style="font-family:Helvetica,Arial,sans-serif;color:#3a2e20;">
@@ -464,12 +502,50 @@ class ShareViewModel @Inject constructor(
         """.trimIndent()
     }
 
+    /**
+     * Render a line of operator body text to HTML, turning links clickable
+     * while keeping everything else escaped. Supports two host-friendly forms:
+     *  - `[label](https://…)` → a labelled link
+     *  - a bare `https://…`    → linkified as-is
+     * Only http(s) is allowed (no `javascript:` etc.), trailing sentence
+     * punctuation is left outside the link, and both label and href are escaped.
+     */
+    private fun renderInlineWithLinks(text: String): String {
+        val sb = StringBuilder()
+        var last = 0
+        for (m in LINK_PATTERN.findAll(text)) {
+            sb.append(escapeHtml(text.substring(last, m.range.first)))
+            val mdLabel = m.groups[1]?.value
+            val mdUrl = m.groups[2]?.value
+            val bareUrl = m.groups[3]?.value
+            when {
+                mdUrl != null -> sb.append(anchor(mdUrl, mdLabel ?: mdUrl))
+                bareUrl != null -> {
+                    val trimmed = bareUrl.trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '}', '"', '\'')
+                    sb.append(anchor(trimmed, trimmed))
+                    sb.append(escapeHtml(bareUrl.substring(trimmed.length)))
+                }
+            }
+            last = m.range.last + 1
+        }
+        sb.append(escapeHtml(text.substring(last)))
+        return sb.toString()
+    }
+
+    private fun anchor(url: String, label: String): String =
+        "<a href=\"${escapeAttr(url)}\" style=\"color:#6B8F73;\">${escapeHtml(label)}</a>"
+
     private fun escapeHtml(s: String): String = s
         .replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
         .replace("\"", "&quot;")
         .replace("'", "&#39;")
+
+    /** Escape a URL for use inside an href="" attribute. */
+    private fun escapeAttr(s: String): String = s
+        .replace("&", "&amp;")
+        .replace("\"", "&quot;")
 
     private fun appendToSendLog(
         s: BoothSettings,
