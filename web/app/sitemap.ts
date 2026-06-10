@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/setup",
     "/setup/resend",
     "/setup/cloudinary",
+    "/setup/kiosk",
     "/privacy",
     "/terms",
   ];
