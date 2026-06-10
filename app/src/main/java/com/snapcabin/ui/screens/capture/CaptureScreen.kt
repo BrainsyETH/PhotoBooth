@@ -27,6 +27,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -136,25 +137,38 @@ fun CaptureScreen(
         CaptureMode.Gif -> "GIF"
     }
 
+    // Camera binding MUST come from the loaded settings, not the per-screen
+    // StateFlow whose first emission is BoothSettings() defaults — binding in
+    // an AndroidView factory captured those defaults and the operator's camera
+    // selection (external camera especially) was silently ignored. key() makes
+    // the bind reactive: if the camera-relevant settings change, a fresh
+    // PreviewView is created and rebound.
+    val camSettings by viewModel.loadedSettings.collectAsState()
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        val cam = camSettings
         if (hasCameraPermission) {
-            AndroidView(
-                factory = { ctx ->
-                    PreviewView(ctx).also { previewView ->
-                        previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                        viewModel.cameraManager.bindCamera(
-                            lifecycleOwner = lifecycleOwner,
-                            previewView = previewView,
-                            useFront = settings.useFrontCamera,
-                            cameraId = settings.cameraId,
-                            mirror = settings.mirrorImage,
-                            maxResolution = settings.photoResolution.maxDimension
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+            if (cam != null) {
+                key(cam.cameraId, cam.useFrontCamera, cam.mirrorImage, cam.photoResolution) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PreviewView(ctx).also { previewView ->
+                                previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                viewModel.cameraManager.bindCamera(
+                                    lifecycleOwner = lifecycleOwner,
+                                    previewView = previewView,
+                                    useFront = cam.useFrontCamera,
+                                    cameraId = cam.cameraId,
+                                    mirror = cam.mirrorImage,
+                                    maxResolution = cam.photoResolution.maxDimension
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
 
             // Warm radial vignette using espresso, opacity ramped per step.
             Box(
