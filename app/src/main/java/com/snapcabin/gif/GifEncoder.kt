@@ -7,31 +7,54 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 
 /**
- * Simple GIF encoder using LZW compression.
- * Creates animated GIFs from a list of Bitmaps.
+ * Simple animated-GIF encoder (LZW compression, 256-colour uniform
+ * quantization).
+ *
+ * The encode core works on plain pixel arrays ([PixelFrame]) rather than
+ * Android [Bitmap]s, so it is pure-JVM and unit-testable without a device or
+ * Robolectric — see app/src/test GifEncoderTest. The [Bitmap] entry points just
+ * extract pixels and delegate.
  */
 class GifEncoder {
 
+    /** A frame as ARGB pixels plus its dimensions — the unit the core encodes. */
+    data class PixelFrame(val pixels: IntArray, val width: Int, val height: Int) {
+        override fun equals(other: Any?): Boolean =
+            other is PixelFrame && width == other.width && height == other.height &&
+                pixels.contentEquals(other.pixels)
+
+        override fun hashCode(): Int =
+            (width * 31 + height) * 31 + pixels.contentHashCode()
+    }
+
     fun encode(frames: List<Bitmap>, delayMs: Int = 500, outputFile: File): Boolean {
         if (frames.isEmpty()) return false
-
         return try {
-            FileOutputStream(outputFile).use { fos ->
-                writeGif(frames, delayMs, fos)
-            }
+            FileOutputStream(outputFile).use { fos -> writeGif(toPixelFrames(frames), delayMs, fos) }
             true
         } catch (e: Exception) {
             false
         }
     }
 
-    fun encodeToBytes(frames: List<Bitmap>, delayMs: Int = 500): ByteArray {
+    fun encodeToBytes(frames: List<Bitmap>, delayMs: Int = 500): ByteArray =
+        encodePixelFrames(toPixelFrames(frames), delayMs)
+
+    /** Pure-JVM entry point: encode already-extracted pixel frames. */
+    fun encodePixelFrames(frames: List<PixelFrame>, delayMs: Int = 500): ByteArray {
         val bos = ByteArrayOutputStream()
         writeGif(frames, delayMs, bos)
         return bos.toByteArray()
     }
 
-    private fun writeGif(frames: List<Bitmap>, delayMs: Int, out: OutputStream) {
+    private fun toPixelFrames(frames: List<Bitmap>): List<PixelFrame> = frames.map { bmp ->
+        val px = IntArray(bmp.width * bmp.height)
+        bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+        PixelFrame(px, bmp.width, bmp.height)
+    }
+
+    private fun writeGif(frames: List<PixelFrame>, delayMs: Int, out: OutputStream) {
+        if (frames.isEmpty()) return
         val width = frames[0].width
         val height = frames[0].height
 
@@ -59,10 +82,12 @@ class GifEncoder {
         out.write(0)    // Block terminator
 
         for (frame in frames) {
-            val scaled = if (frame.width != width || frame.height != height) {
-                Bitmap.createScaledBitmap(frame, width, height, true)
+            // All frames share the logical screen size; nearest-neighbour
+            // resample any that differ (callers pre-scale, so this is rare).
+            val pixels = if (frame.width != width || frame.height != height) {
+                resample(frame.pixels, frame.width, frame.height, width, height)
             } else {
-                frame
+                frame.pixels
             }
 
             // Graphic Control Extension
@@ -83,12 +108,25 @@ class GifEncoder {
             out.write(0) // No local color table
 
             // Image data (LZW compressed)
-            writeLzwData(out, scaled, width, height)
+            writeLzwData(out, pixels, width, height)
         }
 
         // GIF Trailer
         out.write(0x3B)
         out.flush()
+    }
+
+    private fun resample(src: IntArray, sw: Int, sh: Int, dw: Int, dh: Int): IntArray {
+        if (sw == dw && sh == dh) return src
+        val out = IntArray(dw * dh)
+        for (y in 0 until dh) {
+            val sy = (y.toLong() * sh / dh).toInt().coerceIn(0, sh - 1)
+            for (x in 0 until dw) {
+                val sx = (x.toLong() * sw / dw).toInt().coerceIn(0, sw - 1)
+                out[y * dw + x] = src[sy * sw + sx]
+            }
+        }
+        return out
     }
 
     private fun writeColorTable(out: OutputStream) {
@@ -110,12 +148,10 @@ class GifEncoder {
         return (r shl 5) or (g shl 2) or b
     }
 
-    private fun writeLzwData(out: OutputStream, bitmap: Bitmap, width: Int, height: Int) {
+    private fun writeLzwData(out: OutputStream, pixels: IntArray, width: Int, height: Int) {
         val minCodeSize = 8
         out.write(minCodeSize)
 
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
         val indexed = ByteArray(pixels.size) { quantizePixel(pixels[it]).toByte() }
 
         // Simple LZW encoding

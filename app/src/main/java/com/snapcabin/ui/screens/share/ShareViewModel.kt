@@ -120,6 +120,9 @@ class ShareViewModel @Inject constructor(
         emailSendsThisSession = 0
         sessionEndScheduled = false
         pendingUpload = null
+        // Sweep last session's share-intent temp files so cacheDir can't grow
+        // unbounded across a long event.
+        viewModelScope.launch(Dispatchers.IO) { photoSaver.cleanShareCache(context) }
         viewModelScope.launch {
             // Snapshot the REAL stored settings before touching the photo.
             // This ViewModel is created fresh on Share entry and its stateIn

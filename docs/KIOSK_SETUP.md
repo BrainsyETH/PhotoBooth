@@ -328,6 +328,13 @@ re-check that the upload preset is **Unsigned** and allows `jpg`/`png`.
 **The tablet falls asleep mid-event.** Kiosk Mode keeps the screen on
 *while plugged in* — make sure it's on AC power, not running on battery.
 
+**The app crashed during an event.** It auto-restarts itself a second
+later, so the booth keeps running. To find out *why*, connect the tablet
+to a computer and open
+`Android/data/com.snapcabin/files/crash_log.txt` in a file manager — it's
+a plain text file of the most recent errors (nothing is sent anywhere).
+Send it to **hello@snapcabin.app** if you'd like help.
+
 ## Advanced / emulator notes (technicians)
 
 **`dpm set-device-owner` says "already accounts on device".** Factory

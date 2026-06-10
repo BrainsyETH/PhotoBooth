@@ -69,5 +69,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideCrashReporter(): CrashReporter = CrashReporter()
+    fun provideCrashReporter(@ApplicationContext context: Context): CrashReporter =
+        CrashReporter(context)
 }
