@@ -343,6 +343,7 @@ private fun ExternalCameraStatusBlock(
 @Composable
 private fun DslrConnectBlock(viewModel: AdminViewModel) {
     val state by viewModel.dslrManager.state.collectAsState()
+    val capture by viewModel.dslrManager.capture.collectAsState()
     LaunchedEffect(Unit) { viewModel.dslrManager.refresh() }
 
     Column(
@@ -360,6 +361,7 @@ private fun DslrConnectBlock(viewModel: AdminViewModel) {
             style = MaterialTheme.typography.bodyMedium,
             color = Pine
         )
+        val connected = state as? DslrManager.State.Connected
         when (val s = state) {
             is DslrManager.State.Connected -> {
                 Text(
@@ -383,16 +385,57 @@ private fun DslrConnectBlock(viewModel: AdminViewModel) {
             )
             else -> {}
         }
-        BigButton(
-            text = if (state is DslrManager.State.Connecting) "CONNECTING…" else "CONNECT DSLR",
-            onClick = { viewModel.dslrManager.connect() },
-            enabled = state !is DslrManager.State.Connecting,
-            variant = BigButtonVariant.Primary,
-            modifier = Modifier.fillMaxWidth()
-        )
+
+        if (connected == null) {
+            BigButton(
+                text = if (state is DslrManager.State.Connecting) "CONNECTING…" else "CONNECT DSLR",
+                onClick = { viewModel.dslrManager.connect() },
+                enabled = state !is DslrManager.State.Connecting,
+                variant = BigButtonVariant.Primary,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            val busy = capture is DslrManager.Capture.Busy
+            BigButton(
+                text = (capture as? DslrManager.Capture.Busy)?.phase ?: "TAKE DSLR PHOTO",
+                onClick = { viewModel.dslrManager.captureTestPhoto() },
+                enabled = !busy,
+                variant = BigButtonVariant.Primary,
+                modifier = Modifier.fillMaxWidth()
+            )
+            when (val c = capture) {
+                is DslrManager.Capture.Done -> {
+                    Text(
+                        text = "✓ Captured ${c.jpeg.size / 1024} KB from the DSLR — remote capture works.",
+                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Pine
+                    )
+                    c.bitmap?.let { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "DSLR test photo",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(3f / 2f)
+                                .clip(RoundedCornerShape(Radii.xs))
+                        )
+                    }
+                }
+                is DslrManager.Capture.Failed -> Text(
+                    text = "Capture failed: ${c.message}",
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Clay
+                )
+                else -> {}
+            }
+        }
+
         Text(
-            text = "Early DSLR support — this step just confirms the tablet can talk to the camera. " +
-                "If it connects, live view and capture come next.",
+            text = "Early DSLR support — connect, then take a test photo to confirm the camera " +
+                "captures over USB. Live view comes next.",
             style = MaterialTheme.typography.bodySmall,
             color = Espresso.copy(alpha = 0.6f)
         )

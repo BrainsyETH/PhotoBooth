@@ -46,8 +46,18 @@ class DslrManager(private val context: Context) {
         data class Error(val message: String) : State()
     }
 
+    sealed class Capture {
+        data object Idle : Capture()
+        data class Busy(val phase: String) : Capture()
+        data class Done(val jpeg: ByteArray, val bitmap: android.graphics.Bitmap?) : Capture()
+        data class Failed(val message: String) : Capture()
+    }
+
     private val _state = MutableStateFlow<State>(State.NoCamera)
     val state: StateFlow<State> = _state.asStateFlow()
+
+    private val _capture = MutableStateFlow<Capture>(Capture.Idle)
+    val capture: StateFlow<Capture> = _capture.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val usbManager get() = context.getSystemService(Context.USB_SERVICE) as UsbManager
@@ -154,6 +164,16 @@ class DslrManager(private val context: Context) {
                 val info = PtpDeviceInfo.parse(infoData)
                 Log.i(TAG, "Connected to ${info.manufacturer} ${info.model} (serial ${info.serialNumber}), " +
                     "${Ptp.vendorName(info.vendorExtensionId)} ext, EOS-remote=${info.supportsEosRemote}")
+
+                // Canon needs "PC connection" + event mode on before it will
+                // accept shutter-release commands. Best-effort; capture re-asserts.
+                if (info.isCanon && info.supportsEosRemote) {
+                    runCatching {
+                        t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(1))
+                        t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(1))
+                    }.onFailure { Log.w(TAG, "EOS remote-mode setup failed (will retry on capture)", it) }
+                }
+
                 _state.value = State.Connected(info)
             } catch (e: Exception) {
                 Log.e(TAG, "DSLR connect failed", e)
@@ -163,6 +183,142 @@ class DslrManager(private val context: Context) {
         }
     }
 
+    /**
+     * MILESTONE 2 — take one photo on the DSLR and download it. Canon EOS flow:
+     * ensure remote+event mode → trigger shutter (RemoteReleaseOn/Off) → poll
+     * GetEvent for the "object added / ready to transfer" event → download via
+     * GetPartialObject → TransferComplete. Every phase logs, so a single run
+     * reveals exactly where any camera-specific tuning is needed.
+     */
+    fun captureTestPhoto() {
+        val t = transport
+        if (t == null) {
+            _capture.value = Capture.Failed("Not connected.")
+            return
+        }
+        if (_capture.value is Capture.Busy) return
+        scope.launch {
+            try {
+                _capture.value = Capture.Busy("Preparing camera…")
+                runCatching {
+                    t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(1))
+                    t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(1))
+                }
+                drainEvents(t)
+
+                _capture.value = Capture.Busy("Firing shutter…")
+                // Full press (AF + shutter), then release.
+                logResp("RemoteReleaseOn(3,0)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(3, 0)))
+                logResp("RemoteReleaseOff(3)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(3)))
+
+                _capture.value = Capture.Busy("Waiting for the photo…")
+                val handle = pollForObject(t, timeoutMs = 20_000)
+                    ?: throw java.io.IOException(
+                        "Shutter fired but no image event arrived. Check the lens is on AF and " +
+                            "there's a card in the camera (see logcat for the raw events)."
+                    )
+
+                _capture.value = Capture.Busy("Downloading photo…")
+                val jpeg = downloadObject(t, handle)
+                Log.i(TAG, "Downloaded ${jpeg.size} bytes from handle 0x${handle.toString(16)}")
+                val bmp = try {
+                    android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
+                } catch (e: Exception) {
+                    null
+                }
+                _capture.value = Capture.Done(jpeg, bmp)
+            } catch (e: Exception) {
+                Log.e(TAG, "DSLR capture failed", e)
+                _capture.value = Capture.Failed(e.message ?: "Capture failed.")
+            }
+        }
+    }
+
+    fun clearCapture() {
+        if (_capture.value !is Capture.Busy) _capture.value = Capture.Idle
+    }
+
+    /** Drain any stale events so we don't mistake a previous shot's event for ours. */
+    private fun drainEvents(t: PtpTransport) {
+        runCatching {
+            repeat(5) {
+                val (_, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+                if (data == null || data.size <= 8) return
+            }
+        }
+    }
+
+    /** Poll GetEvent until an object-added / ready-to-transfer event names a handle. */
+    private fun pollForObject(t: PtpTransport, timeoutMs: Long): Int? {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val (_, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+            if (data != null && data.size > 8) {
+                parseEventsForObjectHandle(data)?.let { return it }
+            }
+            Thread.sleep(150)
+        }
+        return null
+    }
+
+    /**
+     * Walk the GetEvent record stream (each: u32 size · u32 eventCode · payload),
+     * logging every record, and return the object handle from the first
+     * ObjectAdded / RequestObjectTransfer record (handle = first u32 of payload).
+     */
+    private fun parseEventsForObjectHandle(data: ByteArray): Int? {
+        var off = 0
+        while (off + 8 <= data.size) {
+            val size = PtpBytes.readU32(data, off).toInt()
+            if (size < 8 || off + size > data.size) break
+            val code = PtpBytes.readU32(data, off + 4).toInt()
+            val payloadStart = off + 8
+            val previewLen = minOf(size - 8, 32)
+            Log.d(TAG, "EOS event 0x${code.toString(16)} size=$size payload=${hex(data, payloadStart, previewLen)}")
+            when (code) {
+                Ptp.EC_EOS_OBJECT_ADDED_EX, Ptp.EC_EOS_OBJECT_ADDED_EX64,
+                Ptp.EC_EOS_REQUEST_OBJECT_TRANSFER, Ptp.EC_EOS_REQUEST_OBJECT_TRANSFER64 -> {
+                    if (size >= 12) return PtpBytes.readU32(data, payloadStart).toInt()
+                }
+            }
+            off += size
+        }
+        return null
+    }
+
+    /** Download a Canon EOS object in chunks via GetPartialObject, then ack. */
+    private fun downloadObject(t: PtpTransport, handle: Int): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        val chunk = 0x200000 // 2 MB
+        var offset = 0
+        while (true) {
+            val (resp, data) = t.transact(
+                Ptp.OP_EOS_GET_PARTIAL_OBJECT, intArrayOf(handle, offset, chunk)
+            )
+            if (data == null || data.isEmpty()) {
+                if (!resp.ok) Log.w(TAG, "GetPartialObject rc=0x${resp.code.toString(16)} at offset $offset")
+                break
+            }
+            out.write(data)
+            offset += data.size
+            if (data.size < chunk) break // final short chunk
+        }
+        runCatching { t.transact(Ptp.OP_EOS_TRANSFER_COMPLETE, intArrayOf(handle)) }
+        return out.toByteArray()
+    }
+
+    private fun logResp(label: String, r: Pair<PtpTransport.PtpResponse, ByteArray?>) {
+        Log.d(TAG, "$label → rc=0x${r.first.code.toString(16)} ok=${r.first.ok}")
+    }
+
+    private fun hex(b: ByteArray, start: Int, len: Int): String {
+        val sb = StringBuilder()
+        for (i in start until minOf(start + len, b.size)) {
+            sb.append(String.format("%02x ", b[i]))
+        }
+        return sb.toString().trim()
+    }
+
     fun disconnect() {
         try {
             transport?.transact(Ptp.OP_CLOSE_SESSION)
@@ -170,5 +326,6 @@ class DslrManager(private val context: Context) {
         }
         transport?.close()
         transport = null
+        _capture.value = Capture.Idle
     }
 }

@@ -32,12 +32,21 @@ object Ptp {
     const val OP_INITIATE_CAPTURE = 0x100E
 
     // ── Canon EOS vendor operations (later milestones; listed for the map) ──
+    const val OP_EOS_GET_PARTIAL_OBJECT = 0x9107
     const val OP_EOS_SET_REMOTE_MODE = 0x9114
     const val OP_EOS_SET_EVENT_MODE = 0x9115
     const val OP_EOS_GET_EVENT = 0x9116
+    const val OP_EOS_TRANSFER_COMPLETE = 0x9117
+    const val OP_EOS_SET_DEVICE_PROP_VALUE = 0x9110
     const val OP_EOS_REMOTE_RELEASE_ON = 0x9128
     const val OP_EOS_REMOTE_RELEASE_OFF = 0x9129
     const val OP_EOS_GET_VIEWFINDER_DATA = 0x9153
+
+    // ── Canon EOS event codes (records returned by GetEvent) ──
+    const val EC_EOS_OBJECT_ADDED_EX = 0xC181
+    const val EC_EOS_OBJECT_ADDED_EX64 = 0xC1A7
+    const val EC_EOS_REQUEST_OBJECT_TRANSFER = 0xC186
+    const val EC_EOS_REQUEST_OBJECT_TRANSFER64 = 0xC1A9
 
     // ── Response codes ──
     const val RESP_OK = 0x2001
