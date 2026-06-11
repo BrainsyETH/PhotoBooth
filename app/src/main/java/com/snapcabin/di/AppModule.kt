@@ -4,6 +4,7 @@ import android.content.Context
 import com.snapcabin.analytics.AnalyticsTracker
 import com.snapcabin.analytics.CrashReporter
 import com.snapcabin.camera.CameraManager
+import com.snapcabin.dslr.DslrManager
 import com.snapcabin.kiosk.KioskManager
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.share.CloudinaryUploader
@@ -71,4 +72,9 @@ object AppModule {
     @Singleton
     fun provideCrashReporter(@ApplicationContext context: Context): CrashReporter =
         CrashReporter(context)
+
+    @Provides
+    @Singleton
+    fun provideDslrManager(@ApplicationContext context: Context): DslrManager =
+        DslrManager(context)
 }

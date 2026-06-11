@@ -93,8 +93,11 @@ class CameraManager @Inject constructor(
     }
 
     /**
-     * Detect all available cameras including USB-connected external cameras
-     * (Nikon, Canon, etc. that present as UVC devices)
+     * Detect all available cameras, including USB cameras the device exposes
+     * via the camera HAL. Note: only UVC (USB Video Class) devices — webcams,
+     * HDMI-to-USB capture sticks — can appear here. DSLRs plugged straight in
+     * (Canon/Nikon) present as PTP photo-transfer devices, which Android's
+     * camera service can NOT use; they need an HDMI→USB capture stick.
      */
     fun detectCameras(): List<DetectedCamera> {
         val cameras = mutableListOf<DetectedCamera>()

@@ -25,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -46,6 +47,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 import com.snapcabin.camera.CameraBindState
 import com.snapcabin.camera.CameraManager
+import com.snapcabin.dslr.DslrManager
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
@@ -192,7 +194,8 @@ private fun ExternalCameraStatusBlock(
     cameras: List<CameraInfo>,
     viewModel: AdminViewModel
 ) {
-    val usbCount by viewModel.usbDeviceCount.collectAsState()
+    val usb by viewModel.usbDiagnostics.collectAsState()
+    val usbCount = usb.deviceCount
     val hasExternal = cameras.any { it.isExternal }
     val externalSelected = settings.cameraId == CameraManager.EXTERNAL_CAMERA_ID
 
@@ -238,6 +241,12 @@ private fun ExternalCameraStatusBlock(
                 hasExternal ->
                     "External camera detected — select it in the camera list, then run TEST CAMERA below. " +
                         "Tip: turn Mirror Image off for an external camera pointed at guests."
+                usb.hasPtpOnlyDevice ->
+                    "This USB device is a DSLR / photo camera in photo-transfer mode — Canon and Nikon " +
+                        "connect this way. Android can't use it as a live camera, so it will never appear " +
+                        "here, no matter how long you wait. To use it with SnapCabin: connect the camera's " +
+                        "HDMI output to an HDMI-to-USB capture stick (≈$20) and plug the stick in here — " +
+                        "it shows up as a webcam. Otherwise, use the tablet's built-in camera."
                 usbCount > 0 ->
                     "A USB device is plugged in, but Android isn't showing it as a camera yet. " +
                         "Wait a few seconds and tap REFRESH. Make sure the camera is a UVC webcam " +
@@ -251,10 +260,22 @@ private fun ExternalCameraStatusBlock(
             color = Espresso.copy(alpha = 0.7f)
         )
 
+        // Native DSLR control over USB (PTP) — the no-capture-stick path. Only
+        // offered when a DSLR (PTP device) is actually present.
+        if (usb.hasPtpOnlyDevice) {
+            DslrConnectBlock(viewModel)
+        }
+
+        // Only offer USB-camera affordances when a usable USB camera is even
+        // plausible — a DSLR in photo-transfer mode can never bind, so the mic
+        // grant and the external-selection button would be dead ends for it.
+        val usbCameraPlausible = hasExternal || usb.hasVideoDevice ||
+            (usbCount > 0 && !usb.hasPtpOnlyDevice)
+
         // USB cameras are audio+video devices: Android won't open one without
         // microphone permission. Make the grant an explicit, visible step
         // instead of hoping a hidden prompt fires at the right moment.
-        if (usbCount > 0 || hasExternal) {
+        if (usbCameraPlausible) {
             if (micGranted) {
                 Text(
                     text = "✓ Microphone access granted (needed only to open USB cameras — no audio is recorded).",
@@ -291,7 +312,7 @@ private fun ExternalCameraStatusBlock(
         // Explicit external selection — robust even when the USB camera never
         // shows up in the list below (it binds by lens-facing, the way the
         // capture fallback already does).
-        if (usbCount > 0 || hasExternal) {
+        if (usbCameraPlausible) {
             BigButton(
                 text = if (externalSelected) "● USING EXTERNAL CAMERA" else "USE EXTERNAL USB CAMERA",
                 onClick = { viewModel.updateSetting { copy(cameraId = CameraManager.EXTERNAL_CAMERA_ID) } },
@@ -310,6 +331,70 @@ private fun ExternalCameraStatusBlock(
             text = "REFRESH CAMERAS",
             onClick = { viewModel.detectCameras() },
             variant = BigButtonVariant.Surface
+        )
+    }
+}
+
+/**
+ * Experimental native DSLR (PTP-over-USB) connect — Milestone 1: connect and
+ * read the camera model, proving the transport works on this tablet + camera
+ * before live view and remote capture are built on top.
+ */
+@Composable
+private fun DslrConnectBlock(viewModel: AdminViewModel) {
+    val state by viewModel.dslrManager.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.dslrManager.refresh() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, Pine.copy(alpha = 0.35f), RoundedCornerShape(Radii.s))
+            .padding(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s)
+    ) {
+        Text(
+            text = "Experimental: connect to the DSLR directly (no capture stick)",
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Pine
+        )
+        when (val s = state) {
+            is DslrManager.State.Connected -> {
+                Text(
+                    text = "✓ Connected: ${"${s.info.manufacturer} ${s.info.model}".trim()}",
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Pine
+                )
+                Text(
+                    text = "Serial ${s.info.serialNumber.ifBlank { "—" }} · " +
+                        (if (s.info.supportsEosRemote) "remote capture supported" else
+                            "this camera doesn't advertise USB remote capture"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (s.info.supportsEosRemote) Espresso.copy(alpha = 0.7f) else Clay
+                )
+            }
+            is DslrManager.State.Error -> Text(
+                text = "Couldn't connect: ${s.message}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Clay
+            )
+            else -> {}
+        }
+        BigButton(
+            text = if (state is DslrManager.State.Connecting) "CONNECTING…" else "CONNECT DSLR",
+            onClick = { viewModel.dslrManager.connect() },
+            enabled = state !is DslrManager.State.Connecting,
+            variant = BigButtonVariant.Primary,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "Early DSLR support — this step just confirms the tablet can talk to the camera. " +
+                "If it connects, live view and capture come next.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.6f)
         )
     }
 }

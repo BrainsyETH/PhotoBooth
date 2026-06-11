@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager as SystemCameraManager
+import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,7 @@ import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.camera.CameraManager
+import com.snapcabin.dslr.DslrManager
 import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.ResendEmailSender
 import com.snapcabin.ui.components.SoundManager
@@ -45,6 +47,7 @@ class AdminViewModel @Inject constructor(
     private val cloudinaryUploader: CloudinaryUploader,
     private val soundManager: SoundManager,
     val cameraManager: CameraManager,
+    val dslrManager: DslrManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -73,13 +76,23 @@ class AdminViewModel @Inject constructor(
     val availableCameras: StateFlow<List<CameraInfo>> = _availableCameras.asStateFlow()
 
     /**
-     * Number of raw USB devices the tablet currently sees. The key external-
-     * camera diagnostic: a webcam can be plugged in (count > 0) while Android's
-     * camera service exposes no LENS_FACING_EXTERNAL camera — without surfacing
-     * both facts the operator can't tell a bad cable from an unsupported tablet.
+     * What the tablet's USB stack currently sees, classified by interface class.
+     * The key external-camera diagnostic: a device can be plugged in while
+     * Android's camera service exposes nothing — and WHY differs. A UVC (video
+     * class) device should appear as a camera shortly; a still-image (PTP)
+     * device is a DSLR in photo-transfer mode, which Android can never use as
+     * a live camera no matter how long you wait.
      */
-    private val _usbDeviceCount = MutableStateFlow(0)
-    val usbDeviceCount: StateFlow<Int> = _usbDeviceCount.asStateFlow()
+    data class UsbDiagnostics(
+        val deviceCount: Int = 0,
+        /** Some device exposes a USB video-class (UVC webcam) interface. */
+        val hasVideoDevice: Boolean = false,
+        /** Some device exposes ONLY a still-image (PTP) interface — a DSLR tether, not a webcam. */
+        val hasPtpOnlyDevice: Boolean = false
+    )
+
+    private val _usbDiagnostics = MutableStateFlow(UsbDiagnostics())
+    val usbDiagnostics: StateFlow<UsbDiagnostics> = _usbDiagnostics.asStateFlow()
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -213,10 +226,30 @@ class AdminViewModel @Inject constructor(
     }
 
     fun detectCameras() {
-        _usbDeviceCount.value = try {
-            (context.getSystemService(Context.USB_SERVICE) as? UsbManager)?.deviceList?.size ?: 0
+        _usbDiagnostics.value = try {
+            val devices = (context.getSystemService(Context.USB_SERVICE) as? UsbManager)
+                ?.deviceList?.values.orEmpty()
+            var video = false
+            var ptpOnly = false
+            for (device in devices) {
+                var hasVideo = false
+                var hasStill = false
+                for (i in 0 until device.interfaceCount) {
+                    when (device.getInterface(i).interfaceClass) {
+                        UsbConstants.USB_CLASS_VIDEO -> hasVideo = true
+                        UsbConstants.USB_CLASS_STILL_IMAGE -> hasStill = true
+                    }
+                }
+                if (hasVideo) video = true
+                if (hasStill && !hasVideo) ptpOnly = true
+            }
+            UsbDiagnostics(
+                deviceCount = devices.size,
+                hasVideoDevice = video,
+                hasPtpOnlyDevice = ptpOnly
+            )
         } catch (e: Exception) {
-            0
+            UsbDiagnostics()
         }
         try {
             val systemCameraManager = context.getSystemService(Context.CAMERA_SERVICE) as SystemCameraManager
