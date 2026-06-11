@@ -48,6 +48,12 @@ object Ptp {
     const val EC_EOS_REQUEST_OBJECT_TRANSFER = 0xC186
     const val EC_EOS_REQUEST_OBJECT_TRANSFER64 = 0xC1A9
 
+    // ── Canon EOS device properties ──
+    /** Where captures go: 2 = memory card, 4 = camera RAM (host must collect). */
+    const val DPC_EOS_CAPTURE_DESTINATION = 0xD11C
+    const val EOS_DEST_CARD = 2
+    const val EOS_DEST_HOST_RAM = 4
+
     // ── Response codes ──
     const val RESP_OK = 0x2001
     const val RESP_SESSION_ALREADY_OPEN = 0x201E
