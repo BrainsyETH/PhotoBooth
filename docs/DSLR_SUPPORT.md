@@ -32,12 +32,17 @@ experimental "CONNECT DSLR" block (`DslrConnectBlock` in `CameraSection.kt`).
 
 ## Milestones
 
-- **M1 — Connect + identify (done, needs on-device validation).** Open a PTP
-  session and read the camera model. Proves the transport works on a given
-  tablet + camera. This is the cheapest thing to fail, so we prove it first.
-- **M2 — Remote capture.** Canon EOS: `SetRemoteMode` → `RemoteReleaseOn/Off`,
-  watch events for the new object, `GetObject` to download the JPEG. Wire into a
-  "take test photo" path, then the guest capture flow.
+- **M1 — Connect + identify (done; connects to Canon on-device).** Open a PTP
+  session and read the camera model. Proved the transport works.
+- **M2 — Remote capture (built; needs on-device validation).** Canon EOS:
+  `SetRemoteMode`/`SetEventMode` → `RemoteReleaseOn(3,0)`/`Off(3)` to fire the
+  shutter → poll `GetEvent` for ObjectAddedEx / RequestObjectTransfer (handle =
+  first u32 of the record payload) → `GetPartialObject` chunks → `Transfer
+  Complete`. Surfaced as a **TAKE DSLR PHOTO** button that shows the downloaded
+  image. Likely tuning points: the release param sequence (some bodies want
+  On(1)→On(2)→Off(2)→Off(1)), the ObjectAddedEx payload layout / handle offset,
+  and capture-destination (card vs SDRAM). The per-event hex dump in logcat
+  (`DslrManager`) is there to decode the exact 850D layout.
 - **M3 — Live view.** Canon EOS: enable EVF output via a device property, poll
   `GetViewFinderData`, decode each JPEG chunk to a Bitmap (~20–30 fps), feed the
   GetReady/Capture preview.
