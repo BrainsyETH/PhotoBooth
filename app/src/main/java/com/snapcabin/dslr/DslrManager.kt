@@ -59,6 +59,19 @@ class DslrManager(private val context: Context) {
     private val _capture = MutableStateFlow<Capture>(Capture.Idle)
     val capture: StateFlow<Capture> = _capture.asStateFlow()
 
+    /**
+     * Human-readable trace of the last capture attempt, shown on-screen in admin
+     * so the operator can report what happened without pulling logcat over adb
+     * (hard when the camera occupies the USB port).
+     */
+    private val _diagnostics = MutableStateFlow<List<String>>(emptyList())
+    val diagnostics: StateFlow<List<String>> = _diagnostics.asStateFlow()
+
+    private fun diag(msg: String) {
+        Log.d(TAG, msg)
+        _diagnostics.value = (_diagnostics.value + msg).takeLast(60)
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val usbManager get() = context.getSystemService(Context.USB_SERVICE) as UsbManager
 
@@ -197,6 +210,8 @@ class DslrManager(private val context: Context) {
         if (_capture.value is Capture.Busy) return
         scope.launch {
             try {
+                _diagnostics.value = emptyList()
+                diag("— capture start —")
                 _capture.value = Capture.Busy("Preparing camera…")
                 prepareRemote(t, "capture")
                 drainEvents(t, "pre-shutter")
@@ -205,7 +220,7 @@ class DslrManager(private val context: Context) {
                 // can detect the new image by diff even if EOS events never
                 // arrive (some bodies queue events differently).
                 val handlesBefore = listObjectHandles(t)
-                Log.i(TAG, "Pre-shutter object handles: ${handlesBefore?.size ?: "unavailable"}")
+                diag("pre-shutter handles: ${handlesBefore?.size ?: "GetObjectHandles unavailable"}")
 
                 _capture.value = Capture.Busy("Firing shutter…")
                 // Full press (AF + shutter), then release.
@@ -223,7 +238,7 @@ class DslrManager(private val context: Context) {
 
                 _capture.value = Capture.Busy("Downloading photo…")
                 val jpeg = downloadObject(t, handle)
-                Log.i(TAG, "Downloaded ${jpeg.size} bytes from handle 0x${handle.toString(16)}")
+                diag("downloaded ${jpeg.size} bytes from 0x${handle.toString(16)}")
                 val bmp = try {
                     android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
                 } catch (e: Exception) {
@@ -255,13 +270,16 @@ class DslrManager(private val context: Context) {
 
     /** Drain queued/stale events (incl. the big initial dump after SetEventMode). */
     private fun drainEvents(t: PtpTransport, label: String) {
+        var total = 0
         runCatching {
-            repeat(8) { i ->
-                val (resp, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
-                Log.d(TAG, "[$label] drain[$i]: ${data?.size ?: -1} bytes rc=0x${resp.code.toString(16)}")
-                if (data == null || data.size <= 8) return
+            repeat(8) {
+                val (_, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+                val n = data?.size ?: 0
+                total += n
+                if (data == null || data.size <= 8) return@runCatching
             }
-        }.onFailure { Log.w(TAG, "[$label] event drain threw", it) }
+        }.onFailure { diag("[$label] drain threw: ${it.message}") }
+        diag("[$label] drained $total event bytes")
     }
 
     /** Poll GetEvent until an object-added / ready-to-transfer event names a handle. */
@@ -291,7 +309,7 @@ class DslrManager(private val context: Context) {
         // 0xFFFFFFFF = all storages; 0,0 = any format, any association.
         val (resp, data) = t.transact(Ptp.OP_GET_OBJECT_HANDLES, intArrayOf(-1, 0, 0))
         if (!resp.ok || data == null || data.size < 4) {
-            Log.w(TAG, "GetObjectHandles rc=0x${resp.code.toString(16)} dataLen=${data?.size ?: -1}")
+            diag("GetObjectHandles rc=0x${resp.code.toString(16)} dataLen=${data?.size ?: -1}")
             null
         } else {
             val n = PtpBytes.readU32(data, 0).toInt().coerceIn(0, 1_000_000)
@@ -307,18 +325,22 @@ class DslrManager(private val context: Context) {
     }
 
     private fun pollForNewHandle(t: PtpTransport, before: Set<Long>?, timeoutMs: Long): Int? {
-        if (before == null) return null
-        Log.i(TAG, "No EOS event — falling back to object-handle diffing")
+        if (before == null) {
+            diag("no event + no handle snapshot → can't diff")
+            return null
+        }
+        diag("no EOS event; diffing object handles…")
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             val now = listObjectHandles(t) ?: return null
             val fresh = now.firstOrNull { it !in before }
             if (fresh != null) {
-                Log.i(TAG, "New object via handle diff: 0x${fresh.toString(16)}")
+                diag("new object via diff: 0x${fresh.toString(16)}")
                 return fresh.toInt()
             }
             Thread.sleep(400)
         }
+        diag("handle diff found nothing new after ${timeoutMs}ms")
         return null
     }
 
@@ -334,8 +356,8 @@ class DslrManager(private val context: Context) {
             if (size < 8 || off + size > data.size) break
             val code = PtpBytes.readU32(data, off + 4).toInt()
             val payloadStart = off + 8
-            val previewLen = minOf(size - 8, 32)
-            Log.d(TAG, "EOS event 0x${code.toString(16)} size=$size payload=${hex(data, payloadStart, previewLen)}")
+            val previewLen = minOf(size - 8, 24)
+            diag("event 0x${code.toString(16)} sz=$size ${hex(data, payloadStart, previewLen)}")
             when (code) {
                 Ptp.EC_EOS_OBJECT_ADDED_EX, Ptp.EC_EOS_OBJECT_ADDED_EX64,
                 Ptp.EC_EOS_REQUEST_OBJECT_TRANSFER, Ptp.EC_EOS_REQUEST_OBJECT_TRANSFER64 -> {
@@ -377,7 +399,7 @@ class DslrManager(private val context: Context) {
     }
 
     private fun logResp(label: String, r: Pair<PtpTransport.PtpResponse, ByteArray?>) {
-        Log.d(TAG, "$label → rc=0x${r.first.code.toString(16)} ok=${r.first.ok}")
+        diag("$label → rc=0x${r.first.code.toString(16)}${if (r.first.ok) " ok" else " FAIL"}")
     }
 
     private fun hex(b: ByteArray, start: Int, len: Int): String {
