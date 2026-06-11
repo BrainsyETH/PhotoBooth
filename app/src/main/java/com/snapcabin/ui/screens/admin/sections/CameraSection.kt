@@ -41,6 +41,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -430,6 +431,33 @@ private fun DslrConnectBlock(viewModel: AdminViewModel) {
                     color = Clay
                 )
                 else -> {}
+            }
+
+            // On-screen capture trace — read this to me instead of pulling adb.
+            val trace by viewModel.dslrManager.diagnostics.collectAsState()
+            if (trace.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(Radii.xs))
+                        .background(Espresso.copy(alpha = 0.06f))
+                        .padding(Spacing.s)
+                ) {
+                    Text(
+                        text = "Capture trace",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Espresso.copy(alpha = 0.7f)
+                    )
+                    trace.forEach { line ->
+                        Text(
+                            text = line,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            color = Espresso.copy(alpha = 0.8f)
+                        )
+                    }
+                }
             }
         }
 
