@@ -25,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -46,6 +47,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 import com.snapcabin.camera.CameraBindState
 import com.snapcabin.camera.CameraManager
+import com.snapcabin.dslr.DslrManager
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.ui.components.BigButton
@@ -258,6 +260,12 @@ private fun ExternalCameraStatusBlock(
             color = Espresso.copy(alpha = 0.7f)
         )
 
+        // Native DSLR control over USB (PTP) — the no-capture-stick path. Only
+        // offered when a DSLR (PTP device) is actually present.
+        if (usb.hasPtpOnlyDevice) {
+            DslrConnectBlock(viewModel)
+        }
+
         // Only offer USB-camera affordances when a usable USB camera is even
         // plausible — a DSLR in photo-transfer mode can never bind, so the mic
         // grant and the external-selection button would be dead ends for it.
@@ -323,6 +331,70 @@ private fun ExternalCameraStatusBlock(
             text = "REFRESH CAMERAS",
             onClick = { viewModel.detectCameras() },
             variant = BigButtonVariant.Surface
+        )
+    }
+}
+
+/**
+ * Experimental native DSLR (PTP-over-USB) connect — Milestone 1: connect and
+ * read the camera model, proving the transport works on this tablet + camera
+ * before live view and remote capture are built on top.
+ */
+@Composable
+private fun DslrConnectBlock(viewModel: AdminViewModel) {
+    val state by viewModel.dslrManager.state.collectAsState()
+    LaunchedEffect(Unit) { viewModel.dslrManager.refresh() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radii.s))
+            .background(Cream)
+            .border(1.dp, Pine.copy(alpha = 0.35f), RoundedCornerShape(Radii.s))
+            .padding(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s)
+    ) {
+        Text(
+            text = "Experimental: connect to the DSLR directly (no capture stick)",
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Pine
+        )
+        when (val s = state) {
+            is DslrManager.State.Connected -> {
+                Text(
+                    text = "✓ Connected: ${"${s.info.manufacturer} ${s.info.model}".trim()}",
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Pine
+                )
+                Text(
+                    text = "Serial ${s.info.serialNumber.ifBlank { "—" }} · " +
+                        (if (s.info.supportsEosRemote) "remote capture supported" else
+                            "this camera doesn't advertise USB remote capture"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (s.info.supportsEosRemote) Espresso.copy(alpha = 0.7f) else Clay
+                )
+            }
+            is DslrManager.State.Error -> Text(
+                text = "Couldn't connect: ${s.message}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Clay
+            )
+            else -> {}
+        }
+        BigButton(
+            text = if (state is DslrManager.State.Connecting) "CONNECTING…" else "CONNECT DSLR",
+            onClick = { viewModel.dslrManager.connect() },
+            enabled = state !is DslrManager.State.Connecting,
+            variant = BigButtonVariant.Primary,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "Early DSLR support — this step just confirms the tablet can talk to the camera. " +
+                "If it connects, live view and capture come next.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Espresso.copy(alpha = 0.6f)
         )
     }
 }
