@@ -233,10 +233,18 @@ class DslrManager(private val context: Context) {
                 val handlesBefore = listObjectHandles(t)
                 diag("pre-shutter handles: ${handlesBefore?.size ?: "GetObjectHandles unavailable"}")
 
+                _capture.value = Capture.Busy("Focusing…")
+                // Staged release, like a finger on the button: half-press (AF),
+                // settle, full-press, then release both. The one-shot (3,0)
+                // returned ok but never completed an exposure on the 850D —
+                // with AF priority, a release without focus lock silently
+                // refuses to fire (the AF motor noise masquerades as a shutter).
+                logResp("ReleaseOn(1) half-press", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0)))
+                Thread.sleep(800) // let AF settle
                 _capture.value = Capture.Busy("Firing shutter…")
-                // Full press (AF + shutter), then release.
-                logResp("RemoteReleaseOn(3,0)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(3, 0)))
-                logResp("RemoteReleaseOff(3)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(3)))
+                logResp("ReleaseOn(2) full-press", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0)))
+                logResp("ReleaseOff(2)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2)))
+                logResp("ReleaseOff(1)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1)))
 
                 _capture.value = Capture.Busy("Waiting for the photo…")
                 val handle = pollForObject(t, timeoutMs = 8_000)
