@@ -214,6 +214,17 @@ class DslrManager(private val context: Context) {
                 diag("— capture start —")
                 _capture.value = Capture.Busy("Preparing camera…")
                 prepareRemote(t, "capture")
+
+                // Route captures to the SD CARD. In PC-remote mode many EOS
+                // bodies default to holding the frame in camera RAM for the
+                // host to collect (announced only via events) — observed on
+                // the 850D as "shutter fires, card object count never moves."
+                // On the card, the new photo MUST appear as a new object
+                // handle, so the diff fallback works even with zero events.
+                setEosProperty(
+                    t, Ptp.DPC_EOS_CAPTURE_DESTINATION, Ptp.EOS_DEST_CARD,
+                    label = "CaptureDestination=card"
+                )
                 drainEvents(t, "pre-shutter")
 
                 // Snapshot the card's object handles BEFORE the shutter so we
@@ -268,6 +279,20 @@ class DslrManager(private val context: Context) {
         }.onFailure { Log.w(TAG, "[$label] remote-mode setup threw", it) }
     }
 
+    /**
+     * Set a Canon EOS device property. SetDevicePropValueEx carries the value
+     * in the DATA phase: u32 totalSize · u32 propCode · u32 value.
+     */
+    private fun setEosProperty(t: PtpTransport, prop: Int, value: Int, label: String) {
+        runCatching {
+            val data = ByteArray(12)
+            PtpBytes.writeU32(data, 0, 12)
+            PtpBytes.writeU32(data, 4, prop)
+            PtpBytes.writeU32(data, 8, value)
+            logResp(label, t.transact(Ptp.OP_EOS_SET_DEVICE_PROP_VALUE, IntArray(0), data))
+        }.onFailure { diag("$label threw: ${it.message}") }
+    }
+
     /** Drain queued/stale events (incl. the big initial dump after SetEventMode). */
     private fun drainEvents(t: PtpTransport, label: String) {
         var total = 0
@@ -288,12 +313,14 @@ class DslrManager(private val context: Context) {
         var polls = 0
         while (System.currentTimeMillis() < deadline) {
             val (resp, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+            // Surface what the camera is actually sending: first polls + ~every
+            // 2s thereafter, in the on-screen trace.
+            if (polls < 3 || polls % 13 == 0) {
+                diag("poll[$polls]: ${data?.size ?: -1}B rc=0x${resp.code.toString(16)}")
+            }
+            polls++
             if (data != null && data.size > 8) {
                 parseEventsForObjectHandle(data)?.let { return it }
-            }
-            // Heartbeat (~once/sec) so the log shows whether events flow at all.
-            if (polls++ % 7 == 0) {
-                Log.v(TAG, "GetEvent poll: ${data?.size ?: -1} bytes rc=0x${resp.code.toString(16)}")
             }
             Thread.sleep(150)
         }
@@ -353,7 +380,14 @@ class DslrManager(private val context: Context) {
         var off = 0
         while (off + 8 <= data.size) {
             val size = PtpBytes.readU32(data, off).toInt()
-            if (size < 8 || off + size > data.size) break
+            if (size < 8 || off + size > data.size) {
+                // Don't bail silently: "data arrived but looks malformed to the
+                // parser" must be distinguishable from "no events at all".
+                if (off == 0) {
+                    diag("unparseable event data (${data.size}B): ${hex(data, 0, 16)}")
+                }
+                break
+            }
             val code = PtpBytes.readU32(data, off + 4).toInt()
             val payloadStart = off + 8
             val previewLen = minOf(size - 8, 24)
