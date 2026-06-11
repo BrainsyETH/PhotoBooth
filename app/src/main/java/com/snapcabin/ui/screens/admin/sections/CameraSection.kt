@@ -1,9 +1,11 @@
 package com.snapcabin.ui.screens.admin.sections
 
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,16 +30,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 import com.snapcabin.camera.CameraBindState
 import com.snapcabin.camera.CameraManager
 import com.snapcabin.settings.BoothSettings
@@ -427,6 +433,62 @@ private fun CameraPreviewBlock(
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.6f)
             )
+
+            // Preview proves the camera STREAMS; this proves it actually CAPTURES
+            // a still (some stacks — and DSLR-via-capture-dongle setups — preview
+            // fine but fail the photo). Runs the real takePhoto() pipeline.
+            val scope = rememberCoroutineScope()
+            var capturing by remember { mutableStateOf(false) }
+            var testPhoto by remember { mutableStateOf<Bitmap?>(null) }
+            var captureError by remember { mutableStateOf<String?>(null) }
+
+            BigButton(
+                text = if (capturing) "TAKING PHOTO…" else "TAKE TEST PHOTO",
+                onClick = {
+                    captureError = null
+                    capturing = true
+                    scope.launch {
+                        try {
+                            testPhoto = viewModel.cameraManager.takePhoto()
+                        } catch (e: Exception) {
+                            captureError = e.message ?: "Capture failed."
+                            testPhoto = null
+                        } finally {
+                            capturing = false
+                        }
+                    }
+                },
+                variant = BigButtonVariant.Primary,
+                enabled = !capturing,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            testPhoto?.let { bmp ->
+                Text(
+                    text = "✓ Captured a real ${bmp.width}×${bmp.height} photo. This camera works end-to-end.",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = Pine
+                )
+                Image(
+                    bitmap = bmp.asImageBitmap(),
+                    contentDescription = "Test photo",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .clip(RoundedCornerShape(Radii.xs))
+                )
+            }
+            captureError?.let { err ->
+                Text(
+                    text = "Couldn't take a photo: $err — the preview may stream but this camera can't " +
+                        "capture a still on this tablet.",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = Clay
+                )
+            }
         }
     }
 }
