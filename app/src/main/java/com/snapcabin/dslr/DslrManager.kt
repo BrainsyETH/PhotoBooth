@@ -168,10 +168,8 @@ class DslrManager(private val context: Context) {
                 // Canon needs "PC connection" + event mode on before it will
                 // accept shutter-release commands. Best-effort; capture re-asserts.
                 if (info.isCanon && info.supportsEosRemote) {
-                    runCatching {
-                        t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(1))
-                        t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(1))
-                    }.onFailure { Log.w(TAG, "EOS remote-mode setup failed (will retry on capture)", it) }
+                    prepareRemote(t, "connect")
+                    drainEvents(t, "connect")
                 }
 
                 _state.value = State.Connected(info)
@@ -200,11 +198,14 @@ class DslrManager(private val context: Context) {
         scope.launch {
             try {
                 _capture.value = Capture.Busy("Preparing camera…")
-                runCatching {
-                    t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(1))
-                    t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(1))
-                }
-                drainEvents(t)
+                prepareRemote(t, "capture")
+                drainEvents(t, "pre-shutter")
+
+                // Snapshot the card's object handles BEFORE the shutter so we
+                // can detect the new image by diff even if EOS events never
+                // arrive (some bodies queue events differently).
+                val handlesBefore = listObjectHandles(t)
+                Log.i(TAG, "Pre-shutter object handles: ${handlesBefore?.size ?: "unavailable"}")
 
                 _capture.value = Capture.Busy("Firing shutter…")
                 // Full press (AF + shutter), then release.
@@ -212,10 +213,12 @@ class DslrManager(private val context: Context) {
                 logResp("RemoteReleaseOff(3)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(3)))
 
                 _capture.value = Capture.Busy("Waiting for the photo…")
-                val handle = pollForObject(t, timeoutMs = 20_000)
+                val handle = pollForObject(t, timeoutMs = 8_000)
+                    ?: pollForNewHandle(t, handlesBefore, timeoutMs = 15_000)
                     ?: throw java.io.IOException(
-                        "Shutter fired but no image event arrived. Check the lens is on AF and " +
-                            "there's a card in the camera (see logcat for the raw events)."
+                        "Shutter fired but the new image never appeared (no EOS event, no new " +
+                            "object handle). Check the lens is on AF, a card is in and not full, " +
+                            "and image quality includes JPEG — then see logcat."
                     )
 
                 _capture.value = Capture.Busy("Downloading photo…")
@@ -238,25 +241,83 @@ class DslrManager(private val context: Context) {
         if (_capture.value !is Capture.Busy) _capture.value = Capture.Idle
     }
 
-    /** Drain any stale events so we don't mistake a previous shot's event for ours. */
-    private fun drainEvents(t: PtpTransport) {
+    /**
+     * Put the camera in PC-remote + event mode, LOGGING the response codes —
+     * a silent SetEventMode failure looks exactly like "shutter fires but no
+     * events ever arrive", which is undiagnosable without these lines.
+     */
+    private fun prepareRemote(t: PtpTransport, label: String) {
         runCatching {
-            repeat(5) {
-                val (_, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+            logResp("[$label] SetRemoteMode(1)", t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(1)))
+            logResp("[$label] SetEventMode(1)", t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(1)))
+        }.onFailure { Log.w(TAG, "[$label] remote-mode setup threw", it) }
+    }
+
+    /** Drain queued/stale events (incl. the big initial dump after SetEventMode). */
+    private fun drainEvents(t: PtpTransport, label: String) {
+        runCatching {
+            repeat(8) { i ->
+                val (resp, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+                Log.d(TAG, "[$label] drain[$i]: ${data?.size ?: -1} bytes rc=0x${resp.code.toString(16)}")
                 if (data == null || data.size <= 8) return
             }
-        }
+        }.onFailure { Log.w(TAG, "[$label] event drain threw", it) }
     }
 
     /** Poll GetEvent until an object-added / ready-to-transfer event names a handle. */
     private fun pollForObject(t: PtpTransport, timeoutMs: Long): Int? {
         val deadline = System.currentTimeMillis() + timeoutMs
+        var polls = 0
         while (System.currentTimeMillis() < deadline) {
-            val (_, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+            val (resp, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
             if (data != null && data.size > 8) {
                 parseEventsForObjectHandle(data)?.let { return it }
             }
+            // Heartbeat (~once/sec) so the log shows whether events flow at all.
+            if (polls++ % 7 == 0) {
+                Log.v(TAG, "GetEvent poll: ${data?.size ?: -1} bytes rc=0x${resp.code.toString(16)}")
+            }
             Thread.sleep(150)
+        }
+        return null
+    }
+
+    /**
+     * Vendor-neutral fallback: list every object handle on the camera and
+     * return the first one that wasn't there before the shutter. Standard PTP
+     * (GetObjectHandles), so it works even when EOS event delivery doesn't.
+     */
+    private fun listObjectHandles(t: PtpTransport): Set<Long>? = try {
+        // 0xFFFFFFFF = all storages; 0,0 = any format, any association.
+        val (resp, data) = t.transact(Ptp.OP_GET_OBJECT_HANDLES, intArrayOf(-1, 0, 0))
+        if (!resp.ok || data == null || data.size < 4) {
+            Log.w(TAG, "GetObjectHandles rc=0x${resp.code.toString(16)} dataLen=${data?.size ?: -1}")
+            null
+        } else {
+            val n = PtpBytes.readU32(data, 0).toInt().coerceIn(0, 1_000_000)
+            val handles = HashSet<Long>(n * 2)
+            for (i in 0 until n) {
+                if (4 + i * 4 + 4 <= data.size) handles.add(PtpBytes.readU32(data, 4 + i * 4))
+            }
+            handles
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "GetObjectHandles failed", e)
+        null
+    }
+
+    private fun pollForNewHandle(t: PtpTransport, before: Set<Long>?, timeoutMs: Long): Int? {
+        if (before == null) return null
+        Log.i(TAG, "No EOS event — falling back to object-handle diffing")
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val now = listObjectHandles(t) ?: return null
+            val fresh = now.firstOrNull { it !in before }
+            if (fresh != null) {
+                Log.i(TAG, "New object via handle diff: 0x${fresh.toString(16)}")
+                return fresh.toInt()
+            }
+            Thread.sleep(400)
         }
         return null
     }
@@ -304,6 +365,14 @@ class DslrManager(private val context: Context) {
             if (data.size < chunk) break // final short chunk
         }
         runCatching { t.transact(Ptp.OP_EOS_TRANSFER_COMPLETE, intArrayOf(handle)) }
+
+        if (out.size() == 0) {
+            // Card objects on some bodies only answer the STANDARD GetObject.
+            Log.w(TAG, "EOS GetPartialObject returned nothing; trying standard GetObject")
+            val (resp, data) = t.transact(Ptp.OP_GET_OBJECT, intArrayOf(handle))
+            Log.d(TAG, "GetObject rc=0x${resp.code.toString(16)} dataLen=${data?.size ?: -1}")
+            if (data != null) return data
+        }
         return out.toByteArray()
     }
 
