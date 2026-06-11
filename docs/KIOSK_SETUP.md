@@ -195,6 +195,29 @@ camera matters, test the exact tablet + camera pair before event day.
 Keep the camera plugged in for the whole event: if it disconnects
 mid-session the booth automatically falls back to a built-in camera.
 
+### Using a DSLR (Canon, Nikon, etc.)
+
+A DSLR plugged straight into the tablet connects in **photo-transfer
+mode** (PTP) — Android cannot use it as a live camera, so it will never
+appear in the camera list. (Booth apps that talk to DSLRs directly ship
+their own per-vendor tethering protocols.) The reliable way to use a
+DSLR with SnapCabin:
+
+1. Buy an **HDMI-to-USB capture stick** (≈$20, often sold as "HDMI video
+   capture card" — it presents itself as a normal webcam).
+2. Connect the DSLR's **HDMI out** to the stick, and the stick to the
+   tablet's USB-C port.
+3. Put the DSLR in movie/live-view mode, turn off its auto power-off,
+   and disable on-screen info overlays on the HDMI output ("clean HDMI").
+   Power the camera with an AC adapter for the event.
+4. In **CAMERA**, the stick appears as **— External** (or tap **USE
+   EXTERNAL USB CAMERA**), then run **TEST CAMERA** and **TAKE TEST
+   PHOTO** to confirm both preview and capture.
+
+Photos are grabbed from the HDMI feed (typically 1080p) rather than the
+DSLR's full-resolution sensor — plenty for emailed booth photos, and you
+get the DSLR's lens and low-light quality.
+
 ## 5. Tune the guest experience (optional)
 
 These sections are all optional — sensible defaults are already set:

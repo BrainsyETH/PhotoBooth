@@ -192,7 +192,8 @@ private fun ExternalCameraStatusBlock(
     cameras: List<CameraInfo>,
     viewModel: AdminViewModel
 ) {
-    val usbCount by viewModel.usbDeviceCount.collectAsState()
+    val usb by viewModel.usbDiagnostics.collectAsState()
+    val usbCount = usb.deviceCount
     val hasExternal = cameras.any { it.isExternal }
     val externalSelected = settings.cameraId == CameraManager.EXTERNAL_CAMERA_ID
 
@@ -238,6 +239,12 @@ private fun ExternalCameraStatusBlock(
                 hasExternal ->
                     "External camera detected — select it in the camera list, then run TEST CAMERA below. " +
                         "Tip: turn Mirror Image off for an external camera pointed at guests."
+                usb.hasPtpOnlyDevice ->
+                    "This USB device is a DSLR / photo camera in photo-transfer mode — Canon and Nikon " +
+                        "connect this way. Android can't use it as a live camera, so it will never appear " +
+                        "here, no matter how long you wait. To use it with SnapCabin: connect the camera's " +
+                        "HDMI output to an HDMI-to-USB capture stick (≈$20) and plug the stick in here — " +
+                        "it shows up as a webcam. Otherwise, use the tablet's built-in camera."
                 usbCount > 0 ->
                     "A USB device is plugged in, but Android isn't showing it as a camera yet. " +
                         "Wait a few seconds and tap REFRESH. Make sure the camera is a UVC webcam " +
@@ -251,10 +258,16 @@ private fun ExternalCameraStatusBlock(
             color = Espresso.copy(alpha = 0.7f)
         )
 
+        // Only offer USB-camera affordances when a usable USB camera is even
+        // plausible — a DSLR in photo-transfer mode can never bind, so the mic
+        // grant and the external-selection button would be dead ends for it.
+        val usbCameraPlausible = hasExternal || usb.hasVideoDevice ||
+            (usbCount > 0 && !usb.hasPtpOnlyDevice)
+
         // USB cameras are audio+video devices: Android won't open one without
         // microphone permission. Make the grant an explicit, visible step
         // instead of hoping a hidden prompt fires at the right moment.
-        if (usbCount > 0 || hasExternal) {
+        if (usbCameraPlausible) {
             if (micGranted) {
                 Text(
                     text = "✓ Microphone access granted (needed only to open USB cameras — no audio is recorded).",
@@ -291,7 +304,7 @@ private fun ExternalCameraStatusBlock(
         // Explicit external selection — robust even when the USB camera never
         // shows up in the list below (it binds by lens-facing, the way the
         // capture fallback already does).
-        if (usbCount > 0 || hasExternal) {
+        if (usbCameraPlausible) {
             BigButton(
                 text = if (externalSelected) "● USING EXTERNAL CAMERA" else "USE EXTERNAL USB CAMERA",
                 onClick = { viewModel.updateSetting { copy(cameraId = CameraManager.EXTERNAL_CAMERA_ID) } },
