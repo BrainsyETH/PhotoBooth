@@ -264,7 +264,18 @@ private fun ExternalCameraStatusBlock(
         // Native DSLR control over USB (PTP) — the no-capture-stick path. Only
         // offered when a DSLR (PTP device) is actually present.
         if (usb.hasPtpOnlyDevice) {
-            DslrConnectBlock(viewModel)
+            DslrConnectBlock(settings, viewModel)
+        } else if (settings.dslrCaptureEnabled) {
+            // The toggle lives inside the DSLR block, which only renders while
+            // a DSLR is plugged in — without this line, an unplugged camera
+            // would leave "DSLR capture on" invisible and undiagnosable.
+            Text(
+                text = "DSLR capture is ON but no DSLR is detected — photos will use the tablet " +
+                    "camera until it's plugged back in.",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = Clay
+            )
         }
 
         // Only offer USB-camera affordances when a usable USB camera is even
@@ -337,12 +348,12 @@ private fun ExternalCameraStatusBlock(
 }
 
 /**
- * Experimental native DSLR (PTP-over-USB) connect — Milestone 1: connect and
- * read the camera model, proving the transport works on this tablet + camera
- * before live view and remote capture are built on top.
+ * Native DSLR (PTP-over-USB) block: connect, prove capture with a test photo,
+ * then enable hybrid booth mode — the tablet camera stays the live preview and
+ * the DSLR fires the actual photo.
  */
 @Composable
-private fun DslrConnectBlock(viewModel: AdminViewModel) {
+private fun DslrConnectBlock(settings: BoothSettings, viewModel: AdminViewModel) {
     val state by viewModel.dslrManager.state.collectAsState()
     val capture by viewModel.dslrManager.capture.collectAsState()
     LaunchedEffect(Unit) { viewModel.dslrManager.refresh() }
@@ -459,6 +470,31 @@ private fun DslrConnectBlock(viewModel: AdminViewModel) {
                     }
                 }
             }
+
+            // Hybrid booth mode: tablet camera = live preview, DSLR = the shot.
+            SettingRow("Use DSLR for photos") {
+                Switch(
+                    checked = settings.dslrCaptureEnabled,
+                    onCheckedChange = { v -> viewModel.updateSetting { copy(dslrCaptureEnabled = v) } },
+                    colors = adminSwitchColors()
+                )
+            }
+            Text(
+                text = "Guests keep seeing the tablet's camera as the live preview; when the " +
+                    "countdown ends, the DSLR fires and ITS photo is the one used. GIF mode " +
+                    "still uses the tablet camera, and if the DSLR can't capture, the booth " +
+                    "quietly falls back to the tablet so guests are never stuck.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.7f)
+            )
+            Text(
+                text = "Setup tips: take a successful test photo above before turning this on. " +
+                    "Set the lens to MF and pre-focus where guests stand — with autofocus on, " +
+                    "a Canon that can't lock focus silently refuses to fire. Turn off the " +
+                    "camera's auto power off and Wi-Fi/Bluetooth.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.7f)
+            )
         }
 
         Text(

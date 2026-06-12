@@ -35,19 +35,30 @@ experimental "CONNECT DSLR" block (`DslrConnectBlock` in `CameraSection.kt`).
 - **M1 — Connect + identify (done; connects to Canon on-device).** Open a PTP
   session and read the camera model. Proved the transport works.
 - **M2 — Remote capture (built; needs on-device validation).** Canon EOS:
-  `SetRemoteMode`/`SetEventMode` → `RemoteReleaseOn(3,0)`/`Off(3)` to fire the
-  shutter → poll `GetEvent` for ObjectAddedEx / RequestObjectTransfer (handle =
-  first u32 of the record payload) → `GetPartialObject` chunks → `Transfer
-  Complete`. Surfaced as a **TAKE DSLR PHOTO** button that shows the downloaded
-  image. Likely tuning points: the release param sequence (some bodies want
-  On(1)→On(2)→Off(2)→Off(1)), the ObjectAddedEx payload layout / handle offset,
-  and capture-destination (card vs SDRAM). The per-event hex dump in logcat
-  (`DslrManager`) is there to decode the exact 850D layout.
-- **M3 — Live view.** Canon EOS: enable EVF output via a device property, poll
-  `GetViewFinderData`, decode each JPEG chunk to a Bitmap (~20–30 fps), feed the
-  GetReady/Capture preview.
-- **M4 — Integrate + harden.** Make the DSLR a selectable capture source
-  alongside CameraX; handle disconnect/reconnect, auto-power-off, full-res vs
+  `SetRemoteMode`/`SetEventMode` → fire the shutter → poll `GetEvent` for
+  ObjectAddedEx / RequestObjectTransfer (handle = first u32 of the record
+  payload) → `GetPartialObject` chunks → `TransferComplete`. Surfaced as a
+  **TAKE DSLR PHOTO** button that shows the downloaded image. The shutter is
+  fired per the body's advertised ops: staged half/full press
+  (`RemoteReleaseOn` 0x9128: On(1)→settle→On(2)→Off(2)→Off(1)) when available,
+  falling back to the classic one-shot `RemoteRelease` 0x910F (the only release
+  op older Rebels have, and also tried when the staged full-press is refused).
+  The on-screen capture trace + per-event hex dump in logcat (`DslrManager`)
+  decode body-specific layouts. **Known gotcha: with the lens on AF and no
+  focus lock, EOS bodies in AF-priority silently refuse to fire** — set the
+  lens to MF (and pre-focus) for booth use.
+- **M2.5 — Hybrid booth mode (built).** Admin → Camera → "Use DSLR for
+  photos": the tablet camera remains the live preview, but each booth shot is
+  fired on the DSLR (`DslrManager.captureBoothPhoto`) and the downloaded JPEG
+  (sampled down to the configured photo resolution) is what enters the
+  review/share pipeline. GIF mode always uses the tablet camera (DSLR cadence
+  is too slow), and any DSLR failure falls back to the tablet camera so guests
+  are never stranded. The session auto-reconnects if the camera power-cycled
+  (USB permission persists until unplug).
+- **M3 — Live view (not built).** Canon EOS: enable EVF output via a device
+  property, poll `GetViewFinderData`, decode each JPEG chunk to a Bitmap
+  (~20–30 fps), feed the GetReady/Capture preview.
+- **M4 — Harden.** Disconnect/reconnect edge cases, auto-power-off, full-res vs
   preview JPEG; then expand beyond Canon (Nikon/Sony have their own ops).
 
 ## Testing notes (M1)

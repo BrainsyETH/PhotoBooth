@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Native DSLR control over USB (PTP) — the path that lets a Canon/Nikon work
@@ -45,6 +48,13 @@ class DslrManager(private val context: Context) {
         data class Connected(val info: PtpDeviceInfo) : State()
         data class Error(val message: String) : State()
     }
+
+    /**
+     * The capture sequence ran but no image materialized (AF refusal, missing
+     * card, unsupported ops). The USB session itself is still healthy — callers
+     * must NOT treat this like a transport death.
+     */
+    class NoPhotoException(message: String) : java.io.IOException(message)
 
     sealed class Capture {
         data object Idle : Capture()
@@ -76,7 +86,11 @@ class DslrManager(private val context: Context) {
     private val usbManager get() = context.getSystemService(Context.USB_SERVICE) as UsbManager
 
     private var transport: PtpTransport? = null
+    private var deviceInfo: PtpDeviceInfo? = null
     private var permissionReceiver: BroadcastReceiver? = null
+
+    /** One capture (test or booth) on the wire at a time. */
+    private val captureMutex = Mutex()
 
     /** Refresh detection (call when entering the camera screen / on USB attach). */
     fun refresh() {
@@ -156,42 +170,48 @@ class DslrManager(private val context: Context) {
     private fun openAndQuery(device: UsbDevice) {
         scope.launch {
             try {
-                val connection = usbManager.openDevice(device)
-                    ?: throw IllegalStateException("Couldn't open the USB device.")
-                val t = PtpTransport.open(device, connection)
-                if (t == null) {
-                    connection.close()
-                    throw IllegalStateException("No usable PTP interface on this camera.")
-                }
-                transport = t
-
-                // OpenSession, then GetDeviceInfo (model/serial live in its dataset).
-                val (openResp, _) = t.transact(Ptp.OP_OPEN_SESSION, intArrayOf(Ptp.SESSION_ID))
-                if (!openResp.ok) {
-                    throw IllegalStateException("OpenSession failed (0x${openResp.code.toString(16)}).")
-                }
-                val (infoResp, infoData) = t.transact(Ptp.OP_GET_DEVICE_INFO)
-                if (!infoResp.ok || infoData == null) {
-                    throw IllegalStateException("GetDeviceInfo failed (0x${infoResp.code.toString(16)}).")
-                }
-                val info = PtpDeviceInfo.parse(infoData)
-                Log.i(TAG, "Connected to ${info.manufacturer} ${info.model} (serial ${info.serialNumber}), " +
-                    "${Ptp.vendorName(info.vendorExtensionId)} ext, EOS-remote=${info.supportsEosRemote}")
-
-                // Canon needs "PC connection" + event mode on before it will
-                // accept shutter-release commands. Best-effort; capture re-asserts.
-                if (info.isCanon && info.supportsEosRemote) {
-                    prepareRemote(t, "connect")
-                    drainEvents(t, "connect")
-                }
-
-                _state.value = State.Connected(info)
+                _state.value = State.Connected(openTransport(device))
             } catch (e: Exception) {
                 Log.e(TAG, "DSLR connect failed", e)
                 disconnect()
                 _state.value = State.Error(e.message ?: "Connection failed.")
             }
         }
+    }
+
+    /** Open the USB device, claim PTP, open a session, identify. IO thread only. */
+    private fun openTransport(device: UsbDevice): PtpDeviceInfo {
+        val connection = usbManager.openDevice(device)
+            ?: throw IllegalStateException("Couldn't open the USB device.")
+        val t = PtpTransport.open(device, connection)
+        if (t == null) {
+            connection.close()
+            throw IllegalStateException("No usable PTP interface on this camera.")
+        }
+        transport = t
+
+        // OpenSession, then GetDeviceInfo (model/serial live in its dataset).
+        val (openResp, _) = t.transact(Ptp.OP_OPEN_SESSION, intArrayOf(Ptp.SESSION_ID))
+        if (!openResp.ok) {
+            throw IllegalStateException("OpenSession failed (0x${openResp.code.toString(16)}).")
+        }
+        val (infoResp, infoData) = t.transact(Ptp.OP_GET_DEVICE_INFO)
+        if (!infoResp.ok || infoData == null) {
+            throw IllegalStateException("GetDeviceInfo failed (0x${infoResp.code.toString(16)}).")
+        }
+        val info = PtpDeviceInfo.parse(infoData)
+        deviceInfo = info
+        Log.i(TAG, "Connected to ${info.manufacturer} ${info.model} (serial ${info.serialNumber}), " +
+            "${Ptp.vendorName(info.vendorExtensionId)} ext, EOS-remote=${info.supportsEosRemote} " +
+            "(staged=${info.supportsStagedRelease} oneShot=${info.supportsOneShotRelease})")
+
+        // Canon needs "PC connection" + event mode on before it will
+        // accept shutter-release commands. Best-effort; capture re-asserts.
+        if (info.isCanon && info.supportsEosRemote) {
+            prepareRemote(t, "connect")
+            drainEvents(t, "connect")
+        }
+        return info
     }
 
     /**
@@ -209,66 +229,183 @@ class DslrManager(private val context: Context) {
         }
         if (_capture.value is Capture.Busy) return
         scope.launch {
-            try {
-                _diagnostics.value = emptyList()
-                diag("— capture start —")
-                _capture.value = Capture.Busy("Preparing camera…")
-                prepareRemote(t, "capture")
-
-                // Route captures to the SD CARD. In PC-remote mode many EOS
-                // bodies default to holding the frame in camera RAM for the
-                // host to collect (announced only via events) — observed on
-                // the 850D as "shutter fires, card object count never moves."
-                // On the card, the new photo MUST appear as a new object
-                // handle, so the diff fallback works even with zero events.
-                setEosProperty(
-                    t, Ptp.DPC_EOS_CAPTURE_DESTINATION, Ptp.EOS_DEST_CARD,
-                    label = "CaptureDestination=card"
-                )
-                drainEvents(t, "pre-shutter")
-
-                // Snapshot the card's object handles BEFORE the shutter so we
-                // can detect the new image by diff even if EOS events never
-                // arrive (some bodies queue events differently).
-                val handlesBefore = listObjectHandles(t)
-                diag("pre-shutter handles: ${handlesBefore?.size ?: "GetObjectHandles unavailable"}")
-
-                _capture.value = Capture.Busy("Focusing…")
-                // Staged release, like a finger on the button: half-press (AF),
-                // settle, full-press, then release both. The one-shot (3,0)
-                // returned ok but never completed an exposure on the 850D —
-                // with AF priority, a release without focus lock silently
-                // refuses to fire (the AF motor noise masquerades as a shutter).
-                logResp("ReleaseOn(1) half-press", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0)))
-                Thread.sleep(800) // let AF settle
-                _capture.value = Capture.Busy("Firing shutter…")
-                logResp("ReleaseOn(2) full-press", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0)))
-                logResp("ReleaseOff(2)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2)))
-                logResp("ReleaseOff(1)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1)))
-
-                _capture.value = Capture.Busy("Waiting for the photo…")
-                val handle = pollForObject(t, timeoutMs = 8_000)
-                    ?: pollForNewHandle(t, handlesBefore, timeoutMs = 15_000)
-                    ?: throw java.io.IOException(
-                        "Shutter fired but the new image never appeared (no EOS event, no new " +
-                            "object handle). Check the lens is on AF, a card is in and not full, " +
-                            "and image quality includes JPEG — then see logcat."
-                    )
-
-                _capture.value = Capture.Busy("Downloading photo…")
-                val jpeg = downloadObject(t, handle)
-                diag("downloaded ${jpeg.size} bytes from 0x${handle.toString(16)}")
-                val bmp = try {
-                    android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
+            captureMutex.withLock {
+                try {
+                    _diagnostics.value = emptyList()
+                    diag("— capture start —")
+                    // Generous timeouts: this is a diagnostic, let it look hard.
+                    val jpeg = captureOnce(t, eventTimeoutMs = 8_000, diffTimeoutMs = 15_000)
+                    val bmp = try {
+                        android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
+                    } catch (e: Exception) {
+                        null
+                    }
+                    _capture.value = Capture.Done(jpeg, bmp)
                 } catch (e: Exception) {
-                    null
+                    Log.e(TAG, "DSLR capture failed", e)
+                    _capture.value = Capture.Failed(e.message ?: "Capture failed.")
                 }
-                _capture.value = Capture.Done(jpeg, bmp)
-            } catch (e: Exception) {
-                Log.e(TAG, "DSLR capture failed", e)
-                _capture.value = Capture.Failed(e.message ?: "Capture failed.")
             }
         }
+    }
+
+    /**
+     * Booth-flow capture: the guest-facing path behind "Use DSLR for photos".
+     * The tablet keeps showing its own (front) camera as the live preview; this
+     * fires the DSLR and returns the downloaded frame, scaled to [maxDimension]
+     * (a 24 MP JPEG decoded full-size is ~100 MB of ARGB — it must be sampled
+     * down before it enters the Bitmap pipeline).
+     *
+     * Throws on any failure so the caller can fall back to the tablet camera —
+     * a booth must never strand guests mid-countdown. Timeouts are tighter than
+     * the admin test's: a guest is standing there waiting.
+     */
+    suspend fun captureBoothPhoto(maxDimension: Int): android.graphics.Bitmap =
+        withContext(Dispatchers.IO) {
+            captureMutex.withLock {
+                val t = transport ?: reconnectForCapture()
+                _capture.value = Capture.Busy("Booth capture")
+                try {
+                    val jpeg = captureOnce(t, eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
+                    decodeScaled(jpeg, maxDimension)
+                        ?: throw NoPhotoException("Couldn't decode the DSLR photo.")
+                } catch (e: NoPhotoException) {
+                    throw e // session is fine; the shot just didn't happen
+                } catch (e: java.io.IOException) {
+                    // Bulk transfer death usually means the camera unplugged or
+                    // powered off — drop the session so the next shot reconnects.
+                    disconnect()
+                    _state.value = State.Error(e.message ?: "DSLR connection lost.")
+                    throw e
+                } finally {
+                    if (_capture.value is Capture.Busy) _capture.value = Capture.Idle
+                }
+            }
+        }
+
+    /**
+     * The booth can reach capture with no live session (app restarted, camera
+     * auto-powered-off and back). If the DSLR is present and USB permission is
+     * still held — it persists until unplug — reconnect silently.
+     */
+    private fun reconnectForCapture(): PtpTransport {
+        val device = findPtpDevice()
+            ?: throw java.io.IOException("DSLR not detected on USB.")
+        if (!usbManager.hasPermission(device)) {
+            throw java.io.IOException("No USB permission for the DSLR — reconnect it in Admin → Camera.")
+        }
+        val info = openTransport(device)
+        _state.value = State.Connected(info)
+        return transport ?: throw java.io.IOException("DSLR connection failed.")
+    }
+
+    /** Full capture sequence on an open transport: prepare → fire → locate → download. */
+    private fun captureOnce(t: PtpTransport, eventTimeoutMs: Long, diffTimeoutMs: Long): ByteArray {
+        _capture.value = Capture.Busy("Preparing camera…")
+        prepareRemote(t, "capture")
+
+        // Route captures to the SD CARD. In PC-remote mode many EOS
+        // bodies default to holding the frame in camera RAM for the
+        // host to collect (announced only via events) — observed on
+        // the 850D as "shutter fires, card object count never moves."
+        // On the card, the new photo MUST appear as a new object
+        // handle, so the diff fallback works even with zero events.
+        setEosProperty(
+            t, Ptp.DPC_EOS_CAPTURE_DESTINATION, Ptp.EOS_DEST_CARD,
+            label = "CaptureDestination=card"
+        )
+        drainEvents(t, "pre-shutter")
+
+        // Snapshot the card's object handles BEFORE the shutter so we
+        // can detect the new image by diff even if EOS events never
+        // arrive (some bodies queue events differently).
+        val handlesBefore = listObjectHandles(t)
+        diag("pre-shutter handles: ${handlesBefore?.size ?: "GetObjectHandles unavailable"}")
+
+        fireShutter(t)
+
+        _capture.value = Capture.Busy("Waiting for the photo…")
+        val handle = pollForObject(t, timeoutMs = eventTimeoutMs)
+            ?: pollForNewHandle(t, handlesBefore, timeoutMs = diffTimeoutMs)
+            ?: throw NoPhotoException(
+                "Shutter fired but the new image never appeared (no EOS event, no new " +
+                    "object handle). If autofocus can't lock, the camera silently refuses " +
+                    "to fire — set the lens to MF, check a card is in and not full, and " +
+                    "that image quality includes JPEG."
+            )
+
+        _capture.value = Capture.Busy("Downloading photo…")
+        val jpeg = downloadObject(t, handle)
+        diag("downloaded ${jpeg.size} bytes from 0x${handle.toString(16)}")
+        return jpeg
+    }
+
+    /**
+     * Trigger the shutter using whichever release ops this body actually
+     * advertises — older Rebels only have the one-shot 0x910F; newer bodies
+     * have the staged 0x9128/0x9129 pair.
+     *
+     * Staged release works like a finger on the button: half-press (AF),
+     * settle, full-press, release both. The one-shot (3,0) variant returned ok
+     * but never completed an exposure on the 850D — with AF priority, a release
+     * without focus lock silently refuses to fire (the AF motor noise
+     * masquerades as a shutter). If the full-press is REFUSED outright, fall
+     * back to 0x910F when available rather than waiting on a photo that will
+     * never exist.
+     */
+    private fun fireShutter(t: PtpTransport) {
+        val info = deviceInfo
+        val staged = info?.supportsStagedRelease != false // unknown → try staged first
+        val oneShot = info?.supportsOneShotRelease == true
+
+        if (staged) {
+            _capture.value = Capture.Busy("Focusing…")
+            logResp("ReleaseOn(1) half-press", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0)))
+            Thread.sleep(800) // let AF settle
+            _capture.value = Capture.Busy("Firing shutter…")
+            val full = t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0))
+            logResp("ReleaseOn(2) full-press", full)
+            logResp("ReleaseOff(2)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2)))
+            logResp("ReleaseOff(1)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1)))
+            if (full.first.ok) return
+            diag("full-press refused (0x${full.first.code.toString(16)})" +
+                if (oneShot) " — trying one-shot 0x910F" else "")
+            if (!oneShot) return // poll anyway; the trace has the refusal on record
+        } else {
+            diag("body doesn't advertise 0x9128 staged release" +
+                if (oneShot) " — using one-shot 0x910F" else "")
+        }
+
+        if (oneShot) {
+            _capture.value = Capture.Busy("Firing shutter…")
+            logResp("RemoteRelease(0x910F)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE))
+        } else if (!staged) {
+            throw NoPhotoException(
+                "This camera advertises neither EOS release operation (0x9128/0x910F) — " +
+                    "USB remote capture isn't possible on this body."
+            )
+        }
+    }
+
+    /** Decode a JPEG to at most [maxDimension] on its long edge, sampling down in-decoder. */
+    private fun decodeScaled(jpeg: ByteArray, maxDimension: Int): android.graphics.Bitmap? {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        if (maxDimension < Int.MAX_VALUE) {
+            var longEdge = maxOf(bounds.outWidth, bounds.outHeight)
+            while (longEdge / 2 >= maxDimension) {
+                sample *= 2
+                longEdge /= 2
+            }
+        }
+        val opts = android.graphics.BitmapFactory.Options().apply {
+            inSampleSize = sample
+            inMutable = true // downstream branding stamps in-place
+            inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+        }
+        return android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, opts)
     }
 
     fun clearCapture() {
@@ -459,6 +596,7 @@ class DslrManager(private val context: Context) {
         }
         transport?.close()
         transport = null
+        deviceInfo = null
         _capture.value = Capture.Idle
     }
 }

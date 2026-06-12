@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snapcabin.camera.CameraManager
+import com.snapcabin.dslr.DslrManager
 import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.ui.components.SoundManager
@@ -42,6 +43,7 @@ data class CaptureUiState(
 @HiltViewModel
 class CaptureViewModel @Inject constructor(
     val cameraManager: CameraManager,
+    private val dslrManager: DslrManager,
     private val settingsManager: SettingsManager,
     val soundManager: SoundManager
 ) : ViewModel() {
@@ -114,7 +116,7 @@ class CaptureViewModel @Inject constructor(
                             _uiState.value = _uiState.value.copy(showFlash = true, isCapturing = true)
                             soundManager.playShutter()
                             try {
-                                val photo = cameraManager.takePhoto()
+                                val photo = takeBoothPhoto(mode)
                                 val photos = _uiState.value.photos + photo
                                 _uiState.value = _uiState.value.copy(
                                     photos = photos,
@@ -157,6 +159,29 @@ class CaptureViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * One booth shot, routed to the right capture device. With "Use DSLR for
+     * photos" on, the tablet keeps streaming the live preview while the
+     * tethered DSLR fires the actual photo. GIF frames always come from the
+     * tablet (a DSLR shutter + USB download can't sustain GIF cadence), and
+     * any DSLR failure falls back to the tablet camera mid-session — a missed
+     * shot is recoverable, a booth that strands guests is not.
+     */
+    private suspend fun takeBoothPhoto(mode: CaptureMode): Bitmap {
+        val s = settings.value
+        if (s.dslrCaptureEnabled && mode != CaptureMode.Gif) {
+            try {
+                return dslrManager.captureBoothPhoto(s.photoResolution.maxDimension)
+            } catch (e: Exception) {
+                android.util.Log.e(
+                    "CaptureViewModel",
+                    "DSLR capture failed; falling back to the tablet camera", e
+                )
+            }
+        }
+        return cameraManager.takePhoto()
     }
 
     fun skipBurst() {

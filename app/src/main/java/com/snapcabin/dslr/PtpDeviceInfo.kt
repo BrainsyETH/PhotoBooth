@@ -13,8 +13,25 @@ data class PtpDeviceInfo(
     val operationsSupported: IntArray
 ) {
     val isCanon: Boolean get() = vendorExtensionId.toInt() == Ptp.VENDOR_CANON
+
+    /** Newer staged release (half/full press), 0x9128/0x9129. */
+    val supportsStagedRelease: Boolean
+        get() = operationsSupported.contains(Ptp.OP_EOS_REMOTE_RELEASE_ON)
+
+    /** Classic one-shot release, 0x910F — the only one older Rebels have. */
+    val supportsOneShotRelease: Boolean
+        get() = operationsSupported.contains(Ptp.OP_EOS_REMOTE_RELEASE)
+
+    /**
+     * "Remote capture supported" must mean the ops CAPTURE actually uses — a
+     * release op plus SetRemoteMode — not just SetRemoteMode. Older Rebels
+     * advertise 0x9114 but not 0x9128, and gating on the wrong op made the UI
+     * promise a capture the camera was always going to refuse.
+     */
     val supportsEosRemote: Boolean
-        get() = operationsSupported.contains(Ptp.OP_EOS_SET_REMOTE_MODE)
+        get() = operationsSupported.contains(Ptp.OP_EOS_SET_REMOTE_MODE) &&
+            (supportsStagedRelease || supportsOneShotRelease)
+
     val supportsEosLiveView: Boolean
         get() = operationsSupported.contains(Ptp.OP_EOS_GET_VIEWFINDER_DATA)
 
