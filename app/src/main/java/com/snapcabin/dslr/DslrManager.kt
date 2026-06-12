@@ -322,10 +322,14 @@ class DslrManager(private val context: Context) {
         val handlesBefore = listObjectHandles(t)
         diag("pre-shutter handles: ${handlesBefore?.size ?: "GetObjectHandles unavailable"}")
 
+        pendingObjectHandle = null // anything seen before the shutter is stale
         fireShutter(t)
 
         _capture.value = Capture.Busy("Waiting for the photo…")
-        val handle = pollForObject(t, timeoutMs = eventTimeoutMs)
+        // The busy-retry pumps inside fireShutter may have already consumed the
+        // ObjectAdded event — check the stash before polling for a fresh one.
+        val handle = pendingObjectHandle
+            ?: pollForObject(t, timeoutMs = eventTimeoutMs)
             ?: pollForNewHandle(t, handlesBefore, timeoutMs = diffTimeoutMs)
             ?: throw NoPhotoException(
                 "Shutter fired but the new image never appeared (no EOS event, no new " +
@@ -360,15 +364,23 @@ class DslrManager(private val context: Context) {
 
         if (staged) {
             _capture.value = Capture.Busy("Focusing…")
-            logResp("ReleaseOn(1) half-press", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0)))
-            Thread.sleep(800) // let AF settle
+            releaseOp(t, "ReleaseOn(1) half-press", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0))
+            // Hold the half-press while AF works, keeping events flowing — the
+            // body answers DeviceBusy (0x2019) to a full-press until focus
+            // settles, and a backed-up event queue keeps some bodies busy.
+            repeat(4) {
+                pumpEvents(t)
+                Thread.sleep(200)
+            }
             _capture.value = Capture.Busy("Firing shutter…")
-            val full = t.transact(Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0))
-            logResp("ReleaseOn(2) full-press", full)
-            logResp("ReleaseOff(2)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2)))
-            logResp("ReleaseOff(1)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1)))
-            if (full.first.ok) return
-            diag("full-press refused (0x${full.first.code.toString(16)})" +
+            val full = releaseOp(t, "ReleaseOn(2) full-press", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0))
+            releaseOp(t, "ReleaseOff(2)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2))
+            releaseOp(t, "ReleaseOff(1)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1))
+            if (full.ok) return
+            if (full.code == Ptp.RESP_DEVICE_BUSY) {
+                diag("full-press busy through every retry — AF likely can't lock; set the lens to MF")
+            }
+            diag("full-press refused (0x${full.code.toString(16)})" +
                 if (oneShot) " — trying one-shot 0x910F" else "")
             if (!oneShot) return // poll anyway; the trace has the refusal on record
         } else {
@@ -378,12 +390,50 @@ class DslrManager(private val context: Context) {
 
         if (oneShot) {
             _capture.value = Capture.Busy("Firing shutter…")
-            logResp("RemoteRelease(0x910F)", t.transact(Ptp.OP_EOS_REMOTE_RELEASE))
+            releaseOp(t, "RemoteRelease(0x910F)", Ptp.OP_EOS_REMOTE_RELEASE, IntArray(0))
         } else if (!staged) {
             throw NoPhotoException(
                 "This camera advertises neither EOS release operation (0x9128/0x910F) — " +
                     "USB remote capture isn't possible on this body."
             )
+        }
+    }
+
+    /**
+     * Run a release op, retrying while the camera answers DeviceBusy (0x2019).
+     * EOS bodies report busy to a full-press while AF is still settling and to
+     * any release while the previous frame is writing — gphoto2 treats busy as
+     * "ask again", not failure (observed live: treating the first 0x2019 as
+     * fatal is exactly why the shutter never fired). Events are pumped between
+     * attempts so a clogged queue can't keep the body busy forever.
+     */
+    private fun releaseOp(t: PtpTransport, label: String, op: Int, params: IntArray): PtpTransport.PtpResponse {
+        var resp = t.transact(op, params).first
+        var retries = 0
+        while (resp.code == Ptp.RESP_DEVICE_BUSY && retries < 10) {
+            retries++
+            pumpEvents(t)
+            Thread.sleep(200)
+            resp = t.transact(op, params).first
+        }
+        diag("$label → rc=0x${resp.code.toString(16)}${if (resp.ok) " ok" else " FAIL"}" +
+            if (retries > 0) " ($retries busy retries)" else "")
+        return resp
+    }
+
+    /**
+     * One GetEvent, parsed — NOT discarded. The busy-retry loops drain events
+     * as a side effect, and the ObjectAdded announcement for the new photo can
+     * arrive there (e.g. while ReleaseOff retries during the card write);
+     * dropping it would turn a successful exposure into a "no photo" timeout.
+     */
+    private var pendingObjectHandle: Int? = null
+    private fun pumpEvents(t: PtpTransport) {
+        runCatching {
+            val (_, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
+            if (data != null && data.size > 8) {
+                parseEventsForObjectHandle(data)?.let { pendingObjectHandle = it }
+            }
         }
     }
 

@@ -58,6 +58,8 @@ object Ptp {
 
     // ── Response codes ──
     const val RESP_OK = 0x2001
+    /** "Ask again" — EOS answers this to a release while AF/writing is in flight. */
+    const val RESP_DEVICE_BUSY = 0x2019
     const val RESP_SESSION_ALREADY_OPEN = 0x201E
 
     // ── Vendor extension IDs (from DeviceInfo) ──
