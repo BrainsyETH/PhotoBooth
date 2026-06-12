@@ -208,7 +208,19 @@ class DslrManager(private val context: Context) {
         // Canon needs "PC connection" + event mode on before it will
         // accept shutter-release commands. Best-effort; capture re-asserts.
         if (info.isCanon && info.supportsEosRemote) {
+            if (openResp.code == Ptp.RESP_SESSION_ALREADY_OPEN) {
+                // The previous run died without CloseSession (crash, cable
+                // yank) — the body kept its state and may be wedged.
+                diag("session was already open — clearing stale state from a previous run")
+            }
             prepareRemote(t, "connect")
+            if (info.supportsStagedRelease) {
+                // A run that died mid-shot can leave the "button" held down:
+                // screen black, AF engaged, further releases refused. Clearing
+                // a button that isn't held is a harmless no-op.
+                runCatching { t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2)) }
+                runCatching { t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1)) }
+            }
             drainEvents(t, "connect")
         }
         return info
