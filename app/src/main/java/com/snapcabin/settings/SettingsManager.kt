@@ -29,6 +29,14 @@ data class BoothSettings(
     val cameraId: String = "", // Empty = auto-detect, or specific camera ID for external cameras
     val mirrorImage: Boolean = true,
     val photoResolution: PhotoResolution = PhotoResolution.FULL,
+    /**
+     * Hybrid DSLR mode: the tablet camera stays the live preview, but the shot
+     * itself is fired on the USB-tethered DSLR (PTP remote release) and the
+     * downloaded frame is what guests get. GIF mode always uses the tablet
+     * camera (a DSLR can't sustain GIF frame rates), and any DSLR failure
+     * falls back to the tablet camera so guests are never stranded.
+     */
+    val dslrCaptureEnabled: Boolean = false,
 
     // Capture
     val countdownSeconds: Int = 3,
@@ -131,6 +139,7 @@ class SettingsManager @Inject constructor(
         val CAMERA_ID = stringPreferencesKey("camera_id")
         val MIRROR_IMAGE = booleanPreferencesKey("mirror_image")
         val PHOTO_RESOLUTION = stringPreferencesKey("photo_resolution")
+        val DSLR_CAPTURE_ENABLED = booleanPreferencesKey("dslr_capture_enabled")
         val COUNTDOWN_SECONDS = intPreferencesKey("countdown_seconds")
         val AUTO_CAPTURE = booleanPreferencesKey("auto_capture")
         val COLLAGE_SHOT_COUNT = intPreferencesKey("collage_shot_count")
@@ -197,6 +206,7 @@ class SettingsManager @Inject constructor(
         photoResolution = prefs[Keys.PHOTO_RESOLUTION]?.let {
             try { PhotoResolution.valueOf(it) } catch (e: Exception) { PhotoResolution.FULL }
         } ?: PhotoResolution.FULL,
+        dslrCaptureEnabled = prefs[Keys.DSLR_CAPTURE_ENABLED] ?: false,
         countdownSeconds = prefs[Keys.COUNTDOWN_SECONDS] ?: 3,
         autoCapture = prefs[Keys.AUTO_CAPTURE] ?: false,
         collageShotCount = prefs[Keys.COLLAGE_SHOT_COUNT] ?: 4,
@@ -286,6 +296,7 @@ class SettingsManager @Inject constructor(
             prefs[Keys.CAMERA_ID] = updated.cameraId
             prefs[Keys.MIRROR_IMAGE] = updated.mirrorImage
             prefs[Keys.PHOTO_RESOLUTION] = updated.photoResolution.name
+            prefs[Keys.DSLR_CAPTURE_ENABLED] = updated.dslrCaptureEnabled
             prefs[Keys.COUNTDOWN_SECONDS] = updated.countdownSeconds
             prefs[Keys.AUTO_CAPTURE] = updated.autoCapture
             prefs[Keys.COLLAGE_SHOT_COUNT] = updated.collageShotCount

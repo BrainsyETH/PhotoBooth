@@ -33,6 +33,8 @@ object Ptp {
 
     // ── Canon EOS vendor operations (later milestones; listed for the map) ──
     const val OP_EOS_GET_PARTIAL_OBJECT = 0x9107
+    /** One-shot release (no params). The ONLY release op older Rebels support. */
+    const val OP_EOS_REMOTE_RELEASE = 0x910F
     const val OP_EOS_SET_REMOTE_MODE = 0x9114
     const val OP_EOS_SET_EVENT_MODE = 0x9115
     const val OP_EOS_GET_EVENT = 0x9116
