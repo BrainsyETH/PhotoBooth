@@ -92,6 +92,35 @@ class DslrManager(private val context: Context) {
     /** One capture (test or booth) on the wire at a time. */
     private val captureMutex = Mutex()
 
+    init {
+        // The held UsbDeviceConnection dies silently when the camera unplugs
+        // or powers off (auto power off!) — without this, the app keeps
+        // claiming Connected and every capture talks into a dead pipe
+        // ("bulk OUT failed at 0/12" on the very first command).
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent?.action != UsbManager.ACTION_USB_DEVICE_DETACHED) return
+                val device: UsbDevice? =
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                val wasPtp = device != null && (0 until device.interfaceCount).any {
+                    device.getInterface(it).interfaceClass == Ptp.USB_CLASS_STILL_IMAGE
+                }
+                if (!wasPtp) return
+                scope.launch {
+                    captureMutex.withLock { dropTransport() }
+                    val present = findPtpDevice()
+                    _state.value =
+                        if (present == null) State.NoCamera else State.Detected(present.productName)
+                }
+            }
+        }
+        // Protected system broadcast — exempt from the API 34 flag requirement
+        // (same pattern as AdminViewModel's attach/detach receiver).
+        @Suppress("UnspecifiedRegisterReceiverFlag")
+        context.registerReceiver(receiver, IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED))
+    }
+
     /** Refresh detection (call when entering the camera screen / on USB attach). */
     fun refresh() {
         if (_state.value is State.Connected || _state.value is State.Connecting) return
@@ -234,19 +263,15 @@ class DslrManager(private val context: Context) {
      * reveals exactly where any camera-specific tuning is needed.
      */
     fun captureTestPhoto() {
-        val t = transport
-        if (t == null) {
-            _capture.value = Capture.Failed("Not connected.")
-            return
-        }
         if (_capture.value is Capture.Busy) return
+        _capture.value = Capture.Busy("Preparing camera…")
         scope.launch {
             captureMutex.withLock {
                 try {
                     _diagnostics.value = emptyList()
                     diag("— capture start —")
                     // Generous timeouts: this is a diagnostic, let it look hard.
-                    val jpeg = captureOnce(t, eventTimeoutMs = 8_000, diffTimeoutMs = 15_000)
+                    val jpeg = captureWithReconnect(eventTimeoutMs = 8_000, diffTimeoutMs = 15_000)
                     val bmp = try {
                         android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
                     } catch (e: Exception) {
@@ -255,9 +280,36 @@ class DslrManager(private val context: Context) {
                     _capture.value = Capture.Done(jpeg, bmp)
                 } catch (e: Exception) {
                     Log.e(TAG, "DSLR capture failed", e)
+                    if (e is java.io.IOException && e !is NoPhotoException) {
+                        // Transport is dead and even a fresh reconnect failed —
+                        // stop claiming Connected; the UI offers CONNECT DSLR.
+                        dropTransport()
+                        _state.value = State.Error(
+                            "Lost the camera connection — check the cable and power, then tap CONNECT DSLR."
+                        )
+                    }
                     _capture.value = Capture.Failed(e.message ?: "Capture failed.")
                 }
             }
+        }
+    }
+
+    /**
+     * Run the capture sequence, reconnecting fresh and retrying ONCE if the
+     * transport turns out to be dead. The held connection dies silently when
+     * the camera auto-powers-off or is replugged — the detach broadcast
+     * usually catches it, but this is the backstop (caller holds the mutex).
+     */
+    private fun captureWithReconnect(eventTimeoutMs: Long, diffTimeoutMs: Long): ByteArray {
+        return try {
+            val t = transport ?: reconnectForCapture()
+            captureOnce(t, eventTimeoutMs, diffTimeoutMs)
+        } catch (e: NoPhotoException) {
+            throw e
+        } catch (e: java.io.IOException) {
+            diag("transport failed (${e.message}) — reconnecting and retrying…")
+            dropTransport()
+            captureOnce(reconnectForCapture(), eventTimeoutMs, diffTimeoutMs)
         }
     }
 
@@ -275,24 +327,35 @@ class DslrManager(private val context: Context) {
     suspend fun captureBoothPhoto(maxDimension: Int): android.graphics.Bitmap =
         withContext(Dispatchers.IO) {
             captureMutex.withLock {
-                val t = transport ?: reconnectForCapture()
-                val arm = armedShot
-                armedShot = null
                 _capture.value = Capture.Busy("Booth capture")
                 try {
-                    val jpeg = if (arm != null) {
-                        fireArmedShot(t, arm)
-                    } else {
-                        captureOnce(t, eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
+                    val jpeg = try {
+                        val t = transport ?: reconnectForCapture()
+                        val arm = armedShot
+                        armedShot = null
+                        if (arm != null) {
+                            fireArmedShot(t, arm)
+                        } else {
+                            captureOnce(t, eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
+                        }
+                    } catch (e: NoPhotoException) {
+                        throw e // session is fine; the shot just didn't happen
+                    } catch (e: java.io.IOException) {
+                        // Dead pipe (auto power off, replug). One fresh
+                        // reconnect + full sequence — a late DSLR photo still
+                        // beats the tablet fallback.
+                        Log.w(TAG, "DSLR transport failed mid-shot; reconnecting once", e)
+                        dropTransport()
+                        captureOnce(reconnectForCapture(), eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
                     }
                     decodeScaled(jpeg, maxDimension)
                         ?: throw NoPhotoException("Couldn't decode the DSLR photo.")
                 } catch (e: NoPhotoException) {
-                    throw e // session is fine; the shot just didn't happen
+                    throw e
                 } catch (e: java.io.IOException) {
-                    // Bulk transfer death usually means the camera unplugged or
-                    // powered off — drop the session so the next shot reconnects.
-                    disconnect()
+                    // Reconnect didn't help either — surface it and let the
+                    // caller fall back to the tablet camera.
+                    dropTransport()
                     _state.value = State.Error(e.message ?: "DSLR connection lost.")
                     throw e
                 } finally {
@@ -319,26 +382,39 @@ class DslrManager(private val context: Context) {
     suspend fun armBoothCapture() = withContext(Dispatchers.IO) {
         captureMutex.withLock {
             try {
-                val t = transport ?: reconnectForCapture()
-                disarmLocked(t) // release any stale half-press from an abandoned arm
-                diag("— arming for countdown —")
-                prepareRemote(t, "arm")
-                setEosProperty(
-                    t, Ptp.DPC_EOS_CAPTURE_DESTINATION, Ptp.EOS_DEST_CARD,
-                    label = "CaptureDestination=card"
-                )
-                drainEvents(t, "arm")
-                pendingObjectHandle = null
-                val handlesBefore = listObjectHandles(t)
-                val staged = deviceInfo?.supportsStagedRelease != false
-                if (staged) {
-                    releaseOp(t, "ReleaseOn(1) half-press (arm)", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0))
+                try {
+                    armLocked()
+                } catch (e: java.io.IOException) {
+                    if (e is NoPhotoException) throw e
+                    // Dead pipe — reconnect during the countdown so flash time
+                    // still only needs the full-press.
+                    diag("arm transport failed (${e.message}) — reconnecting…")
+                    dropTransport()
+                    armLocked()
                 }
-                armedShot = ArmedShot(handlesBefore, staged)
             } catch (e: Exception) {
                 Log.w(TAG, "DSLR arm failed; flash-time capture will run the full sequence", e)
             }
         }
+    }
+
+    private fun armLocked() {
+        val t = transport ?: reconnectForCapture()
+        disarmLocked(t) // release any stale half-press from an abandoned arm
+        diag("— arming for countdown —")
+        prepareRemote(t, "arm")
+        setEosProperty(
+            t, Ptp.DPC_EOS_CAPTURE_DESTINATION, Ptp.EOS_DEST_CARD,
+            label = "CaptureDestination=card"
+        )
+        drainEvents(t, "arm")
+        pendingObjectHandle = null
+        val handlesBefore = listObjectHandles(t)
+        val staged = deviceInfo?.supportsStagedRelease != false
+        if (staged) {
+            releaseOp(t, "ReleaseOn(1) half-press (arm)", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0))
+        }
+        armedShot = ArmedShot(handlesBefore, staged)
     }
 
     /**
@@ -582,10 +658,11 @@ class DslrManager(private val context: Context) {
      * events ever arrive", which is undiagnosable without these lines.
      */
     private fun prepareRemote(t: PtpTransport, label: String) {
-        runCatching {
-            logResp("[$label] SetRemoteMode(1)", t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(1)))
-            logResp("[$label] SetEventMode(1)", t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(1)))
-        }.onFailure { Log.w(TAG, "[$label] remote-mode setup threw", it) }
+        // No catch: transact only throws on transport death (refusals come
+        // back as response codes), and a dead pipe must abort the capture so
+        // the caller's reconnect logic can run — not limp on to the shutter.
+        logResp("[$label] SetRemoteMode(1)", t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(1)))
+        logResp("[$label] SetEventMode(1)", t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(1)))
     }
 
     /**
@@ -599,7 +676,10 @@ class DslrManager(private val context: Context) {
             PtpBytes.writeU32(data, 4, prop)
             PtpBytes.writeU32(data, 8, value)
             logResp(label, t.transact(Ptp.OP_EOS_SET_DEVICE_PROP_VALUE, IntArray(0), data))
-        }.onFailure { diag("$label threw: ${it.message}") }
+        }.onFailure {
+            diag("$label threw: ${it.message}")
+            if (it is java.io.IOException) throw it // dead pipe — abort, don't limp on
+        }
     }
 
     /** Drain queued/stale events (incl. the big initial dump after SetEventMode). */
@@ -612,7 +692,10 @@ class DslrManager(private val context: Context) {
                 total += n
                 if (data == null || data.size <= 8) return@runCatching
             }
-        }.onFailure { diag("[$label] drain threw: ${it.message}") }
+        }.onFailure {
+            diag("[$label] drain threw: ${it.message}")
+            if (it is java.io.IOException) throw it // dead pipe — abort, don't limp on
+        }
         diag("[$label] drained $total event bytes")
     }
 
@@ -655,6 +738,8 @@ class DslrManager(private val context: Context) {
             }
             handles
         }
+    } catch (e: java.io.IOException) {
+        throw e // dead pipe — abort the capture so reconnect logic can run
     } catch (e: Exception) {
         Log.w(TAG, "GetObjectHandles failed", e)
         null
@@ -780,6 +865,16 @@ class DslrManager(private val context: Context) {
             }
             runCatching { t.transact(Ptp.OP_CLOSE_SESSION) }
         }
+        dropTransport()
+    }
+
+    /**
+     * Drop the connection WITHOUT PTP goodbyes — for when the pipe is already
+     * dead (unplug, camera power-off). Talking into a dead pipe just burns USB
+     * timeouts; what matters is to stop claiming Connected so the next use
+     * reconnects fresh.
+     */
+    private fun dropTransport() {
         transport?.close()
         transport = null
         deviceInfo = null
