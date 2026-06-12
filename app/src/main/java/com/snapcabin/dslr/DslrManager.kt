@@ -741,10 +741,32 @@ class DslrManager(private val context: Context) {
         return sb.toString().trim()
     }
 
+    /**
+     * Operator-facing release: hand the camera back to its own controls
+     * without unplugging. While the app holds a session in PC-remote mode the
+     * body's rear screen is black and its buttons are dead (normal EOS tether
+     * behavior, not a fault) — this is the way out.
+     */
+    fun releaseCamera() {
+        scope.launch {
+            captureMutex.withLock { disconnect() }
+            val device = findPtpDevice()
+            _state.value = if (device == null) State.NoCamera else State.Detected(device.productName)
+        }
+    }
+
     fun disconnect() {
-        try {
-            transport?.transact(Ptp.OP_CLOSE_SESSION)
-        } catch (_: Exception) {
+        transport?.let { t ->
+            runCatching { disarmLocked(t) } // never leave a half-press held
+            // Undo PC-remote mode BEFORE closing: without SetRemoteMode(0) the
+            // body can stay locked (black screen, dead buttons) until the cable
+            // is pulled or it's power-cycled. Best-effort — the transport may
+            // already be dead when we get here.
+            if (deviceInfo?.let { it.isCanon && it.supportsEosRemote } == true) {
+                runCatching { t.transact(Ptp.OP_EOS_SET_EVENT_MODE, intArrayOf(0)) }
+                runCatching { t.transact(Ptp.OP_EOS_SET_REMOTE_MODE, intArrayOf(0)) }
+            }
+            runCatching { t.transact(Ptp.OP_CLOSE_SESSION) }
         }
         transport?.close()
         transport = null

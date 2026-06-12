@@ -495,6 +495,23 @@ private fun DslrConnectBlock(settings: BoothSettings, viewModel: AdminViewModel)
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.7f)
             )
+
+            BigButton(
+                text = "RELEASE CAMERA",
+                onClick = { viewModel.dslrManager.releaseCamera() },
+                enabled = !busy,
+                variant = BigButtonVariant.Surface,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = "While connected, the camera's own screen goes black and its buttons stop " +
+                    "responding — that's tether mode, not a fault. Tap RELEASE CAMERA to hand it " +
+                    "back for hands-on use (change settings, review shots), then CONNECT DSLR again. " +
+                    "Note: the booth reconnects automatically at the next shot if \"Use DSLR for " +
+                    "photos\" is on.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Espresso.copy(alpha = 0.7f)
+            )
         }
 
         Text(
