@@ -264,9 +264,15 @@ class DslrManager(private val context: Context) {
         withContext(Dispatchers.IO) {
             captureMutex.withLock {
                 val t = transport ?: reconnectForCapture()
+                val arm = armedShot
+                armedShot = null
                 _capture.value = Capture.Busy("Booth capture")
                 try {
-                    val jpeg = captureOnce(t, eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
+                    val jpeg = if (arm != null) {
+                        fireArmedShot(t, arm)
+                    } else {
+                        captureOnce(t, eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
+                    }
                     decodeScaled(jpeg, maxDimension)
                         ?: throw NoPhotoException("Couldn't decode the DSLR photo.")
                 } catch (e: NoPhotoException) {
@@ -282,6 +288,101 @@ class DslrManager(private val context: Context) {
                 }
             }
         }
+
+    /** Pre-armed shot state: setup is done and (when staged) AF is locked on a held half-press. */
+    private data class ArmedShot(val handlesBefore: Set<Long>?, val halfPressed: Boolean)
+    private var armedShot: ArmedShot? = null
+
+    /**
+     * Pre-arm the next booth shot. Called at the TOP of the on-screen countdown
+     * so all the slow work — remote/event mode, destination, event drain,
+     * handle snapshot, half-press AF settle — happens while guests watch
+     * "3…2…1", and the flash moment only needs the full-press (~200 ms).
+     * Without this the exposure landed seconds after the on-screen flash, when
+     * everyone had already relaxed.
+     *
+     * Best-effort: on any failure the armed state is simply not set and the
+     * flash-time capture runs the full sequence (late photo beats no photo).
+     */
+    suspend fun armBoothCapture() = withContext(Dispatchers.IO) {
+        captureMutex.withLock {
+            try {
+                val t = transport ?: reconnectForCapture()
+                disarmLocked(t) // release any stale half-press from an abandoned arm
+                diag("— arming for countdown —")
+                prepareRemote(t, "arm")
+                setEosProperty(
+                    t, Ptp.DPC_EOS_CAPTURE_DESTINATION, Ptp.EOS_DEST_CARD,
+                    label = "CaptureDestination=card"
+                )
+                drainEvents(t, "arm")
+                pendingObjectHandle = null
+                val handlesBefore = listObjectHandles(t)
+                val staged = deviceInfo?.supportsStagedRelease != false
+                if (staged) {
+                    releaseOp(t, "ReleaseOn(1) half-press (arm)", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(1, 0))
+                }
+                armedShot = ArmedShot(handlesBefore, staged)
+            } catch (e: Exception) {
+                Log.w(TAG, "DSLR arm failed; flash-time capture will run the full sequence", e)
+            }
+        }
+    }
+
+    /**
+     * Release a held half-press without taking a photo — for countdowns that
+     * get skipped, cancelled, or error out between arm and flash. Leaving the
+     * button "held" keeps the AF system engaged and drains the battery.
+     */
+    suspend fun disarmBoothCapture() = withContext(Dispatchers.IO) {
+        captureMutex.withLock {
+            val t = transport
+            if (t == null) {
+                armedShot = null
+            } else {
+                disarmLocked(t)
+            }
+        }
+    }
+
+    private fun disarmLocked(t: PtpTransport) {
+        val arm = armedShot ?: return
+        armedShot = null
+        if (arm.halfPressed) {
+            runCatching { releaseOp(t, "ReleaseOff(1) disarm", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1)) }
+        }
+    }
+
+    /** Flash-time completion of a pre-armed shot: full-press, locate, download. */
+    private fun fireArmedShot(t: PtpTransport, arm: ArmedShot): ByteArray {
+        _capture.value = Capture.Busy("Firing shutter…")
+        var fired = false
+        if (arm.halfPressed) {
+            val full = releaseOp(t, "ReleaseOn(2) full-press", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0))
+            releaseOp(t, "ReleaseOff(2)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2))
+            releaseOp(t, "ReleaseOff(1)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1))
+            fired = full.ok
+        }
+        if (!fired && deviceInfo?.supportsOneShotRelease == true) {
+            releaseOp(t, "RemoteRelease(0x910F)", Ptp.OP_EOS_REMOTE_RELEASE, IntArray(0))
+        }
+
+        _capture.value = Capture.Busy("Waiting for the photo…")
+        val handle = pendingObjectHandle
+            ?: pollForObject(t, timeoutMs = 5_000)
+            ?: pollForNewHandle(t, arm.handlesBefore, timeoutMs = 5_000)
+            ?: throw NoPhotoException(
+                "Shutter fired but the new image never appeared (no EOS event, no new " +
+                    "object handle). If autofocus can't lock, the camera silently refuses " +
+                    "to fire — set the lens to MF, check a card is in and not full, and " +
+                    "that image quality includes JPEG."
+            )
+
+        _capture.value = Capture.Busy("Downloading photo…")
+        val jpeg = downloadObject(t, handle)
+        diag("downloaded ${jpeg.size} bytes from 0x${handle.toString(16)}")
+        return jpeg
+    }
 
     /**
      * The booth can reach capture with no live session (app restarted, camera
@@ -301,6 +402,7 @@ class DslrManager(private val context: Context) {
 
     /** Full capture sequence on an open transport: prepare → fire → locate → download. */
     private fun captureOnce(t: PtpTransport, eventTimeoutMs: Long, diffTimeoutMs: Long): ByteArray {
+        disarmLocked(t) // this path does its own half-press; a stale held one would confuse it
         _capture.value = Capture.Busy("Preparing camera…")
         prepareRemote(t, "capture")
 
@@ -647,6 +749,7 @@ class DslrManager(private val context: Context) {
         transport?.close()
         transport = null
         deviceInfo = null
+        armedShot = null
         _capture.value = Capture.Idle
     }
 }

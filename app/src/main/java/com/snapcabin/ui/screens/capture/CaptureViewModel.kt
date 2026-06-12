@@ -104,6 +104,15 @@ class CaptureViewModel @Inject constructor(
                             delay(step.durationMs)
                         }
                         is CaptureStep.Count -> {
+                            // Pre-arm the DSLR at the top of each countdown so
+                            // the slow setup + autofocus happen during "3…2…1"
+                            // and the exposure lands ON the on-screen flash,
+                            // not seconds after it. Async: the countdown keeps
+                            // ticking; the flash-time capture serializes behind
+                            // the arm via DslrManager's internal lock.
+                            if (step.n == 3 && usesDslr(mode)) {
+                                viewModelScope.launch { dslrManager.armBoothCapture() }
+                            }
                             // Beep on count tick
                             if (step.n == 1) {
                                 soundManager.playCountdownFinalBeep()
@@ -150,6 +159,7 @@ class CaptureViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 android.util.Log.e("CaptureViewModel", "Burst failed", e)
+                releaseDslrIfArmed()
                 _uiState.value = _uiState.value.copy(
                     error = if (_uiState.value.photos.isEmpty()) {
                         "Something interrupted us — let's try again."
@@ -170,10 +180,9 @@ class CaptureViewModel @Inject constructor(
      * shot is recoverable, a booth that strands guests is not.
      */
     private suspend fun takeBoothPhoto(mode: CaptureMode): Bitmap {
-        val s = settings.value
-        if (s.dslrCaptureEnabled && mode != CaptureMode.Gif) {
+        if (usesDslr(mode)) {
             try {
-                return dslrManager.captureBoothPhoto(s.photoResolution.maxDimension)
+                return dslrManager.captureBoothPhoto(settings.value.photoResolution.maxDimension)
             } catch (e: Exception) {
                 android.util.Log.e(
                     "CaptureViewModel",
@@ -184,8 +193,20 @@ class CaptureViewModel @Inject constructor(
         return cameraManager.takePhoto()
     }
 
+    private fun usesDslr(mode: CaptureMode): Boolean =
+        settings.value.dslrCaptureEnabled && mode != CaptureMode.Gif
+
+    /**
+     * A countdown that armed the DSLR but never reached its flash (skip, reset,
+     * error) leaves the camera holding a half-press — release it.
+     */
+    private fun releaseDslrIfArmed() {
+        viewModelScope.launch { dslrManager.disarmBoothCapture() }
+    }
+
     fun skipBurst() {
         burstJob?.cancel()
+        releaseDslrIfArmed()
         _uiState.value = _uiState.value.copy(
             currentStep = CaptureStep.Done,
             isFinished = true,
@@ -196,6 +217,7 @@ class CaptureViewModel @Inject constructor(
 
     fun resetCapture() {
         burstJob?.cancel()
+        releaseDslrIfArmed()
         _uiState.value = CaptureUiState()
     }
 
