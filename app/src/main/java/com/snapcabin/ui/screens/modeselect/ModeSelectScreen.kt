@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -57,59 +59,115 @@ fun ModeSelectScreen(
     onSinglePhoto: () -> Unit,
     onCollage: () -> Unit,
     onGif: () -> Unit,
+    onBack: () -> Unit = {},
     singlePhotoEnabled: Boolean = true,
     collageEnabled: Boolean = true,
     gifEnabled: Boolean = true
 ) {
+    val anyModeEnabled = singlePhotoEnabled || collageEnabled || gifEnabled
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(CabinBackground),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.mode_title),
-                fontSize = 56.sp,
-                fontFamily = FrankRuhlLibre,
-                fontWeight = FontWeight.Medium,
-                color = Espresso,
-                textAlign = TextAlign.Center,
-                letterSpacing = (-0.015f).em
-            )
-
-            Spacer(modifier = Modifier.height(60.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xl)
+        if (!anyModeEnabled) {
+            // Every mode switched off in admin used to leave the guest staring
+            // at "Choose your mode" with nothing to choose. Say what's going on
+            // instead; the back chip below still gets them home.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = Spacing.xxl)
             ) {
-                if (singlePhotoEnabled) {
-                    ModeCard(
-                        title = stringResource(R.string.mode_single_photo),
-                        accentColor = CabinSecondary,
-                        glyph = ModeGlyph.Camera,
-                        onClick = onSinglePhoto
-                    )
-                }
-                if (collageEnabled) {
-                    ModeCard(
-                        title = stringResource(R.string.mode_collage),
-                        accentColor = CabinPrimary,
-                        glyph = ModeGlyph.Grid,
-                        onClick = onCollage
-                    )
-                }
-                if (gifEnabled) {
-                    ModeCard(
-                        title = stringResource(R.string.mode_gif),
-                        accentColor = HoneyDeep,
-                        glyph = ModeGlyph.FilmStrip,
-                        onClick = onGif
-                    )
+                Text(
+                    text = stringResource(R.string.mode_none_title),
+                    fontSize = 48.sp,
+                    fontFamily = FrankRuhlLibre,
+                    fontWeight = FontWeight.Medium,
+                    color = Espresso,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (-0.015f).em
+                )
+                Spacer(modifier = Modifier.height(Spacing.md))
+                Text(
+                    text = stringResource(R.string.mode_none_body),
+                    fontSize = 18.sp,
+                    fontFamily = HankenGrotesk,
+                    color = Espresso.copy(alpha = 0.72f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.mode_title),
+                    fontSize = 56.sp,
+                    fontFamily = FrankRuhlLibre,
+                    fontWeight = FontWeight.Medium,
+                    color = Espresso,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (-0.015f).em
+                )
+
+                Spacer(modifier = Modifier.height(60.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xl)
+                ) {
+                    if (singlePhotoEnabled) {
+                        ModeCard(
+                            title = stringResource(R.string.mode_single_photo),
+                            accentColor = CabinSecondary,
+                            glyph = ModeGlyph.Camera,
+                            onClick = onSinglePhoto
+                        )
+                    }
+                    if (collageEnabled) {
+                        ModeCard(
+                            title = stringResource(R.string.mode_collage),
+                            accentColor = CabinPrimary,
+                            glyph = ModeGlyph.Grid,
+                            onClick = onCollage
+                        )
+                    }
+                    if (gifEnabled) {
+                        ModeCard(
+                            title = stringResource(R.string.mode_gif),
+                            accentColor = HoneyDeep,
+                            glyph = ModeGlyph.FilmStrip,
+                            onClick = onGif
+                        )
+                    }
                 }
             }
+        }
+
+        // Back to the welcome screen — a guest who tapped in by accident used
+        // to have to stand there until the idle timeout reset the booth.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 24.dp, bottom = 22.dp)
+                .heightIn(min = 48.dp)
+                .shadow(elevation = 1.dp, shape = RoundedCornerShape(999.dp))
+                .clip(RoundedCornerShape(999.dp))
+                .background(CabinSurface)
+                .border(1.dp, CabinLine, RoundedCornerShape(999.dp))
+                .clickable(role = Role.Button, onClick = onBack)
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.mode_back).uppercase(),
+                fontFamily = HankenGrotesk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                letterSpacing = 0.22f.em,
+                color = Espresso.copy(alpha = 0.8f)
+            )
         }
     }
 }
@@ -130,7 +188,7 @@ private fun ModeCard(
             .clip(RoundedCornerShape(Radii.l))
             .background(CabinSurface)
             .border(1.dp, CabinLine, RoundedCornerShape(Radii.l))
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(Spacing.xl)
     ) {
         Box(

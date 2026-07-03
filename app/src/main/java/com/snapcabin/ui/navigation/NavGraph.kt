@@ -174,6 +174,7 @@ fun NavGraph(settingsManager: SettingsManager) {
                     onSinglePhoto = { navController.navigate(Routes.getReady(CaptureMode.Single)) },
                     onCollage = { navController.navigate(Routes.getReady(CaptureMode.Collage)) },
                     onGif = { navController.navigate(Routes.getReady(CaptureMode.Gif)) },
+                    onBack = goHome,
                     singlePhotoEnabled = settings.enableSinglePhotoMode,
                     collageEnabled = settings.enableCollageMode,
                     gifEnabled = settings.enableGifMode

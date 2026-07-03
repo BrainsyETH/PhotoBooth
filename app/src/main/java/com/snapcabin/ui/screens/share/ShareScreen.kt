@@ -51,6 +51,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -108,8 +109,10 @@ fun ShareScreen(
     }
 
     LaunchedEffect(uiState.message) {
-        if (uiState.message != null) {
-            delay(4000)
+        uiState.message?.let { msg ->
+            // Longer messages (email errors especially) need longer on screen —
+            // a flat 4s cut off mid-read. Scale with length, capped at 8s.
+            delay((3000L + msg.length * 40L).coerceAtMost(8000L))
             viewModel.clearMessage()
         }
     }
@@ -165,7 +168,10 @@ fun ShareScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.share_title),
+                        text = stringResource(
+                            if (uiState.gifBytes != null) R.string.share_title_gif
+                            else R.string.share_title
+                        ),
                         fontSize = titleSize,
                         fontFamily = FrankRuhlLibre,
                         fontWeight = FontWeight.Bold,
@@ -273,6 +279,11 @@ fun ShareScreen(
     }
 
     if (showEmailDialog) {
+        // Validate in the dialog, not after it closes — the old flow accepted
+        // any non-blank text, closed the dialog, wiped the input, and reported
+        // "Enter a valid email address" in a sidebar snackbar, so a typo meant
+        // retyping the whole address.
+        val emailValid = viewModel.isValidEmail(emailInput)
         AlertDialog(
             onDismissRequest = { showEmailDialog = false },
             title = { Text(stringResource(R.string.share_email_dialog_title)) },
@@ -291,6 +302,12 @@ fun ShareScreen(
                         },
                         label = { Text(stringResource(R.string.share_email_dialog_label)) },
                         singleLine = true,
+                        isError = emailInput.isNotBlank() && !emailValid,
+                        supportingText = {
+                            if (emailInput.isNotBlank() && !emailValid) {
+                                Text(stringResource(R.string.share_email_invalid))
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(Radii.s),
@@ -310,7 +327,7 @@ fun ShareScreen(
                         emailInput = ""
                         showEmailDialog = false
                     },
-                    enabled = emailInput.isNotBlank()
+                    enabled = emailValid
                 ) { Text(stringResource(R.string.share_email_dialog_send)) }
             },
             dismissButton = {
@@ -358,7 +375,7 @@ private fun QrSharingBlock(
                     .clip(RoundedCornerShape(Radii.s))
                     .background(Oat)
                     .border(1.dp, CabinLine, RoundedCornerShape(Radii.s))
-                    .clickable(onClick = onRetry),
+                    .clickable(role = Role.Button, onClick = onRetry),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

@@ -1,6 +1,7 @@
 package com.snapcabin.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.snapcabin.R
@@ -32,7 +34,11 @@ fun InactivityWarningDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Espresso.copy(alpha = 0.55f)),
+            .background(Espresso.copy(alpha = 0.55f))
+            // Consume scrim taps: a guest tapping "anywhere" to say "I'm here"
+            // must not also press whatever button (DONE, PRINT…) happens to sit
+            // under the scrim. Tapping the scrim just dismisses the warning.
+            .pointerInput(Unit) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.Center
     ) {
         Column(

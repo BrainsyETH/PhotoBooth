@@ -8,6 +8,7 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,8 +39,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -52,6 +55,7 @@ import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.components.BrandingLiveOverlay
+import com.snapcabin.ui.components.CameraPermissionPrompt
 import com.snapcabin.ui.components.FramingGuide
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.theme.CabinLine
@@ -86,9 +90,9 @@ fun GetReadyScreen(
         hasCameraPermission = result[Manifest.permission.CAMERA] ?: hasCameraPermission
     }
 
-    LaunchedEffect(Unit) {
-        // Same permission set as the capture screen: USB cameras won't open
-        // without RECORD_AUDIO, and this is often the first screen to bind.
+    // Same permission set as the capture screen: USB cameras won't open
+    // without RECORD_AUDIO, and this is often the first screen to bind.
+    val requestPermissions = {
         val perms = buildList {
             add(Manifest.permission.CAMERA)
             if (viewModel.cameraManager.needsAudioPermissionForExternal()) {
@@ -97,6 +101,8 @@ fun GetReadyScreen(
         }
         permissionLauncher.launch(perms.toTypedArray())
     }
+
+    LaunchedEffect(Unit) { requestPermissions() }
 
     val eyebrow = when (mode) {
         CaptureMode.Single -> stringResource(R.string.getready_card_eyebrow_single)
@@ -175,6 +181,15 @@ fun GetReadyScreen(
             )
         }
 
+        // Without CAMERA the preview is just black — tell the guest why and
+        // give them a way to grant it, instead of a silent dark screen.
+        if (!hasCameraPermission) {
+            CameraPermissionPrompt(
+                onRequest = requestPermissions,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
         if (settings.framingGuideEnabled) {
             FramingGuide()
 
@@ -219,7 +234,10 @@ fun GetReadyScreen(
                 .clip(RoundedCornerShape(24.dp))
                 .background(Cream)
                 .border(1.dp, CabinLine, RoundedCornerShape(24.dp))
-                .clickable { /* swallow taps on the card without triggering start */ }
+                // Swallow taps on the card without triggering start. pointerInput
+                // (not a no-op clickable) so TalkBack doesn't announce the card
+                // as a button that does nothing.
+                .pointerInput(Unit) { detectTapGestures { } }
                 .padding(start = 36.dp, end = 36.dp, top = 28.dp, bottom = 30.dp)
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -267,7 +285,7 @@ fun GetReadyScreen(
                 .clip(RoundedCornerShape(999.dp))
                 .background(Espresso.copy(alpha = 0.45f))
                 .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(999.dp))
-                .clickable { onBack() }
+                .clickable(role = Role.Button) { onBack() }
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
