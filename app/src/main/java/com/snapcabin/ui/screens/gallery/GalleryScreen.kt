@@ -36,8 +36,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.components.Eyebrow
@@ -76,7 +79,7 @@ fun GalleryScreen(
             if (uiState.selectedPhoto != null && uiState.fullBitmap != null) {
                 Image(
                     bitmap = uiState.fullBitmap!!.asImageBitmap(),
-                    contentDescription = "Selected photo",
+                    contentDescription = stringResource(R.string.gallery_selected_desc),
                     modifier = Modifier
                         .fillMaxSize()
                         .shadow(elevation = 6.dp, shape = RoundedCornerShape(Radii.s))
@@ -87,7 +90,7 @@ fun GalleryScreen(
                 CircularProgressIndicator(color = CabinAccent)
             } else if (uiState.photos.isEmpty()) {
                 Text(
-                    text = "No photos yet",
+                    text = stringResource(R.string.gallery_no_photos),
                     style = MaterialTheme.typography.bodyLarge,
                     color = Espresso.copy(alpha = 0.5f)
                 )
@@ -122,10 +125,14 @@ fun GalleryScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Eyebrow(text = "GALLERY")
+                Eyebrow(text = stringResource(R.string.gallery_title))
                 Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
-                    text = "${uiState.photos.size} photos",
+                    text = pluralStringResource(
+                        R.plurals.gallery_photo_count_plural,
+                        uiState.photos.size,
+                        uiState.photos.size
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Espresso.copy(alpha = 0.72f)
                 )
@@ -134,7 +141,7 @@ fun GalleryScreen(
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 if (uiState.selectedPhoto != null) {
                     BigButton(
-                        text = "USE THIS PHOTO",
+                        text = stringResource(R.string.gallery_use_photo),
                         onClick = {
                             uiState.fullBitmap?.let { onPhotoSelected(it) }
                         },
@@ -143,14 +150,14 @@ fun GalleryScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     BigButton(
-                        text = "BACK TO GRID",
+                        text = stringResource(R.string.gallery_back_grid),
                         onClick = { viewModel.clearSelection() },
                         variant = BigButtonVariant.Surface,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
                 BigButton(
-                    text = "CLOSE",
+                    text = stringResource(R.string.gallery_close),
                     onClick = onDismiss,
                     variant = BigButtonVariant.Secondary,
                     modifier = Modifier.fillMaxWidth()

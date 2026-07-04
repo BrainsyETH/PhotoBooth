@@ -28,10 +28,15 @@
     <string name="mode_collage">Collage</string>
     <string name="mode_gif">GIF</string>
     <string name="mode_start">START</string>
+    <string name="mode_back">← Back</string>
+    <string name="mode_none_title">The booth is taking a quick break</string>
+    <string name="mode_none_body">No photo modes are switched on right now. Hosts: long-press the welcome screen to open settings and enable a mode.</string>
 
     <!-- Capture -->
     <string name="capture_take_photo">TAKE PHOTO</string>
     <string name="capture_permission_required">Camera permission is required</string>
+    <string name="capture_permission_body">SnapCabin needs the camera to take your photo.</string>
+    <string name="capture_permission_button">ALLOW CAMERA</string>
     <string name="capture_error">Failed to capture photo: %1$s</string>
 
     <!-- Review -->
@@ -40,6 +45,7 @@
 
     <!-- Share -->
     <string name="share_title">Share your photo</string>
+    <string name="share_title_gif">Share your GIF</string>
     <string name="share_scan_download">Scan to download</string>
     <string name="share_save_gallery">SAVE TO GALLERY</string>
     <string name="share_button">SHARE</string>
@@ -96,6 +102,7 @@
     <string name="share_email_dialog_title">Email me my photo</string>
     <string name="share_email_dialog_body">Enter your email. The photo arrives as an attachment.</string>
     <string name="share_email_dialog_label">Email address</string>
+    <string name="share_email_invalid">That email doesn\'t look right — check for typos.</string>
     <string name="share_email_dialog_send">SEND</string>
     <string name="share_email_dialog_cancel">CANCEL</string>
 
@@ -103,6 +110,10 @@
     <!-- Gallery -->
     <string name="gallery_title">GALLERY</string>
     <string name="gallery_photo_count">%1$d photos</string>
+    <plurals name="gallery_photo_count_plural">
+        <item quantity="one">%1$d photo</item>
+        <item quantity="other">%1$d photos</item>
+    </plurals>
     <string name="gallery_no_photos">No photos yet</string>
     <string name="gallery_use_photo">USE THIS PHOTO</string>
     <string name="gallery_back_grid">BACK TO GRID</string>

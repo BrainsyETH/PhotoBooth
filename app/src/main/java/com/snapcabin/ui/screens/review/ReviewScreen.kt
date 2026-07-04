@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -265,7 +266,7 @@ private fun EmptyCaptureRecovery(onRetake: () -> Unit) {
                     .shadow(elevation = 2.dp, shape = RoundedCornerShape(999.dp))
                     .clip(RoundedCornerShape(999.dp))
                     .background(Pine)
-                    .clickable(onClick = onRetake)
+                    .clickable(role = Role.Button, onClick = onRetake)
                     .padding(horizontal = 56.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -572,7 +573,7 @@ private fun ShotThumb(
                 color = if (selected) Pine else CabinLine,
                 shape = RoundedCornerShape(12.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         Image(
             bitmap = bitmap.asImageBitmap(),
@@ -609,7 +610,7 @@ private fun RetakeButton(onClick: () -> Unit) {
             .clip(RoundedCornerShape(16.dp))
             .background(Cream)
             .border(1.dp, CabinLine, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -636,7 +637,7 @@ private fun UseThisButton(
             .shadow(elevation = 2.dp, shape = RoundedCornerShape(999.dp))
             .clip(RoundedCornerShape(999.dp))
             .background(Pine)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .drawBehind {
                 if (progress != null) {
                     val sweepWidth = size.width * progress

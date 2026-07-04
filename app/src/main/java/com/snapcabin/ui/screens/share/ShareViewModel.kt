@@ -569,6 +569,9 @@ class ShareViewModel @Inject constructor(
         }
     }
 
+    /** Same validator the send path uses, so the dialog and the API agree. */
+    fun isValidEmail(address: String): Boolean = resendEmailSender.isValidEmail(address)
+
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(message = null)
     }

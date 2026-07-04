@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -48,7 +50,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.snapcabin.R
 import com.snapcabin.ui.components.BrandingLiveOverlay
+import com.snapcabin.ui.components.CameraPermissionPrompt
 import com.snapcabin.ui.components.CoachLine
 import com.snapcabin.ui.components.FlashOverlay
 import com.snapcabin.ui.components.LookHereIndicator
@@ -86,7 +90,7 @@ fun CaptureScreen(
         hasCameraPermission = result[Manifest.permission.CAMERA] ?: hasCameraPermission
     }
 
-    LaunchedEffect(Unit) {
+    val requestPermissions = {
         val perms = buildList {
             add(Manifest.permission.CAMERA)
             // Ask for the mic when any USB device is attached — the camera
@@ -97,6 +101,8 @@ fun CaptureScreen(
         }
         permissionLauncher.launch(perms.toTypedArray())
     }
+
+    LaunchedEffect(Unit) { requestPermissions() }
 
     LaunchedEffect(hasCameraPermission) {
         if (hasCameraPermission && !uiState.isFinished && uiState.shotsTaken == 0) {
@@ -284,12 +290,12 @@ fun CaptureScreen(
                     .clip(RoundedCornerShape(999.dp))
                     .background(Espresso.copy(alpha = 0.45f))
                     .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(999.dp))
-                    .clickable { viewModel.skipBurst() }
+                    .clickable(role = Role.Button) { viewModel.skipBurst() }
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "SKIP",
+                    text = stringResource(R.string.capture_skip).uppercase(),
                     fontFamily = HankenGrotesk,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
@@ -311,10 +317,8 @@ fun CaptureScreen(
                 )
             }
         } else {
-            Text(
-                text = "Camera permission is required",
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White,
+            CameraPermissionPrompt(
+                onRequest = requestPermissions,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
