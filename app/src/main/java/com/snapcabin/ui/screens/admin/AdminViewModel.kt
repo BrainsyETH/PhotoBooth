@@ -51,6 +51,18 @@ class AdminViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    private val _testedCameraSettings = MutableStateFlow<BoothSettings?>(null)
+    val testedCameraSettings: StateFlow<BoothSettings?> = _testedCameraSettings.asStateFlow()
+
+    fun clearCameraTest() { _testedCameraSettings.value = null }
+
+    fun recordCameraTest(tested: BoothSettings) {
+        val bound = cameraManager.bindState.value as? com.snapcabin.camera.CameraBindState.Bound
+        if (bound?.matchedRequest == true && tested.cameraTestKey() == settings.value.cameraTestKey()) {
+            _testedCameraSettings.value = tested
+        }
+    }
+
     fun playShutterSample() = soundManager.playShutterSample()
     fun playBeepSample() = soundManager.playBeepSample()
 
@@ -96,6 +108,7 @@ class AdminViewModel @Inject constructor(
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
+            clearCameraTest()
             // Re-enumerate when a USB camera is plugged or unplugged
             detectCameras()
         }
@@ -135,6 +148,7 @@ class AdminViewModel @Inject constructor(
      * and From address work end-to-end before the event starts).
      */
     fun sendResendTestEmail(toAddress: String) {
+        if (_testEmailStatus.value == TestStatus.Sending) return
         val s = settings.value
         _testEmailStatus.value = TestStatus.Sending
         _testEmailMessage.value = ""
@@ -156,9 +170,19 @@ class AdminViewModel @Inject constructor(
                 is ResendEmailSender.Result.Ok -> {
                     _testEmailStatus.value = TestStatus.Sent
                     _testEmailMessage.value = "Sent. Check your inbox."
-                    settingsManager.update { copy(resendVerifiedAt = System.currentTimeMillis()) }
+                    settingsManager.update {
+                        if (resendApiKey == s.resendApiKey && resendFromAddress == s.resendFromAddress &&
+                            resendReplyToAddress == s.resendReplyToAddress) {
+                            copy(resendVerifiedAt = System.currentTimeMillis())
+                        } else this
+                    }
                 }
                 is ResendEmailSender.Result.Err -> {
+                    settingsManager.update {
+                        if (resendApiKey == s.resendApiKey && resendFromAddress == s.resendFromAddress) {
+                            copy(resendVerifiedAt = 0L)
+                        } else this
+                    }
                     _testEmailStatus.value = TestStatus.Failed
                     _testEmailMessage.value = result.message
                 }
@@ -177,6 +201,7 @@ class AdminViewModel @Inject constructor(
      * the event. Mirrors the Resend test.
      */
     fun sendCloudinaryTest() {
+        if (_testUploadStatus.value == TestStatus.Sending) return
         val s = settings.value
         _testUploadStatus.value = TestStatus.Sending
         _testUploadMessage.value = ""
@@ -192,9 +217,18 @@ class AdminViewModel @Inject constructor(
                 is CloudinaryUploader.Result.Ok -> {
                     _testUploadStatus.value = TestStatus.Sent
                     _testUploadMessage.value = "Upload worked. Your preset is live."
-                    settingsManager.update { copy(cloudinaryVerifiedAt = System.currentTimeMillis()) }
+                    settingsManager.update {
+                        if (cloudinaryCloudName == s.cloudinaryCloudName && cloudinaryUploadPreset == s.cloudinaryUploadPreset) {
+                            copy(cloudinaryVerifiedAt = System.currentTimeMillis())
+                        } else this
+                    }
                 }
                 is CloudinaryUploader.Result.Err -> {
+                    settingsManager.update {
+                        if (cloudinaryCloudName == s.cloudinaryCloudName && cloudinaryUploadPreset == s.cloudinaryUploadPreset) {
+                            copy(cloudinaryVerifiedAt = 0L)
+                        } else this
+                    }
                     _testUploadStatus.value = TestStatus.Failed
                     _testUploadMessage.value = result.message
                 }
@@ -271,3 +305,9 @@ class AdminViewModel @Inject constructor(
         }
     }
 }
+
+/** Only the capture configuration determines whether an earlier camera test still applies. */
+internal fun BoothSettings.cameraTestKey(): List<String> = listOf(
+    cameraId, useFrontCamera.toString(), mirrorImage.toString(), photoResolution.name,
+    dslrCaptureEnabled.toString()
+)

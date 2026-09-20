@@ -40,6 +40,7 @@ import com.snapcabin.ui.theme.Spacing
 @Composable
 internal fun GetStartedSection(
     settings: BoothSettings,
+    cameraTestPassed: Boolean,
     onJumpTo: (String) -> Unit = {},
     onCollapse: (Boolean) -> Unit = {}
 ) {
@@ -48,9 +49,8 @@ internal fun GetStartedSection(
     val pinChanged = settings.adminPin != "1234"
     val eventStarted = settings.currentEventName.isNotBlank()
 
-    // Best-effort runtime check; re-evaluated on recomposition (e.g. after the
-    // operator runs TEST CAMERA in the CAMERA section and grants the prompt).
-    val cameraReady = ContextCompat.checkSelfPermission(
+    // Permission alone does not prove the selected camera can capture a photo.
+    val cameraReady = cameraTestPassed && ContextCompat.checkSelfPermission(
         context, Manifest.permission.CAMERA
     ) == PackageManager.PERMISSION_GRANTED
 
@@ -63,10 +63,10 @@ internal fun GetStartedSection(
     val qrVerified = qrConfigured && settings.cloudinaryVerifiedAt > 0L
 
     // Guests only have a working share path if email is on, OR the QR tile is on
-    // AND Cloudinary is actually configured. Don't pass just because creds were
+    // AND Cloudinary has passed a test. Don't pass just because creds were
     // typed into a disabled integration.
-    val qrShareReady = settings.enableQrSharing && qrConfigured
-    val deliveryReady = emailConfigured || qrShareReady
+    val qrShareReady = settings.enableQrSharing && qrVerified
+    val deliveryReady = emailVerified || qrShareReady
 
     // Recommended for an unattended booth: with Kiosk Mode on, the tablet is
     // locked to SnapCabin so guests can't wander into other apps or settings.
@@ -139,15 +139,15 @@ internal fun GetStartedSection(
         )
         ChecklistRow(
             done = cameraReady,
-            label = "Camera works",
-            hint = if (cameraReady) "Camera is allowed and ready." else "Tap to open CAMERA and run TEST CAMERA — it'll ask for camera permission.",
+            label = "Test the camera",
+            hint = if (cameraReady) "Test photo captured with this setup." else "Open CAMERA → TEST CAMERA → TAKE TEST PHOTO. If DSLR is enabled, test it too.",
             onClick = { onJumpTo("camera") }
         )
         ChecklistRow(
             done = deliveryReady,
             label = "Guests can get their photos",
-            hint = if (deliveryReady) "Guests can get their photos." else "Tap to turn on EMAIL DELIVERY (or QR DOWNLOADS for scan-to-save) and finish setup.",
-            onClick = { onJumpTo("resend") }
+            hint = if (deliveryReady) "An enabled delivery method passed its test." else "Send a test email or run a QR upload test before guests arrive.",
+            onClick = { onJumpTo(if (settings.resendEnabled || !settings.cloudinaryEnabled) "resend" else "cloudinary") }
         )
         ChecklistRow(
             done = lockedDown,

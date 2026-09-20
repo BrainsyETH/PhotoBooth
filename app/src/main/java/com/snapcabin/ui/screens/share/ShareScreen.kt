@@ -201,7 +201,8 @@ fun ShareScreen(
                     // when it is, the QR above is primary and email is the keyboard fallback.
                     if (settings.resendEnabled) {
                         BigButton(
-                            text = stringResource(R.string.share_email),
+                            text = if (uiState.isSendingEmail) "SENDING…" else stringResource(R.string.share_email),
+                            enabled = !uiState.isSendingEmail,
                             onClick = {
                                 // Reopening to email a second person cancels the
                                 // post-send auto-advance to Thank You.
@@ -327,7 +328,7 @@ fun ShareScreen(
                         emailInput = ""
                         showEmailDialog = false
                     },
-                    enabled = emailValid
+                    enabled = emailValid && !uiState.isSendingEmail
                 ) { Text(stringResource(R.string.share_email_dialog_send)) }
             },
             dismissButton = {

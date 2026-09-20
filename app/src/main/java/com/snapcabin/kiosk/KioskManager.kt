@@ -61,7 +61,9 @@ class KioskManager @Inject constructor() {
             dpm.setLockTaskPackages(adminComponent, arrayOf(activity.packageName))
 
             // Disable all system UI in Lock Task Mode
-            dpm.setLockTaskFeatures(adminComponent, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                dpm.setLockTaskFeatures(adminComponent, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+            }
 
             // Disable the keyguard (lock screen)
             dpm.setKeyguardDisabled(adminComponent, true)

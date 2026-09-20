@@ -575,7 +575,7 @@ private fun CameraPreviewBlock(
         if (showPreview) {
             // key() forces a fresh PreviewView + rebind whenever the operator
             // changes camera selection or mirror while the preview is open.
-            key(settings.cameraId, settings.useFrontCamera, settings.mirrorImage) {
+            key(settings.cameraId, settings.useFrontCamera, settings.mirrorImage, settings.photoResolution) {
                 AndroidView(
                     factory = { ctx ->
                         PreviewView(ctx).also { previewView ->
@@ -655,10 +655,13 @@ private fun CameraPreviewBlock(
                 text = if (capturing) "TAKING PHOTO…" else "TAKE TEST PHOTO",
                 onClick = {
                     captureError = null
+                    viewModel.clearCameraTest()
+                    val testedSettings = settings
                     capturing = true
                     scope.launch {
                         try {
                             testPhoto = viewModel.cameraManager.takePhoto()
+                            viewModel.recordCameraTest(testedSettings)
                         } catch (e: Exception) {
                             captureError = e.message ?: "Capture failed."
                             testPhoto = null

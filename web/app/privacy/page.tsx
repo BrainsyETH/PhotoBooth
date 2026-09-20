@@ -108,6 +108,12 @@ export default function PrivacyPage() {
             screen. It is capped at the most recent 500 entries.
           </li>
           <li>
+            <strong>Email limits.</strong> The tablet keeps per-event send counts
+            under keyed, hashed recipient identifiers, without storing the full
+            addresses. These stay on the tablet and are replaced when email is
+            first sent for a different event.
+          </li>
+          <li>
             <strong>Admin settings.</strong> Event name, branding choices,
             Resend and Cloudinary credentials if the host enters them,
             kiosk preferences. Stored in the app&rsquo;s private data area

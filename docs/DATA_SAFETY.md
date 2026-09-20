@@ -92,3 +92,10 @@ Reference the code:
 Re-do this exercise any time the app gains a new outbound network call or
 a new on-device data type. Mismatches between this form and the in-app
 behaviour are the most common cause of Play rejections.
+
+## Local email-limit accounting
+
+Per-event counters persist in app-private DataStore using event-salted HMAC
+recipient identifiers, never plaintext addresses. They stay on the device and
+are replaced on the first email send for a different event. Clearing the audit
+log does not clear these counters. See `API36_VALIDATION.md`.

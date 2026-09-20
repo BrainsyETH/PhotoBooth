@@ -1,6 +1,9 @@
 package com.snapcabin.di
 
 import android.content.Context
+import androidx.datastore.preferences.preferencesDataStore
+import com.snapcabin.event.EventEmailLimiter
+
 import com.snapcabin.analytics.AnalyticsTracker
 import com.snapcabin.analytics.CrashReporter
 import com.snapcabin.camera.CameraManager
@@ -20,9 +23,17 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+private val Context.emailLimitsDataStore by preferencesDataStore(name = "snapcabin_email_limits")
+
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideEventEmailLimiter(@ApplicationContext context: Context): EventEmailLimiter =
+        EventEmailLimiter(context.emailLimitsDataStore)
+
 
     @Provides
     @Singleton

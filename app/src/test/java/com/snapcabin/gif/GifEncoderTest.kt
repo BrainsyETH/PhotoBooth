@@ -17,6 +17,46 @@ import org.junit.Test
  */
 class GifEncoderTest {
 
+    @Test
+    fun roundTripsThroughStandardDecoderIncludingDictionaryResets() {
+        val random = java.util.Random(42)
+        val frames = List(3) {
+            GifEncoder.PixelFrame(IntArray(128 * 128) { random.nextInt() or (0xFF shl 24) }, 128, 128)
+        }
+        val bytes = GifEncoder().encodePixelFrames(frames, delayMs = 200)
+        // Android's unit-test compile classpath excludes java.desktop. Use the
+        // host JDK decoder reflectively so no desktop API enters the app build.
+        val imageIO = Class.forName("javax.imageio.ImageIO")
+        val readerType = Class.forName("javax.imageio.ImageReader")
+        val imageType = Class.forName("java.awt.image.BufferedImage")
+        val readers = imageIO.getMethod("getImageReadersByFormatName", String::class.java)
+            .invoke(null, "gif") as Iterator<*>
+        val reader = requireNotNull(readers.next())
+        val input = imageIO.getMethod("createImageInputStream", Any::class.java)
+            .invoke(null, java.io.ByteArrayInputStream(bytes)) as java.io.Closeable
+        try {
+            input.use {
+                readerType.getMethod("setInput", Any::class.java).invoke(reader, input)
+                assertEquals(frames.size, readerType.getMethod("getNumImages", Boolean::class.javaPrimitiveType)
+                    .invoke(reader, true))
+                frames.forEachIndexed { index, frame ->
+                    val image = readerType.getMethod("read", Int::class.javaPrimitiveType).invoke(reader, index)
+                    val getRGB = imageType.getMethod("getRGB", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                    for (y in 0 until frame.height) for (x in 0 until frame.width) {
+                        val source = frame.pixels[y * frame.width + x]
+                        val r = ((source ushr 16) and 255) * 7 / 255 * 255 / 7
+                        val g = ((source ushr 8) and 255) * 7 / 255 * 255 / 7
+                        val b = (source and 255) * 3 / 255 * 255 / 3
+                        val expected = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                        assertEquals("Frame $index pixel $x,$y", expected, getRGB.invoke(image, x, y))
+                    }
+                }
+            }
+        } finally {
+            readerType.getMethod("dispose").invoke(reader)
+        }
+    }
+
     private fun frame(w: Int, h: Int, color: Int) =
         GifEncoder.PixelFrame(IntArray(w * h) { color }, w, h)
 

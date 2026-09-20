@@ -90,6 +90,13 @@ fun AdminScreen(
     val pinVerified by viewModel.pinVerified.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val cameras by viewModel.availableCameras.collectAsState()
+    val testedCameraSettings by viewModel.testedCameraSettings.collectAsState()
+    val dslrCapture by viewModel.dslrManager.capture.collectAsState()
+    val dslrState by viewModel.dslrManager.state.collectAsState()
+    val cameraTestPassed = testedCameraSettings?.cameraTestKey() == settings.cameraTestKey() &&
+        (!settings.dslrCaptureEnabled ||
+            (dslrCapture is com.snapcabin.dslr.DslrManager.Capture.Done &&
+                dslrState is com.snapcabin.dslr.DslrManager.State.Connected))
 
     Box(
         modifier = Modifier
@@ -119,6 +126,7 @@ fun AdminScreen(
                 AdminSection("getstarted", "GET STARTED") {
                     GetStartedSection(
                         settings = settings,
+                        cameraTestPassed = cameraTestPassed,
                         onJumpTo = { key -> jumpToSection(key) },
                         onCollapse = { v -> viewModel.updateSetting { copy(getStartedCollapsed = v) } }
                     )
