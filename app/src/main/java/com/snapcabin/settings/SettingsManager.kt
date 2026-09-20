@@ -290,7 +290,17 @@ class SettingsManager @Inject constructor(
 
     suspend fun update(transform: BoothSettings.() -> BoothSettings) {
         context.dataStore.edit { prefs ->
-            val updated = readSettings(prefs).transform()
+            val previous = readSettings(prefs)
+            var updated = previous.transform()
+            if (previous.resendApiKey != updated.resendApiKey ||
+                previous.resendFromAddress != updated.resendFromAddress ||
+                previous.resendReplyToAddress != updated.resendReplyToAddress) {
+                updated = updated.copy(resendVerifiedAt = 0L)
+            }
+            if (previous.cloudinaryCloudName != updated.cloudinaryCloudName ||
+                previous.cloudinaryUploadPreset != updated.cloudinaryUploadPreset) {
+                updated = updated.copy(cloudinaryVerifiedAt = 0L)
+            }
 
             prefs[Keys.USE_FRONT_CAMERA] = updated.useFrontCamera
             prefs[Keys.CAMERA_ID] = updated.cameraId

@@ -1,8 +1,9 @@
 package com.snapcabin
 
 import android.os.Bundle
-import android.view.WindowInsets
-import android.view.WindowInsetsController
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -99,10 +100,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun hideSystemUI() {
-        window.insetsController?.let { controller ->
-            controller.hide(WindowInsets.Type.systemBars())
-            controller.systemBarsBehavior =
-                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 }

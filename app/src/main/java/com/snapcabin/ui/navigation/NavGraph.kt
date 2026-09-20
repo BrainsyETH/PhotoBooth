@@ -191,7 +191,11 @@ fun NavGraph(settingsManager: SettingsManager) {
                 GetReadyScreen(
                     mode = mode,
                     onStart = { navController.navigate(Routes.capture(mode)) },
-                    onBack = { navController.popBackStack(Routes.MODE_SELECT, inclusive = false) }
+                    onBack = {
+                        if (!navController.popBackStack(Routes.MODE_SELECT, inclusive = false)) {
+                            goHome()
+                        }
+                    }
                 )
             }
 

@@ -2,6 +2,7 @@ package com.snapcabin.share
 
 import android.graphics.Bitmap
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -65,9 +66,11 @@ class ResendEmailSender @Inject constructor() {
         htmlBody: String,
         photo: Bitmap
     ): Result {
-        val jpegBytes = ByteArrayOutputStream().use { out ->
-            photo.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            out.toByteArray()
+        val jpegBytes = withContext(Dispatchers.Default) {
+            ByteArrayOutputStream().use { out ->
+                photo.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+                out.toByteArray()
+            }
         }
         return send(
             apiKey = apiKey,
@@ -148,6 +151,8 @@ class ResendEmailSender @Inject constructor() {
                 val (human, isQuota) = humanizeError(code, response)
                 Result.Err(human, isQuotaError = isQuota)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Resend send failed", e)
             Result.Err("Couldn't reach Resend — check the kiosk's internet connection.")

@@ -60,6 +60,11 @@
             android:screenOrientation="landscape"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.SnapCabin">
+            <!-- Preserve the landscape booth on API 36. This compatibility
+                 opt-out expires at target API 37; adaptive layouts are required then. -->
+            <property
+                android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+                android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

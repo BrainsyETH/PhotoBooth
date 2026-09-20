@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snapcabin.collage.CollageLayout
 import com.snapcabin.collage.CollageRenderer
+import com.snapcabin.event.EventEmailLimiter
 import com.snapcabin.event.SendLog
 import com.snapcabin.event.SendLogEntry
 import com.snapcabin.filter.CustomBrandingRenderer
@@ -22,6 +23,8 @@ import com.snapcabin.share.PhotoSaver
 import com.snapcabin.share.QrCodeGenerator
 import com.snapcabin.share.ResendEmailSender
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -44,6 +47,7 @@ data class ShareUiState(
     val qrCodeBitmap: Bitmap? = null,
     val savedPath: String? = null,
     val isSaving: Boolean = false,
+    val isSendingEmail: Boolean = false,
     /** True while the Cloudinary upload is in flight. */
     val isUploading: Boolean = false,
     /** Public Cloudinary URL once the upload succeeds. Empty when Cloudinary is off. */
@@ -85,6 +89,7 @@ class ShareViewModel @Inject constructor(
     private val settingsManager: SettingsManager,
     private val photoPrinter: PhotoPrinter,
     private val resendEmailSender: ResendEmailSender,
+    private val eventEmailLimiter: EventEmailLimiter,
     private val cloudinaryUploader: CloudinaryUploader
 ) : ViewModel() {
 
@@ -378,11 +383,8 @@ class ShareViewModel @Inject constructor(
     private var emailSendsThisSession: Int = 0
     /** Cached Cloudinary URL for the current photo (optional, included in the email body when present). */
     private var cachedPublicUrl: String? = null
-    /** Per-event count of emails sent to each address. Resets when the current event changes. */
-    private val perAddressSendCounts: MutableMap<String, Int> = mutableMapOf()
-    private var perAddressCountsForEvent: String = ""
-
     fun sendViaEmail(rawAddress: String) {
+        if (_uiState.value.isSendingEmail || sessionEndScheduled) return
         val s = settings.value
         if (!s.resendEnabled) {
             _uiState.value = _uiState.value.copy(message = "Email delivery isn't enabled.")
@@ -397,73 +399,83 @@ class ShareViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(message = "Enter a valid email address.")
             return
         }
-        if (perAddressCountsForEvent != s.currentEventSlug) {
-            perAddressSendCounts.clear()
-            perAddressCountsForEvent = s.currentEventSlug
-        }
-        val alreadySentToThisAddress = perAddressSendCounts[to] ?: 0
-        if (alreadySentToThisAddress >= s.resendMaxPerAddress.coerceAtLeast(1)) {
-            _uiState.value = _uiState.value.copy(
-                message = "Already sent $alreadySentToThisAddress times to that address this event."
-            )
-            return
-        }
-
         val photo = _uiState.value.photo
         if (photo == null) {
             _uiState.value = _uiState.value.copy(message = "Photo isn't ready yet.")
             return
         }
 
+        // Set synchronously before launching so a second tap cannot enqueue a send.
+        _uiState.value = _uiState.value.copy(isSendingEmail = true)
+        cancelEmailAutoAdvance()
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(message = "Sending to $to…")
-
-            val htmlBody = buildHtmlBody(s, cachedPublicUrl)
-            val subject = renderSubject(s)
-
-            val gif = _uiState.value.gifBytes
-            val result = if (gif != null) {
-                resendEmailSender.send(
-                    apiKey = s.resendApiKey,
-                    fromAddress = s.resendFromAddress,
-                    replyToAddress = s.resendReplyToAddress,
-                    toAddress = to,
-                    subject = subject,
-                    htmlBody = htmlBody,
-                    attachmentBytes = gif,
-                    attachmentFilename = "photo.gif",
-                    attachmentContentType = "image/gif"
+            try {
+                val reservation = eventEmailLimiter.reserve(
+                    event = "${s.currentEventSlug}:${s.currentEventStartedAt}",
+                    address = to,
+                    limit = s.resendMaxPerAddress
                 )
-            } else {
-                resendEmailSender.send(
-                    apiKey = s.resendApiKey,
-                    fromAddress = s.resendFromAddress,
-                    replyToAddress = s.resendReplyToAddress,
-                    toAddress = to,
-                    subject = subject,
-                    htmlBody = htmlBody,
-                    photo = photo
-                )
-            }
-            when (result) {
-                is ResendEmailSender.Result.Ok -> {
-                    emailSendsThisSession++
-                    perAddressSendCounts[to] = (perAddressSendCounts[to] ?: 0) + 1
-                    appendToSendLog(s, "email", SendLog.maskEmail(to), "ok", note = "")
-                    _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
-                    // Keep the line moving: drift to Thank You after a beat,
-                    // unless they reopen the email box to send to someone else.
-                    scheduleEmailAutoAdvance()
+                if (reservation == null) {
+                    _uiState.value = _uiState.value.copy(message = "Email limit reached for that address this event.")
+                    return@launch
                 }
-                is ResendEmailSender.Result.Err -> {
-                    appendToSendLog(s, "email", SendLog.maskEmail(to), "err", note = result.message)
-                    val msg = if (result.isQuotaError && cachedPublicUrl != null) {
-                        "${result.message} Guests can still scan the QR."
-                    } else {
-                        result.message
+                _uiState.value = _uiState.value.copy(message = "Sending to $to…")
+
+                val htmlBody = buildHtmlBody(s, cachedPublicUrl)
+                val subject = renderSubject(s)
+
+                val gif = _uiState.value.gifBytes
+                val result = if (gif != null) {
+                    resendEmailSender.send(
+                        apiKey = s.resendApiKey,
+                        fromAddress = s.resendFromAddress,
+                        replyToAddress = s.resendReplyToAddress,
+                        toAddress = to,
+                        subject = subject,
+                        htmlBody = htmlBody,
+                        attachmentBytes = gif,
+                        attachmentFilename = "photo.gif",
+                        attachmentContentType = "image/gif"
+                    )
+                } else {
+                    resendEmailSender.send(
+                        apiKey = s.resendApiKey,
+                        fromAddress = s.resendFromAddress,
+                        replyToAddress = s.resendReplyToAddress,
+                        toAddress = to,
+                        subject = subject,
+                        htmlBody = htmlBody,
+                        photo = photo
+                    )
+                }
+                when (result) {
+                    is ResendEmailSender.Result.Ok -> {
+                        emailSendsThisSession++
+                        appendToSendLog(s, "email", SendLog.maskEmail(to), "ok", note = "")
+                        _uiState.value = _uiState.value.copy(message = "Sent to $to ✓")
+                        // Keep the line moving: drift to Thank You after a beat,
+                        // unless they reopen the email box to send to someone else.
+                        scheduleEmailAutoAdvance()
                     }
-                    _uiState.value = _uiState.value.copy(message = msg)
+                    is ResendEmailSender.Result.Err -> {
+                        withContext(NonCancellable) { eventEmailLimiter.release(reservation) }
+                        appendToSendLog(s, "email", SendLog.maskEmail(to), "err", note = result.message)
+                        val msg = if (result.isQuotaError && cachedPublicUrl != null) {
+                            "${result.message} Guests can still scan the QR."
+                        } else {
+                            result.message
+                        }
+                        _uiState.value = _uiState.value.copy(message = msg)
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Fail closed if durable accounting fails; never send without a slot.
+                Log.e(TAG, "Email delivery/accounting failed", e)
+                _uiState.value = _uiState.value.copy(message = "Couldn't complete email delivery. Try again.")
+            } finally {
+                _uiState.value = _uiState.value.copy(isSendingEmail = false)
             }
         }
     }
