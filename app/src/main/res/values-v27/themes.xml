@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark navigation icons are available starting with Android 8.1. -->
+    <style name="Theme.SnapCabin" parent="Theme.SnapCabin.Base">
+        <item name="android:navigationBarColor">#FAF5EA</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
