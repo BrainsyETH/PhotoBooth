@@ -213,6 +213,8 @@ class GifEncoder {
             return
         }
 
+        // current already IS the dictionary code. Only prefix+pixel pairs are
+        // looked up in table; treating a generated code as a key causes an NPE.
         var current = (indexed[0].toInt() and 0xFF).toLong()
 
         for (i in 1 until indexed.size) {
@@ -222,7 +224,7 @@ class GifEncoder {
             if (table.containsKey(key)) {
                 current = table[key]!!.toLong()
             } else {
-                writeBits(table[current]!!, codeSize)
+                writeBits(current.toInt(), codeSize)
 
                 if (nextCode < 4096) {
                     table[key] = nextCode++
@@ -237,7 +239,7 @@ class GifEncoder {
             }
         }
 
-        writeBits(table[current]!!, codeSize)
+        writeBits(current.toInt(), codeSize)
         writeBits(eoiCode, codeSize)
         flushSubBlocks()
     }

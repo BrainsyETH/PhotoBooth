@@ -17,6 +17,35 @@ import org.junit.Test
  */
 class GifEncoderTest {
 
+    @Test
+    fun roundTripsThroughStandardDecoderIncludingDictionaryResets() {
+        val random = java.util.Random(42)
+        val frames = List(3) {
+            GifEncoder.PixelFrame(IntArray(128 * 128) { random.nextInt() or (0xFF shl 24) }, 128, 128)
+        }
+        val bytes = GifEncoder().encodePixelFrames(frames, delayMs = 200)
+        val reader = javax.imageio.ImageIO.getImageReadersByFormatName("gif").next()
+        try {
+            javax.imageio.stream.MemoryCacheImageInputStream(java.io.ByteArrayInputStream(bytes)).use { input ->
+                reader.input = input
+                assertEquals(frames.size, reader.getNumImages(true))
+                frames.forEachIndexed { index, frame ->
+                    val image = reader.read(index)
+                    for (y in 0 until frame.height) for (x in 0 until frame.width) {
+                        val source = frame.pixels[y * frame.width + x]
+                        val r = ((source ushr 16) and 255) * 7 / 255 * 255 / 7
+                        val g = ((source ushr 8) and 255) * 7 / 255 * 255 / 7
+                        val b = (source and 255) * 3 / 255 * 255 / 3
+                        val expected = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                        assertEquals("Frame $index pixel $x,$y", expected, image.getRGB(x, y))
+                    }
+                }
+            }
+        } finally {
+            reader.dispose()
+        }
+    }
+
     private fun frame(w: Int, h: Int, color: Int) =
         GifEncoder.PixelFrame(IntArray(w * h) { color }, w, h)
 
