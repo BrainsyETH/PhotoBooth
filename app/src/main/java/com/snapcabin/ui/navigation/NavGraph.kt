@@ -5,6 +5,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -76,6 +78,23 @@ private fun getStartRoute(settings: BoothSettings): String {
     return if (enabledModes.size == 1) Routes.getReady(enabledModes.first()) else Routes.MODE_SELECT
 }
 
+/**
+ * Run a navigation action only if [entry] is still the top of the back stack.
+ *
+ * Guests double-tap, and groups tap together. Every guest-facing callback used
+ * to navigate unconditionally, so two taps in one frame pushed TWO Get Ready
+ * or Capture screens — each Capture with its own view model running its own
+ * countdown against the one camera — or two Share screens (double upload), or,
+ * for a double "close" in admin, popped the start destination and left a
+ * blank screen. The first navigate() moves the top entry synchronously, so a
+ * second tap from the same screen is dropped. Unlike a RESUMED check this
+ * still accepts taps during enter animations and timer-driven callbacks
+ * (review auto-accept) while a system dialog has paused the activity.
+ */
+private inline fun NavHostController.fromTop(entry: NavBackStackEntry, action: () -> Unit) {
+    if (currentBackStackEntry?.id == entry.id) action()
+}
+
 @Composable
 fun NavGraph(settingsManager: SettingsManager) {
     val navController = rememberNavController()
@@ -124,13 +143,14 @@ fun NavGraph(settingsManager: SettingsManager) {
             navController = navController,
             startDestination = Routes.ATTRACT
         ) {
-            composable(Routes.ATTRACT) {
+            composable(Routes.ATTRACT) { entry ->
                 AttractScreen(
                     onTap = {
-                        val route = getStartRoute(settings)
-                        navController.navigate(route)
+                        navController.fromTop(entry) {
+                            navController.navigate(getStartRoute(settings))
+                        }
                     },
-                    onAdminLongPress = { navController.navigate(Routes.ADMIN) },
+                    onAdminLongPress = { navController.fromTop(entry) { navController.navigate(Routes.ADMIN) } },
                     eventName = settings.eventName,
                     subtext = settings.attractSubtext,
                     // Fresh install: still the default PIN, no event ever started,
@@ -144,37 +164,37 @@ fun NavGraph(settingsManager: SettingsManager) {
                 )
             }
 
-            composable(Routes.ADMIN) {
+            composable(Routes.ADMIN) { entry ->
                 val adminViewModel: AdminViewModel = hiltViewModel()
                 AdminScreen(
-                    onDismiss = { navController.popBackStack() },
-                    onPrivacyPolicy = { navController.navigate(Routes.PRIVACY) },
-                    onGallery = { navController.navigate(Routes.GALLERY) },
+                    onDismiss = { navController.fromTop(entry) { navController.popBackStack() } },
+                    onPrivacyPolicy = { navController.fromTop(entry) { navController.navigate(Routes.PRIVACY) } },
+                    onGallery = { navController.fromTop(entry) { navController.navigate(Routes.GALLERY) } },
                     viewModel = adminViewModel
                 )
             }
 
-            composable(Routes.PRIVACY) {
+            composable(Routes.PRIVACY) { entry ->
                 PrivacyPolicyScreen(
-                    onDismiss = { navController.popBackStack() }
+                    onDismiss = { navController.fromTop(entry) { navController.popBackStack() } }
                 )
             }
 
-            composable(Routes.GALLERY) {
+            composable(Routes.GALLERY) { entry ->
                 val galleryViewModel: GalleryViewModel = hiltViewModel()
                 GalleryScreen(
-                    onPhotoSelected = { navController.popBackStack() },
-                    onDismiss = { navController.popBackStack() },
+                    onPhotoSelected = { navController.fromTop(entry) { navController.popBackStack() } },
+                    onDismiss = { navController.fromTop(entry) { navController.popBackStack() } },
                     viewModel = galleryViewModel
                 )
             }
 
-            composable(Routes.MODE_SELECT) {
+            composable(Routes.MODE_SELECT) { entry ->
                 ModeSelectScreen(
-                    onSinglePhoto = { navController.navigate(Routes.getReady(CaptureMode.Single)) },
-                    onCollage = { navController.navigate(Routes.getReady(CaptureMode.Collage)) },
-                    onGif = { navController.navigate(Routes.getReady(CaptureMode.Gif)) },
-                    onBack = goHome,
+                    onSinglePhoto = { navController.fromTop(entry) { navController.navigate(Routes.getReady(CaptureMode.Single)) } },
+                    onCollage = { navController.fromTop(entry) { navController.navigate(Routes.getReady(CaptureMode.Collage)) } },
+                    onGif = { navController.fromTop(entry) { navController.navigate(Routes.getReady(CaptureMode.Gif)) } },
+                    onBack = { navController.fromTop(entry) { goHome() } },
                     singlePhotoEnabled = settings.enableSinglePhotoMode,
                     collageEnabled = settings.enableCollageMode,
                     gifEnabled = settings.enableGifMode
@@ -190,10 +210,14 @@ fun NavGraph(settingsManager: SettingsManager) {
                 val mode = CaptureMode.fromArg(modeArg)
                 GetReadyScreen(
                     mode = mode,
-                    onStart = { navController.navigate(Routes.capture(mode)) },
+                    // The whole Get Ready screen is one tap target — the most
+                    // multi-tapped spot in the app.
+                    onStart = { navController.fromTop(backStackEntry) { navController.navigate(Routes.capture(mode)) } },
                     onBack = {
-                        if (!navController.popBackStack(Routes.MODE_SELECT, inclusive = false)) {
-                            goHome()
+                        navController.fromTop(backStackEntry) {
+                            if (!navController.popBackStack(Routes.MODE_SELECT, inclusive = false)) {
+                                goHome()
+                            }
                         }
                     }
                 )
@@ -235,20 +259,27 @@ fun NavGraph(settingsManager: SettingsManager) {
                     autoAcceptSeconds = settings.reviewAutoAcceptSeconds,
                     settings = settings,
                     onRetake = {
-                        captureViewModel.resetCapture()
-                        navController.popBackStack(Routes.CAPTURE, inclusive = false)
+                        navController.fromTop(entry) {
+                            captureViewModel.resetCapture()
+                            navController.popBackStack(Routes.CAPTURE, inclusive = false)
+                        }
                     },
                     onAccept = { pickedIndex ->
-                        // For Single we record the picked frame; Collage assembly
-                        // and GIF encoding are deferred to the Share pipeline so
-                        // they run off the main thread (the old inline collage
-                        // render janked the accept tap).
-                        if (mode == CaptureMode.Single) {
-                            photos.getOrNull(pickedIndex)?.let { bmp ->
-                                captureViewModel.setActiveSinglePhoto(bmp)
+                        // Guarded: a tap racing the auto-accept timer (or a
+                        // double tap) used to open two Share screens — two
+                        // uploads, two branded copies in memory.
+                        navController.fromTop(entry) {
+                            // For Single we record the picked frame; Collage assembly
+                            // and GIF encoding are deferred to the Share pipeline so
+                            // they run off the main thread (the old inline collage
+                            // render janked the accept tap).
+                            if (mode == CaptureMode.Single) {
+                                photos.getOrNull(pickedIndex)?.let { bmp ->
+                                    captureViewModel.setActiveSinglePhoto(bmp)
+                                }
                             }
+                            navController.navigate(Routes.SHARE)
                         }
-                        navController.navigate(Routes.SHARE)
                     }
                 )
             }

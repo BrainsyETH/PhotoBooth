@@ -79,6 +79,22 @@ sealed class CameraBindState {
     data class Failed(val message: String) : CameraBindState()
 }
 
+/**
+ * Power-of-two BitmapFactory sample size that brings the long edge to at most
+ * [maxDim] (BitmapFactory only samples in powers of two, so the result lands
+ * between maxDim/2 and maxDim).
+ */
+internal fun decodeSampleSize(width: Int, height: Int, maxDim: Int): Int {
+    require(maxDim > 0) { "maxDim must be positive" }
+    var sample = 1
+    var longEdge = maxOf(width, height)
+    while (longEdge > maxDim) {
+        sample *= 2
+        longEdge /= 2
+    }
+    return sample
+}
+
 @Singleton
 class CameraManager @Inject constructor(
     private val context: Context
@@ -632,12 +648,7 @@ class CameraManager @Inject constructor(
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(photoFile.absolutePath, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        var sample = 1
-        var longEdge = maxOf(bounds.outWidth, bounds.outHeight)
-        while (longEdge > maxDim) {
-            sample *= 2
-            longEdge /= 2
-        }
+        val sample = decodeSampleSize(bounds.outWidth, bounds.outHeight, maxDim)
 
         // Decode mutable so downstream branding/watermark stamps can
         // write into the same buffer instead of allocating a second

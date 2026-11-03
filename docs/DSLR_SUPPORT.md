@@ -58,8 +58,37 @@ experimental "CONNECT DSLR" block (`DslrConnectBlock` in `CameraSection.kt`).
 - **M3 — Live view (not built).** Canon EOS: enable EVF output via a device
   property, poll `GetViewFinderData`, decode each JPEG chunk to a Bitmap
   (~20–30 fps), feed the GetReady/Capture preview.
-- **M4 — Harden.** Disconnect/reconnect edge cases, auto-power-off, full-res vs
-  preview JPEG; then expand beyond Canon (Nikon/Sony have their own ops).
+- **M4 — Harden (in progress; needs on-device validation).** Built so far:
+  - **Per-shot budget (8 s):** after the on-screen flash, a guest waits at most
+    8 s for the DSLR before the booth uses the tablet camera. A shot still
+    queued behind the camera lock is cancelled so the shutter can't fire
+    seconds later at nobody.
+  - **Failure pause:** after 2 DSLR misses in a row (AF can't lock in a dark
+    room, card full, dying battery) the booth skips the DSLR for 3 minutes,
+    then tries again. Admin → Camera shows DSLR shots vs. tablet fallbacks
+    tonight and a TRY DSLR AGAIN NOW button. Reconnecting or a successful
+    test photo also clears the pause.
+  - **Heartbeat:** every 30 s an idle connection is checked (Canon: GetEvent,
+    which also drains the event queue). A dead pipe is dropped right away and
+    the next countdown's arm reconnects, instead of the guest's flash finding
+    it.
+  - **Permission across power cycles:** the manifest USB filter now matches
+    still-image (PTP) devices. Android then offers "Open SnapCabin when this
+    camera is connected"; with **Always** ticked, a camera that powered off and
+    back on is granted automatically. (Not yet verified whether that system
+    dialog appears while the tablet is in lock-task/kiosk mode — tick it during
+    setup, before enabling kiosk.)
+  - Remaining: full-res vs preview JPEG; then expand beyond Canon (Nikon/Sony
+    have their own ops).
+
+### All-night operator checklist (DSLR)
+
+- Lens on **MF**, pre-focused where guests stand.
+- **Auto power off: Disable.** Wi-Fi/Bluetooth off.
+- Run on an **AC adapter / dummy battery**; a 24 MP JPEG is ~8 MB on the card,
+  so 500 shots ≈ 4 GB — use a card with plenty of room.
+- First connection: tick **Always open SnapCabin** on Android's USB prompt.
+- Take a successful **TAKE DSLR PHOTO** before turning on "Use DSLR for photos".
 
 ## Testing notes (M1)
 

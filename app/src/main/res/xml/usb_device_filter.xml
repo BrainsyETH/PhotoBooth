@@ -4,4 +4,13 @@
     <usb-device class="14" subclass="2" />
     <usb-device class="14" />
     <usb-device class="239" subclass="2" protocol="1" />
+    <!--
+      Class 6 = still image (PTP) — a tethered DSLR. USB permission granted
+      through UsbManager.requestPermission() dies every time the camera powers
+      off (auto power off, battery swap), which silently dropped the booth back
+      to the tablet camera for the rest of the night. Matching here lets Android
+      ask "Open SnapCabin when this camera is connected?"; once the operator
+      ticks "Always", every reconnect is granted automatically.
+    -->
+    <usb-device class="6" />
 </resources>
