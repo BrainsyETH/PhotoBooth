@@ -138,9 +138,7 @@ class CaptureViewModel @Inject constructor(
                                 // to logcat; if every shot fails, Review's empty
                                 // state catches it with a friendly retry.
                                 android.util.Log.e("CaptureViewModel", "Shot capture failed", e)
-                                _uiState.value = _uiState.value.copy(
-                                    error = "That one didn't take — hang tight."
-                                )
+                                showTransientError("That one didn't take — hang tight.")
                             }
                             delay(step.durationMs)
                             _uiState.value = _uiState.value.copy(showFlash = false, isCapturing = false)
@@ -236,6 +234,18 @@ class CaptureViewModel @Inject constructor(
         burstJob?.cancel()
         releaseDslrIfArmed()
         _uiState.value = CaptureUiState()
+    }
+
+    private var errorClearJob: Job? = null
+
+    /** Guest-facing hiccup message that clears itself instead of lingering all session. */
+    private fun showTransientError(message: String) {
+        _uiState.value = _uiState.value.copy(error = message)
+        errorClearJob?.cancel()
+        errorClearJob = viewModelScope.launch {
+            delay(2_500)
+            if (_uiState.value.error == message) _uiState.value = _uiState.value.copy(error = null)
+        }
     }
 
     fun getPhotos(): List<Bitmap> = _uiState.value.photos

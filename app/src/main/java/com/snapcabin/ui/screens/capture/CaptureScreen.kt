@@ -318,14 +318,24 @@ fun CaptureScreen(
 
             FlashOverlay(trigger = uiState.showFlash, color = flashColor)
 
+            // A missed shot: a calm cream pill, not raw error-red text jammed
+            // against the top edge of the live feed. The view model clears it
+            // after a moment so it doesn't hang over the rest of the session.
             uiState.error?.let { error ->
                 Text(
                     text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyLarge,
+                    fontFamily = HankenGrotesk,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    color = Espresso,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 16.dp)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                        .padding(top = 28.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Cream.copy(alpha = 0.94f))
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite }
                 )
             }
         } else {

@@ -6,6 +6,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import com.snapcabin.ui.theme.HoneyDeep
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -104,6 +114,10 @@ fun AdminScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Parchment)
+            // Edge-to-edge (targetSdk 35+): adjustResize no longer shrinks the
+            // window, so without this the keyboard simply covered the PIN
+            // screen's ENTER button and any admin field near the bottom.
+            .imePadding()
     ) {
         if (!pinVerified) {
             PinEntry(
@@ -458,13 +472,35 @@ private fun PinEntry(
     }
     val locked = lockRemainingS > 0
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+    val submit: () -> Unit = {
+        if (!locked) {
+            if (onPinSubmit(pin)) {
+                PinGuard.reset()
+            } else {
+                PinGuard.registerFailure(System.currentTimeMillis())
+                error = true
+                pin = ""
+            }
+        }
+    }
+
+    // Centered when there's room; scrollable when the keyboard leaves little
+    // height (landscape tablet + IME), so the card never gets clipped.
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val viewportHeight = maxHeight
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = viewportHeight)
+                .padding(vertical = Spacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
+                .widthIn(max = 460.dp)
                 .clip(RoundedCornerShape(Radii.xl))
                 .background(Cream)
                 .border(1.dp, CabinLine, RoundedCornerShape(Radii.xl))
@@ -487,7 +523,11 @@ private fun PinEntry(
                 },
                 label = { Text("Enter PIN") },
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
                 isError = error,
                 singleLine = true,
                 shape = RoundedCornerShape(Radii.s),
@@ -498,9 +538,10 @@ private fun PinEntry(
                 Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
                     text = "Default PIN is 1234. Change it under KIOSK after you sign in.",
-                    color = Honey,
+                    color = HoneyDeep,
                     style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
                 )
             }
 
@@ -532,19 +573,12 @@ private fun PinEntry(
                 )
                 BigButton(
                     text = "ENTER",
-                    onClick = {
-                        if (onPinSubmit(pin)) {
-                            PinGuard.reset()
-                        } else {
-                            PinGuard.registerFailure(System.currentTimeMillis())
-                            error = true
-                            pin = ""
-                        }
-                    },
+                    onClick = submit,
                     variant = BigButtonVariant.Primary,
                     enabled = !locked
                 )
             }
+        }
         }
     }
 }
