@@ -137,7 +137,6 @@
     <string name="getready_card_body_gif">%1$d frames in a few seconds — stay loose. Tap anywhere when you\'re ready.</string>
     <string name="getready_ready">Ready</string>
     <string name="getready_change_mode">← Change mode</string>
-    <string name="getready_framing_ok">You\'re in frame</string>
 
     <!-- Capture (burst) -->
     <string name="capture_skip">Skip</string>
