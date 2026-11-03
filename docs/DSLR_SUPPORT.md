@@ -78,6 +78,10 @@ experimental "CONNECT DSLR" block (`DslrConnectBlock` in `CameraSection.kt`).
     back on is granted automatically. (Not yet verified whether that system
     dialog appears while the tablet is in lock-task/kiosk mode — tick it during
     setup, before enabling kiosk.)
+  - **Flash in sync with the real exposure:** the on-screen flash and shutter
+    sound fire when the camera reports the shutter actually fired (Canon
+    full-press OK, Nikon InitiateCapture accepted), with "Hold still…" shown
+    until then; the tablet fallback flashes as its still is taken.
   - Remaining: full-res vs preview JPEG; then expand beyond Canon (Nikon/Sony
     have their own ops).
 

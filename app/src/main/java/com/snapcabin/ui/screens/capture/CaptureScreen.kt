@@ -287,7 +287,12 @@ fun CaptureScreen(
                             CoachLine(text = s.coach)
                         }
                     }
-                    is CaptureStep.Flash, CaptureStep.Done -> Unit
+                    is CaptureStep.Flash -> {
+                        // DSLR armed, shutter not fired yet: keep guests posed
+                        // instead of showing an empty frame after "1".
+                        if (uiState.holdStill) CoachLine(text = "Hold still…")
+                    }
+                    CaptureStep.Done -> Unit
                 }
             }
 

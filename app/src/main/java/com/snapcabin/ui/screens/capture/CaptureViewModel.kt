@@ -9,6 +9,7 @@ import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.ui.components.SoundManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 sealed class CaptureStep {
@@ -36,6 +38,8 @@ data class CaptureUiState(
     val showFlash: Boolean = false,
     val isCapturing: Boolean = false,
     val error: String? = null,
+    /** DSLR shot armed but not yet fired: guests see "Hold still…", no flash yet. */
+    val holdStill: Boolean = false,
     val isFinished: Boolean = false,
     val capturedPhoto: Bitmap? = null
 )
@@ -122,10 +126,27 @@ class CaptureViewModel @Inject constructor(
                             delay(step.durationMs)
                         }
                         is CaptureStep.Flash -> {
-                            _uiState.value = _uiState.value.copy(showFlash = true, isCapturing = true)
-                            soundManager.playShutter()
+                            // Flash + shutter sound mark the REAL exposure. The
+                            // tablet fires as soon as it's asked, but a DSLR
+                            // (especially Nikon, which can't pre-arm) exposes a
+                            // beat later — guests used to relax at the on-screen
+                            // flash and be caught mid-blink by the actual shot.
+                            _uiState.value = _uiState.value.copy(
+                                isCapturing = true,
+                                holdStill = usesDslr(mode)
+                            )
+                            val fired = AtomicBoolean(false)
+                            val fire: () -> Unit = {
+                                if (fired.compareAndSet(false, true)) {
+                                    // DSLR calls this from its USB thread.
+                                    viewModelScope.launch(Dispatchers.Main.immediate) {
+                                        _uiState.value = _uiState.value.copy(showFlash = true, holdStill = false)
+                                        soundManager.playShutter()
+                                    }
+                                }
+                            }
                             try {
-                                val photo = takeBoothPhoto(mode)
+                                val photo = takeBoothPhoto(mode, fire)
                                 val photos = _uiState.value.photos + photo
                                 _uiState.value = _uiState.value.copy(
                                     photos = photos,
@@ -140,6 +161,7 @@ class CaptureViewModel @Inject constructor(
                                 android.util.Log.e("CaptureViewModel", "Shot capture failed", e)
                                 showTransientError("That one didn't take — hang tight.")
                             }
+                            _uiState.value = _uiState.value.copy(holdStill = false)
                             delay(step.durationMs)
                             _uiState.value = _uiState.value.copy(showFlash = false, isCapturing = false)
                         }
@@ -177,10 +199,13 @@ class CaptureViewModel @Inject constructor(
      * any DSLR failure falls back to the tablet camera mid-session — a missed
      * shot is recoverable, a booth that strands guests is not.
      */
-    private suspend fun takeBoothPhoto(mode: CaptureMode): Bitmap {
+    private suspend fun takeBoothPhoto(mode: CaptureMode, onFire: () -> Unit): Bitmap {
         if (usesDslr(mode)) {
             try {
-                return dslrManager.captureBoothPhoto(settings.value.photoResolution.maxDimension)
+                return dslrManager.captureBoothPhoto(
+                    settings.value.photoResolution.maxDimension,
+                    onShutter = onFire
+                )
             } catch (e: Exception) {
                 android.util.Log.e(
                     "CaptureViewModel",
@@ -188,6 +213,9 @@ class CaptureViewModel @Inject constructor(
                 )
             }
         }
+        // Tablet: flash right as the still is taken (a no-op if a DSLR already
+        // fired this shot and only the download failed).
+        onFire()
         return cameraManager.takePhoto(maxDecodeDimension = decodeCapFor(mode))
     }
 
