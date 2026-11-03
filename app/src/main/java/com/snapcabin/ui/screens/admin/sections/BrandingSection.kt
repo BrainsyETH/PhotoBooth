@@ -438,8 +438,22 @@ private fun ImagePickerBlock(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val file = copyUriToInternal(context, it, filename)
-            file?.let { f -> onPicked(f.absolutePath) }
+            // A fresh filename per upload. Re-using one name meant the stored
+            // path never changed, so every preview keyed on it (this block,
+            // the live branding preview, the welcome-screen logo) kept showing
+            // the OLD image after CHANGE until something else changed.
+            val dot = filename.lastIndexOf('.')
+            val unique = if (dot > 0) {
+                "${filename.substring(0, dot)}_${System.currentTimeMillis()}${filename.substring(dot)}"
+            } else {
+                "${filename}_${System.currentTimeMillis()}"
+            }
+            val file = copyUriToInternal(context, it, unique)
+            file?.let { f ->
+                val previous = currentPath
+                onPicked(f.absolutePath)
+                deleteBrandingFile(previous, keep = f.absolutePath)
+            }
         }
     }
 
@@ -483,10 +497,23 @@ private fun ImagePickerBlock(
                 )
                 BigButton(
                     text = "REMOVE",
-                    onClick = onRemove,
+                    onClick = {
+                        val previous = currentPath
+                        onRemove()
+                        deleteBrandingFile(previous, keep = "")
+                    },
                     variant = BigButtonVariant.Surface
                 )
             }
         }
+    }
+}
+
+/** Delete a replaced/removed branding image — only ever inside the app's own branding folder. */
+private fun deleteBrandingFile(path: String, keep: String) {
+    if (path.isBlank() || path == keep) return
+    runCatching {
+        val file = java.io.File(path)
+        if (file.parentFile?.name == "branding") file.delete()
     }
 }

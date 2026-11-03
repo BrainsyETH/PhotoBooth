@@ -478,13 +478,21 @@ class DslrManager(private val context: Context) {
      * a booth must never strand guests mid-countdown. Timeouts are tighter than
      * the admin test's: a guest is standing there waiting.
      */
-    suspend fun captureBoothPhoto(maxDimension: Int): android.graphics.Bitmap {
+    /**
+     * @param onShutter called (on an IO thread) the moment the shutter actually
+     *   fires, so the booth can flash/beep in sync with the real exposure
+     *   instead of a beat before it. Not called if the camera never fires.
+     */
+    suspend fun captureBoothPhoto(
+        maxDimension: Int,
+        onShutter: () -> Unit = {}
+    ): android.graphics.Bitmap {
         if (_boothHealth.value.isPaused()) {
             throw NoPhotoException("DSLR paused after repeated misses — using the tablet camera.")
         }
         // The capture runs in this manager's own scope: its USB work is
         // blocking and can't be interrupted, but the GUEST can stop waiting.
-        val shot = scope.async { captureBoothPhotoLocked(maxDimension) }
+        val shot = scope.async { captureBoothPhotoLocked(maxDimension, onShutter) }
         val bitmap = try {
             withTimeoutOrNull(BOOTH_SHOT_BUDGET_MS) { shot.await() }
         } catch (e: CancellationException) {
@@ -506,7 +514,10 @@ class DslrManager(private val context: Context) {
         return bitmap
     }
 
-    private suspend fun captureBoothPhotoLocked(maxDimension: Int): android.graphics.Bitmap =
+    private suspend fun captureBoothPhotoLocked(
+        maxDimension: Int,
+        onShutter: () -> Unit
+    ): android.graphics.Bitmap =
         withContext(Dispatchers.IO) {
             captureMutex.withLock {
                 _capture.value = Capture.Busy("Booth capture")
@@ -516,9 +527,9 @@ class DslrManager(private val context: Context) {
                         val arm = armedShot
                         armedShot = null
                         if (arm != null) {
-                            fireArmedShot(t, arm)
+                            fireArmedShot(t, arm, onShutter)
                         } else {
-                            captureOnce(t, eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
+                            captureOnce(t, eventTimeoutMs = 6_000, diffTimeoutMs = 6_000, onShutter = onShutter)
                         }
                     } catch (e: NoPhotoException) {
                         throw e // session is fine; the shot just didn't happen
@@ -528,7 +539,7 @@ class DslrManager(private val context: Context) {
                         // beats the tablet fallback.
                         Log.w(TAG, "DSLR transport failed mid-shot; reconnecting once", e)
                         dropTransport()
-                        captureOnce(reconnectForCapture(), eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
+                        captureOnce(reconnectForCapture(), eventTimeoutMs = 6_000, diffTimeoutMs = 6_000, onShutter = onShutter)
                     }
                     val bitmap = decodeScaled(jpeg, maxDimension)
                         ?: throw NoPhotoException("Couldn't decode the DSLR photo.")
@@ -639,17 +650,18 @@ class DslrManager(private val context: Context) {
     }
 
     /** Flash-time completion of a pre-armed shot: full-press, locate, download. */
-    private fun fireArmedShot(t: PtpTransport, arm: ArmedShot): ByteArray {
+    private fun fireArmedShot(t: PtpTransport, arm: ArmedShot, onShutter: () -> Unit): ByteArray {
         _capture.value = Capture.Busy("Firing shutter…")
         var fired = false
         if (arm.halfPressed) {
             val full = releaseOp(t, "ReleaseOn(2) full-press", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0))
+            if (full.ok) onShutter()
             releaseOp(t, "ReleaseOff(2)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2))
             releaseOp(t, "ReleaseOff(1)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1))
             fired = full.ok
         }
         if (!fired && deviceInfo?.supportsOneShotRelease == true) {
-            releaseOp(t, "RemoteRelease(0x910F)", Ptp.OP_EOS_REMOTE_RELEASE, IntArray(0))
+            if (releaseOp(t, "RemoteRelease(0x910F)", Ptp.OP_EOS_REMOTE_RELEASE, IntArray(0)).ok) onShutter()
         }
 
         _capture.value = Capture.Busy("Waiting for the photo…")
@@ -686,9 +698,14 @@ class DslrManager(private val context: Context) {
     }
 
     /** Full capture sequence on an open transport: prepare → fire → locate → download. */
-    private fun captureOnce(t: PtpTransport, eventTimeoutMs: Long, diffTimeoutMs: Long): ByteArray {
+    private fun captureOnce(
+        t: PtpTransport,
+        eventTimeoutMs: Long,
+        diffTimeoutMs: Long,
+        onShutter: () -> Unit = {}
+    ): ByteArray {
         if (deviceInfo?.usesStandardCapture == true) {
-            return standardCaptureOnce(t, timeoutMs = eventTimeoutMs + diffTimeoutMs)
+            return standardCaptureOnce(t, timeoutMs = eventTimeoutMs + diffTimeoutMs, onShutter = onShutter)
         }
         disarmLocked(t) // this path does its own half-press; a stale held one would confuse it
         _capture.value = Capture.Busy("Preparing camera…")
@@ -713,7 +730,7 @@ class DslrManager(private val context: Context) {
         diag("pre-shutter handles: ${handlesBefore?.size ?: "GetObjectHandles unavailable"}")
 
         pendingObjectHandle = null // anything seen before the shutter is stale
-        fireShutter(t)
+        fireShutter(t, onShutter)
 
         _capture.value = Capture.Busy("Waiting for the photo…")
         // The busy-retry pumps inside fireShutter may have already consumed the
@@ -747,7 +764,7 @@ class DslrManager(private val context: Context) {
      * back to 0x910F when available rather than waiting on a photo that will
      * never exist.
      */
-    private fun fireShutter(t: PtpTransport) {
+    private fun fireShutter(t: PtpTransport, onShutter: () -> Unit) {
         val info = deviceInfo
         val staged = info?.supportsStagedRelease != false // unknown → try staged first
         val oneShot = info?.supportsOneShotRelease == true
@@ -764,6 +781,7 @@ class DslrManager(private val context: Context) {
             }
             _capture.value = Capture.Busy("Firing shutter…")
             val full = releaseOp(t, "ReleaseOn(2) full-press", Ptp.OP_EOS_REMOTE_RELEASE_ON, intArrayOf(2, 0))
+            if (full.ok) onShutter()
             releaseOp(t, "ReleaseOff(2)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(2))
             releaseOp(t, "ReleaseOff(1)", Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1))
             if (full.ok) return
@@ -780,7 +798,7 @@ class DslrManager(private val context: Context) {
 
         if (oneShot) {
             _capture.value = Capture.Busy("Firing shutter…")
-            releaseOp(t, "RemoteRelease(0x910F)", Ptp.OP_EOS_REMOTE_RELEASE, IntArray(0))
+            if (releaseOp(t, "RemoteRelease(0x910F)", Ptp.OP_EOS_REMOTE_RELEASE, IntArray(0)).ok) onShutter()
         } else if (!staged) {
             throw NoPhotoException(
                 "This camera advertises neither EOS release operation (0x9128/0x910F) — " +
@@ -878,7 +896,7 @@ class DslrManager(private val context: Context) {
         diag("DeviceReady still busy after ${timeoutMs}ms")
     }
 
-    private fun standardCaptureOnce(t: PtpTransport, timeoutMs: Long): ByteArray {
+    private fun standardCaptureOnce(t: PtpTransport, timeoutMs: Long, onShutter: () -> Unit = {}): ByteArray {
         val info = deviceInfo
         _capture.value = Capture.Busy("Preparing camera…")
         drainStandardEvents(t, "pre-shutter")
@@ -917,6 +935,7 @@ class DslrManager(private val context: Context) {
                     "dial is on P, S, A or M."
             )
         }
+        onShutter() // InitiateCapture accepted = the exposure is happening now
         val shotAt = System.currentTimeMillis()
 
         _capture.value = Capture.Busy("Waiting for the photo…")

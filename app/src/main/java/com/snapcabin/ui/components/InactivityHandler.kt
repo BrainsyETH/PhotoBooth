@@ -3,6 +3,8 @@ package com.snapcabin.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -23,6 +25,15 @@ import kotlinx.coroutines.delay
  * Pass a stable [resetKey] (e.g. the current route) to restart the
  * timer whenever it changes.
  */
+/**
+ * "The guest is still here." Touches in the main window reset the idle timer
+ * automatically, but dialogs are separate windows the handler never sees — a
+ * guest typing an email in the Share dialog was timed out mid-address (and the
+ * "Still there?" warning drew BEHIND the dialog). Screens call this from such
+ * inputs.
+ */
+val LocalUserActivity = staticCompositionLocalOf<() -> Unit> { {} }
+
 @Composable
 fun InactivityHandler(
     timeoutMs: Long,
@@ -59,7 +70,10 @@ fun InactivityHandler(
                 }
             }
     ) {
-        content()
+        val markActivity: () -> Unit = remember { { resetTimer() } }
+        CompositionLocalProvider(LocalUserActivity provides markActivity) {
+            content()
+        }
 
         if (showWarning && enabled) {
             InactivityWarningDialog(

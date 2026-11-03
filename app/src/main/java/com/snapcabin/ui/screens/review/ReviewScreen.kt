@@ -73,6 +73,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+/** Quiet time after a touch before Review's auto-accept countdown restarts. */
+private const val REVIEW_RESUME_AFTER_IDLE_MS = 6_000L
+
 @Composable
 fun ReviewScreen(
     mode: CaptureMode,
@@ -118,7 +121,21 @@ fun ReviewScreen(
         }
     }
 
-    val pauseTimer: () -> Unit = { paused = true }
+    // Any touch pauses auto-accept (the guest is deciding). It used to stay
+    // paused forever: a guest who tapped a thumbnail and wandered off lost the
+    // photo when the idle timeout sent the booth home. Resume — with a full
+    // countdown — after a few quiet seconds, well before the idle warning.
+    var lastTouchAt by remember { mutableLongStateOf(0L) }
+    val pauseTimer: () -> Unit = {
+        paused = true
+        lastTouchAt = System.currentTimeMillis()
+    }
+    LaunchedEffect(paused, lastTouchAt) {
+        if (!paused || autoAcceptSeconds <= 0 || isEmpty || accepted) return@LaunchedEffect
+        delay(REVIEW_RESUME_AFTER_IDLE_MS)
+        remaining = autoAcceptSeconds.toFloat()
+        paused = false
+    }
 
     if (isEmpty) {
         EmptyCaptureRecovery(onRetake = onRetake)
@@ -349,7 +366,10 @@ private fun SinglePreview(photos: List<Bitmap>, picked: Int, settings: BoothSett
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .aspectRatio(4f / 3f)
+            // The photo's own shape, not a hard-coded 4:3: a DSLR's 3:2 (or a
+            // 16:9 webcam) used to sit letterboxed in black bars with the
+            // SHOT badge floating off the picture.
+            .aspectRatio(photoAspect(photo))
             .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))
             .background(Color.Black)
@@ -507,7 +527,7 @@ private fun GifPreview(photos: List<Bitmap>, settings: BoothSettings) {
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .aspectRatio(4f / 3f)
+            .aspectRatio(photoAspect(frames.firstOrNull()))
             .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))
             .background(Color.Black)
@@ -682,4 +702,10 @@ private fun UseThisButton(
             }
         }
     }
+}
+
+/** Width/height of [bitmap], clamped to sane bounds; 4:3 until a frame exists. */
+private fun photoAspect(bitmap: Bitmap?): Float {
+    if (bitmap == null || bitmap.width <= 0 || bitmap.height <= 0) return 4f / 3f
+    return (bitmap.width.toFloat() / bitmap.height).coerceIn(0.5f, 2.5f)
 }

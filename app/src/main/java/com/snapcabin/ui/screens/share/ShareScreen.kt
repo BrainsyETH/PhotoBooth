@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.snapcabin.R
 import com.snapcabin.ui.components.BigButton
+import com.snapcabin.ui.components.LocalUserActivity
 import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.components.rememberScreenClass
 import com.snapcabin.ui.components.scaledDp
@@ -91,6 +92,8 @@ fun ShareScreen(
     val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
     var showEmailDialog by remember { mutableStateOf(false) }
+    // The email dialog is its own window; tell the idle timer the guest is typing.
+    val markActivity = LocalUserActivity.current
     var emailInput by remember { mutableStateOf("") }
 
     LaunchedEffect(input) {
@@ -178,18 +181,20 @@ fun ShareScreen(
                         color = Espresso
                     )
 
-                    // QR is now driven by the Cloudinary upload. The host
-                    // toggles "QR code" in admin to opt in; the section only
-                    // renders once Cloudinary returns a public URL.
-                    if (settings.enableQrSharing) {
+                    // QR is driven by the Cloudinary upload. "QR code" is on by
+                    // default, so without Cloudinary every booth used to show
+                    // guests "Ask your host about getting a QR code" — noise
+                    // about a feature that isn't set up. Show nothing instead.
+                    val cloudinaryConfigured = settings.cloudinaryEnabled &&
+                        settings.cloudinaryCloudName.isNotBlank() &&
+                        settings.cloudinaryUploadPreset.isNotBlank()
+                    if (settings.enableQrSharing && cloudinaryConfigured) {
                         QrSharingBlock(
                             isUploading = uiState.isUploading,
                             uploadFailed = uiState.uploadFailed,
                             qrBitmap = uiState.qrCodeBitmap,
                             shareUrl = uiState.shareUrl,
-                            cloudinaryConfigured = settings.cloudinaryEnabled &&
-                                settings.cloudinaryCloudName.isNotBlank() &&
-                                settings.cloudinaryUploadPreset.isNotBlank(),
+                            cloudinaryConfigured = true,
                             emailAvailable = settings.resendEnabled,
                             onRetry = { viewModel.retryUpload() },
                             qrBoxSize = qrBoxSize,
@@ -207,6 +212,7 @@ fun ShareScreen(
                                 // Reopening to email a second person cancels the
                                 // post-send auto-advance to Thank You.
                                 viewModel.cancelEmailAutoAdvance()
+                                markActivity()
                                 showEmailDialog = true
                             },
                             containerColor = ShareDenim,
@@ -300,6 +306,7 @@ fun ShareScreen(
                         value = emailInput,
                         onValueChange = { input ->
                             emailInput = input.trim().take(120)
+                            markActivity()
                         },
                         label = { Text(stringResource(R.string.share_email_dialog_label)) },
                         singleLine = true,
