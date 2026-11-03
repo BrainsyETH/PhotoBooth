@@ -69,6 +69,9 @@ private fun getWarningDuration(route: String?): Long = when (route) {
     else -> 15_000L
 }
 
+private fun enabledModeCount(settings: BoothSettings): Int =
+    listOf(settings.enableSinglePhotoMode, settings.enableCollageMode, settings.enableGifMode).count { it }
+
 private fun getStartRoute(settings: BoothSettings): String {
     val enabledModes = mutableListOf<CaptureMode>()
     if (settings.enableSinglePhotoMode) enabledModes.add(CaptureMode.Single)
@@ -208,15 +211,27 @@ fun NavGraph(settingsManager: SettingsManager) {
             ) { backStackEntry ->
                 val modeArg = backStackEntry.arguments?.getString("mode")
                 val mode = CaptureMode.fromArg(modeArg)
+                val multipleModes = enabledModeCount(settings) > 1
                 GetReadyScreen(
                     mode = mode,
+                    canChangeMode = multipleModes,
                     // The whole Get Ready screen is one tap target — the most
                     // multi-tapped spot in the app.
                     onStart = { navController.fromTop(backStackEntry) { navController.navigate(Routes.capture(mode)) } },
                     onBack = {
                         navController.fromTop(backStackEntry) {
-                            if (!navController.popBackStack(Routes.MODE_SELECT, inclusive = false)) {
-                                goHome()
+                            when {
+                                // Normal path: Attract → Mode Select → Get Ready.
+                                navController.popBackStack(Routes.MODE_SELECT, inclusive = false) -> Unit
+                                // Reached Get Ready without passing Mode Select
+                                // (e.g. modes were re-enabled in admin): still
+                                // land on mode selection, never loop to welcome.
+                                multipleModes -> navController.navigate(Routes.MODE_SELECT) {
+                                    popUpTo(Routes.ATTRACT) { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                                // One mode only: there's nothing to change.
+                                else -> goHome()
                             }
                         }
                     }

@@ -11,6 +11,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -71,6 +76,8 @@ fun GetReadyScreen(
     mode: CaptureMode,
     onStart: () -> Unit,
     onBack: () -> Unit,
+    /** False when only one mode is enabled: the chip then just says "Back". */
+    canChangeMode: Boolean = true,
     viewModel: GetReadyViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
@@ -229,6 +236,7 @@ fun GetReadyScreen(
             horizontalArrangement = Arrangement.spacedBy(32.dp),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                 .padding(bottom = 36.dp, start = 32.dp, end = 32.dp)
                 .widthIn(max = 720.dp)
                 .fillMaxWidth()
@@ -282,6 +290,9 @@ fun GetReadyScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
+                // Clear of the system nav bar / gesture area when it's showing
+                // (edge-to-edge on API 35+): it covered most of this chip.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                 .padding(start = 24.dp, bottom = 22.dp)
                 .heightIn(min = 48.dp)
                 .clip(RoundedCornerShape(999.dp))
@@ -292,7 +303,9 @@ fun GetReadyScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = stringResource(R.string.getready_change_mode).uppercase(),
+                text = stringResource(
+                    if (canChangeMode) R.string.getready_change_mode else R.string.mode_back
+                ).uppercase(),
                 fontFamily = HankenGrotesk,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
