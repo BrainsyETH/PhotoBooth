@@ -935,8 +935,10 @@ class DslrManager(private val context: Context) {
                 if (events.isEmpty() && info?.supportsNikonCheckEvent == true) Thread.sleep(150)
             }
             // Card diff as a backstop for bodies whose events don't arrive
-            // (or don't exist): from 1 s after the shot, every ~600 ms.
-            if (!sdram && candidates.isEmpty() && handlesBefore != null &&
+            // (or don't exist): from 1 s after the shot, every ~600 ms. It
+            // keeps running after the first find so RAW+JPEG's second file
+            // (written a beat later) is caught before the quiet-period break.
+            if (!sdram && handlesBefore != null &&
                 now - shotAt > 1_000 && now - lastDiffAt >= 600
             ) {
                 lastDiffAt = now
