@@ -9,9 +9,12 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Native DSLR control over USB (PTP) — the path that lets a Canon/Nikon work
@@ -37,6 +41,53 @@ class DslrManager(private val context: Context) {
     companion object {
         private const val TAG = "DslrManager"
         private const val ACTION_USB_PERMISSION = "com.snapcabin.dslr.USB_PERMISSION"
+
+        /**
+         * Longest a guest waits on the DSLR after the on-screen flash before
+         * the booth gives up and uses the tablet camera. Without a budget the
+         * internal retries (busy retries, event poll, handle diff, one
+         * reconnect) could stack to 20–30 s of a frozen screen.
+         */
+        const val BOOTH_SHOT_BUDGET_MS = 8_000L
+
+        /** After this many DSLR misses in a row, stop trying it for [PAUSE_MS]. */
+        internal const val FAILURES_BEFORE_PAUSE = 2
+        internal const val PAUSE_MS = 3 * 60_000L
+
+        /** Idle connection check: finds a dead pipe BEFORE a guest's shot does. */
+        private const val HEARTBEAT_MS = 30_000L
+    }
+
+    /**
+     * Booth-side DSLR health, shown in admin. When the DSLR keeps missing
+     * (autofocus can't lock in a dark room, card full, battery dying), every
+     * guest would otherwise wait out the full budget on every single shot all
+     * night. After [FAILURES_BEFORE_PAUSE] misses the booth goes straight to
+     * the tablet camera for [PAUSE_MS], then tries the DSLR again.
+     */
+    data class BoothHealth(
+        val consecutiveFailures: Int = 0,
+        val pausedUntil: Long = 0L,
+        val lastFailure: String? = null,
+        val dslrShots: Int = 0,
+        val fallbacks: Int = 0
+    ) {
+        fun isPaused(now: Long = System.currentTimeMillis()) = now < pausedUntil
+
+        fun afterSuccess() = copy(consecutiveFailures = 0, pausedUntil = 0L, dslrShots = dslrShots + 1)
+
+        fun afterFailure(reason: String, now: Long): BoothHealth {
+            val failures = consecutiveFailures + 1
+            return copy(
+                consecutiveFailures = failures,
+                pausedUntil = if (failures >= FAILURES_BEFORE_PAUSE) now + PAUSE_MS else pausedUntil,
+                lastFailure = reason,
+                fallbacks = fallbacks + 1
+            )
+        }
+
+        /** Fresh chance for the DSLR; tonight's counters are kept. */
+        fun cleared() = copy(consecutiveFailures = 0, pausedUntil = 0L)
     }
 
     sealed class State {
@@ -70,6 +121,35 @@ class DslrManager(private val context: Context) {
     val capture: StateFlow<Capture> = _capture.asStateFlow()
 
     /**
+     * True once the DSLR has produced a real photo (admin test OR booth shot)
+     * on the CURRENT connection. Cleared whenever the transport drops (unplug,
+     * auto power-off, release), so setup readiness can't go stale.
+     */
+    private val _verified = MutableStateFlow(false)
+    val verified: StateFlow<Boolean> = _verified.asStateFlow()
+
+    private val _boothHealth = MutableStateFlow(BoothHealth())
+    val boothHealth: StateFlow<BoothHealth> = _boothHealth.asStateFlow()
+
+    /** Operator action (or the camera coming back): give the DSLR a fresh chance now. */
+    fun resetBoothHealth() {
+        _boothHealth.value = _boothHealth.value.cleared()
+    }
+
+    private fun recordBoothSuccess() {
+        _boothHealth.value = _boothHealth.value.afterSuccess()
+    }
+
+    private fun recordBoothFailure(reason: String) {
+        val updated = _boothHealth.value.afterFailure(reason, System.currentTimeMillis())
+        if (updated.isPaused()) {
+            diag("DSLR missed ${updated.consecutiveFailures} shots in a row — using the tablet camera " +
+                "for ${PAUSE_MS / 60_000} min")
+        }
+        _boothHealth.value = updated
+    }
+
+    /**
      * Human-readable trace of the last capture attempt, shown on-screen in admin
      * so the operator can report what happened without pulling logcat over adb
      * (hard when the camera occupies the USB port).
@@ -99,7 +179,7 @@ class DslrManager(private val context: Context) {
         // ("bulk OUT failed at 0/12" on the very first command).
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
-                if (intent?.action != UsbManager.ACTION_USB_DEVICE_DETACHED) return
+                val action = intent?.action ?: return
                 val device: UsbDevice? =
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
@@ -107,6 +187,17 @@ class DslrManager(private val context: Context) {
                     device.getInterface(it).interfaceClass == Ptp.USB_CLASS_STILL_IMAGE
                 }
                 if (!wasPtp) return
+                if (action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+                    // Camera powered back on / replugged: show it, and give it
+                    // a fresh chance instead of waiting out a failure pause.
+                    // The next countdown's arm reconnects if permission is held
+                    // (granted automatically via the manifest USB filter once
+                    // the operator ticks "Always open SnapCabin").
+                    resetBoothHealth()
+                    refresh()
+                    return
+                }
+                if (action != UsbManager.ACTION_USB_DEVICE_DETACHED) return
                 scope.launch {
                     captureMutex.withLock { dropTransport() }
                     val present = findPtpDevice()
@@ -118,7 +209,50 @@ class DslrManager(private val context: Context) {
         // Protected system broadcast — exempt from the API 34 flag requirement
         // (same pattern as AdminViewModel's attach/detach receiver).
         @Suppress("UnspecifiedRegisterReceiverFlag")
-        context.registerReceiver(receiver, IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED))
+        context.registerReceiver(
+            receiver,
+            IntentFilter().apply {
+                addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+                addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            }
+        )
+
+        scope.launch {
+            while (true) {
+                delay(HEARTBEAT_MS)
+                heartbeat()
+            }
+        }
+    }
+
+    /**
+     * Cheap idle check on a held connection. A camera that powered off, lost
+     * its battery or got bumped leaves a dead pipe that otherwise surfaces
+     * only at a guest's flash (as a reconnect-and-retry inside the budget).
+     * Skips whenever a shot is armed or anything else holds the camera. For
+     * Canon it also drains the event queue so it can't back up between shots.
+     */
+    private suspend fun heartbeat() {
+        if (transport == null || armedShot != null) return
+        if (!captureMutex.tryLock()) return
+        try {
+            val t = transport ?: return
+            val info = deviceInfo
+            if (info != null && info.isCanon && info.supportsEosRemote) {
+                t.transact(Ptp.OP_EOS_GET_EVENT)
+            } else {
+                t.transact(Ptp.OP_GET_DEVICE_INFO)
+            }
+        } catch (e: java.io.IOException) {
+            diag("heartbeat: connection lost (${e.message}) — will reconnect at the next shot")
+            dropTransport()
+            val present = findPtpDevice()
+            _state.value = if (present == null) State.NoCamera else State.Detected(present.productName)
+        } catch (e: Exception) {
+            Log.w(TAG, "DSLR heartbeat failed", e)
+        } finally {
+            captureMutex.unlock()
+        }
     }
 
     /** Refresh detection (call when entering the camera screen / on USB attach). */
@@ -142,6 +276,7 @@ class DslrManager(private val context: Context) {
 
     /** Begin connecting: request USB permission if needed, then open + query. */
     fun connect() {
+        resetBoothHealth()
         val device = findPtpDevice()
         if (device == null) {
             _state.value = State.NoCamera
@@ -278,6 +413,10 @@ class DslrManager(private val context: Context) {
                         null
                     }
                     _capture.value = Capture.Done(jpeg, bmp)
+                    if (bmp != null) {
+                        _verified.value = true
+                        resetBoothHealth() // operator just proved it works
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "DSLR capture failed", e)
                     if (e is java.io.IOException && e !is NoPhotoException) {
@@ -324,7 +463,35 @@ class DslrManager(private val context: Context) {
      * a booth must never strand guests mid-countdown. Timeouts are tighter than
      * the admin test's: a guest is standing there waiting.
      */
-    suspend fun captureBoothPhoto(maxDimension: Int): android.graphics.Bitmap =
+    suspend fun captureBoothPhoto(maxDimension: Int): android.graphics.Bitmap {
+        if (_boothHealth.value.isPaused()) {
+            throw NoPhotoException("DSLR paused after repeated misses — using the tablet camera.")
+        }
+        // The capture runs in this manager's own scope: its USB work is
+        // blocking and can't be interrupted, but the GUEST can stop waiting.
+        val shot = scope.async { captureBoothPhotoLocked(maxDimension) }
+        val bitmap = try {
+            withTimeoutOrNull(BOOTH_SHOT_BUDGET_MS) { shot.await() }
+        } catch (e: CancellationException) {
+            shot.cancel() // guest skipped / session reset
+            throw e
+        } catch (e: Exception) {
+            recordBoothFailure(e.message ?: e.javaClass.simpleName)
+            throw e
+        }
+        if (bitmap == null) {
+            // If it's still queued behind the camera lock, this stops it from
+            // firing the shutter seconds later at nobody. Mid-transfer work
+            // finishes in the background and its result is dropped.
+            shot.cancel()
+            recordBoothFailure("no photo within ${BOOTH_SHOT_BUDGET_MS / 1000}s")
+            throw NoPhotoException("The DSLR took too long — using the tablet camera.")
+        }
+        recordBoothSuccess()
+        return bitmap
+    }
+
+    private suspend fun captureBoothPhotoLocked(maxDimension: Int): android.graphics.Bitmap =
         withContext(Dispatchers.IO) {
             captureMutex.withLock {
                 _capture.value = Capture.Busy("Booth capture")
@@ -348,8 +515,10 @@ class DslrManager(private val context: Context) {
                         dropTransport()
                         captureOnce(reconnectForCapture(), eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
                     }
-                    decodeScaled(jpeg, maxDimension)
+                    val bitmap = decodeScaled(jpeg, maxDimension)
                         ?: throw NoPhotoException("Couldn't decode the DSLR photo.")
+                    _verified.value = true
+                    bitmap
                 } catch (e: NoPhotoException) {
                     throw e
                 } catch (e: java.io.IOException) {
@@ -379,7 +548,12 @@ class DslrManager(private val context: Context) {
      * Best-effort: on any failure the armed state is simply not set and the
      * flash-time capture runs the full sequence (late photo beats no photo).
      */
-    suspend fun armBoothCapture() = withContext(Dispatchers.IO) {
+    suspend fun armBoothCapture() {
+        if (_boothHealth.value.isPaused()) return // tablet camera handles this shot
+        armBoothCaptureLocked()
+    }
+
+    private suspend fun armBoothCaptureLocked() = withContext(Dispatchers.IO) {
         captureMutex.withLock {
             try {
                 try {
@@ -879,6 +1053,7 @@ class DslrManager(private val context: Context) {
         transport = null
         deviceInfo = null
         armedShot = null
+        _verified.value = false
         _capture.value = Capture.Idle
     }
 }

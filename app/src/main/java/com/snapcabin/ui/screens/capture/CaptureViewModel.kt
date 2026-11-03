@@ -190,7 +190,24 @@ class CaptureViewModel @Inject constructor(
                 )
             }
         }
-        return cameraManager.takePhoto()
+        return cameraManager.takePhoto(maxDecodeDimension = decodeCapFor(mode))
+    }
+
+    /**
+     * Each frame is held in memory until Share finishes, so size it to what
+     * the output actually uses: GIF frames end up 640 px, collage tiles live
+     * in a 1920×1080 frame. A 6-frame GIF at a 12 MP sensor's native size was
+     * ~290 MB of bitmaps — enough to crash the booth mid-event.
+     */
+    private fun decodeCapFor(mode: CaptureMode): Int = when (mode) {
+        CaptureMode.Single -> CameraManager.MAX_DECODE_DIMENSION
+        CaptureMode.Collage -> 2048
+        CaptureMode.Gif -> GIF_CAPTURE_DIMENSION
+    }
+
+    companion object {
+        /** Also the bind resolution for GIF sessions: smaller frames capture faster, too. */
+        const val GIF_CAPTURE_DIMENSION = 1280
     }
 
     private fun usesDslr(mode: CaptureMode): Boolean =

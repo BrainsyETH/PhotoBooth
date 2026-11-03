@@ -2,7 +2,9 @@ name: Android checks
 
 on:
   push:
-    branches: [main]
+    # Agent branches get CI before a PR exists, so changes are compiled and
+    # tested on the real Android toolchain before anyone reviews them.
+    branches: [main, 'claude/**', 'codex/**']
   pull_request:
 
 permissions:
@@ -33,6 +35,33 @@ jobs:
         run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
       - name: Unit tests, lint, and debug build
         run: bash gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace --continue
+      # R8 + resource shrinking only run on release builds, so debug CI can't
+      # catch a class stripped by minification (a release-only crash). Build
+      # the real minified release, signed with a throwaway CI-only key. This
+      # APK is for test installs only — it can NEVER be uploaded to Play.
+      - name: Create throwaway CI signing key
+        run: |
+          mkdir -p app/keystore
+          keytool -genkeypair -noprompt \
+            -keystore app/keystore/release.keystore \
+            -alias ci-only -keyalg RSA -keysize 2048 -validity 2 \
+            -storepass ci-only-not-secret -keypass ci-only-not-secret \
+            -dname "CN=SnapCabin CI throwaway"
+      - name: Minified release build (R8 + resource shrinking)
+        env:
+          KEYSTORE_PASSWORD: ci-only-not-secret
+          KEY_ALIAS: ci-only
+          KEY_PASSWORD: ci-only-not-secret
+        run: bash gradlew :app:assembleRelease :app:bundleRelease --stacktrace
+      - name: Upload CI-signed release APK (test installs only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapcabin-release-ci-signed
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4

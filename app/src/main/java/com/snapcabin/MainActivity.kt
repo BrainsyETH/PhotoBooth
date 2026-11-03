@@ -1,6 +1,8 @@
 package com.snapcabin
 
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -46,6 +48,7 @@ class MainActivity : ComponentActivity() {
                 kioskManager.setScreenBrightness(this@MainActivity, settings.screenBrightness)
                 kioskManager.keepScreenOn(this@MainActivity, true)
                 kioskEnabled = settings.kioskModeEnabled
+                showOverLockScreen(settings.kioskModeEnabled)
 
                 if (settings.kioskModeEnabled) {
                     kioskManager.enterKioskMode(this@MainActivity)
@@ -97,6 +100,25 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         soundManager.release()
+    }
+
+    /**
+     * A guest pressing the power button turns the screen off; when it comes
+     * back on, the lock screen covered the booth until the operator unlocked
+     * it. In kiosk mode the booth shows over the lock screen instead — leaving
+     * SnapCabin still requires unlocking, and admin stays behind its PIN.
+     */
+    private fun showOverLockScreen(enable: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(enable)
+        } else {
+            @Suppress("DEPRECATION")
+            if (enable) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            }
+        }
     }
 
     private fun hideSystemUI() {

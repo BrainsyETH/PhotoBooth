@@ -66,8 +66,9 @@ mail, eating into the operator's Resend quota or harassing recipients.
 
 **Mitigations**:
 - `resendMaxPerSession` (default 3) — caps emails per photo.
-- `resendMaxPerAddress` (default 3) — caps emails to the same address per
-  event.
+- `resendMaxPerAddress` (default 10, max 50) — caps emails to the same
+  address per event. Enforced durably (survives guest sessions and app
+  restarts), so it is sized for a guest who returns for several sessions.
 - Email addresses validated against a basic RFC-5322 pattern before any
   network call.
 - Per-event reset prevents cross-event blast.

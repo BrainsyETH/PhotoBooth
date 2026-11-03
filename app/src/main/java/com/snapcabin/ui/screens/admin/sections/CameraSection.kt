@@ -479,6 +479,34 @@ private fun DslrConnectBlock(settings: BoothSettings, viewModel: AdminViewModel)
                     colors = adminSwitchColors()
                 )
             }
+            // Booth-side health: tells the operator mid-event whether guests
+            // are actually getting DSLR photos or quietly getting tablet ones.
+            val health by viewModel.dslrManager.boothHealth.collectAsState()
+            if (settings.dslrCaptureEnabled && (health.dslrShots > 0 || health.fallbacks > 0)) {
+                val paused = health.isPaused()
+                Text(
+                    text = buildString {
+                        append("Tonight: ${health.dslrShots} DSLR shot(s), ${health.fallbacks} fell back to the tablet.")
+                        if (paused) {
+                            val mins = ((health.pausedUntil - System.currentTimeMillis()) / 60_000L) + 1
+                            append(" DSLR paused for ~$mins min after repeated misses")
+                        }
+                        health.lastFailure?.let { append(if (paused) " (last: $it)." else " Last miss: $it.") }
+                    },
+                    fontWeight = if (paused) FontWeight.Medium else FontWeight.Normal,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (paused) Clay else Espresso.copy(alpha = 0.7f)
+                )
+                if (paused) {
+                    BigButton(
+                        text = "TRY DSLR AGAIN NOW",
+                        onClick = { viewModel.dslrManager.resetBoothHealth() },
+                        variant = BigButtonVariant.Surface,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             Text(
                 text = "Guests keep seeing the tablet's camera as the live preview; when the " +
                     "countdown ends, the DSLR fires and ITS photo is the one used. GIF mode " +
@@ -491,7 +519,10 @@ private fun DslrConnectBlock(settings: BoothSettings, viewModel: AdminViewModel)
                 text = "Setup tips: take a successful test photo above before turning this on. " +
                     "Set the lens to MF and pre-focus where guests stand — with autofocus on, " +
                     "a Canon that can't lock focus silently refuses to fire. Turn off the " +
-                    "camera's auto power off and Wi-Fi/Bluetooth.",
+                    "camera's auto power off and Wi-Fi/Bluetooth. For an all-night event run it " +
+                    "on an AC adapter (dummy battery) with plenty of card space — every shot is " +
+                    "saved to the card. When Android asks to open SnapCabin for this camera, tick " +
+                    "\"Always\" so it reconnects by itself after a power cycle.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.7f)
             )

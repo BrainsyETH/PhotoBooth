@@ -90,13 +90,15 @@ fun AdminScreen(
     val pinVerified by viewModel.pinVerified.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val cameras by viewModel.availableCameras.collectAsState()
-    val testedCameraSettings by viewModel.testedCameraSettings.collectAsState()
-    val dslrCapture by viewModel.dslrManager.capture.collectAsState()
+    val testedCameraKey by viewModel.testedCameraKey.collectAsState()
+    val dslrVerified by viewModel.dslrManager.verified.collectAsState()
     val dslrState by viewModel.dslrManager.state.collectAsState()
-    val cameraTestPassed = testedCameraSettings?.cameraTestKey() == settings.cameraTestKey() &&
+    // DSLR: "verified" means it produced a photo (test OR booth shot) on its
+    // current connection — so a guest session no longer unchecks the list, but
+    // an unplug / auto power-off honestly does.
+    val cameraTestPassed = testedCameraKey == settings.cameraTestKey() &&
         (!settings.dslrCaptureEnabled ||
-            (dslrCapture is com.snapcabin.dslr.DslrManager.Capture.Done &&
-                dslrState is com.snapcabin.dslr.DslrManager.State.Connected))
+            (dslrVerified && dslrState is com.snapcabin.dslr.DslrManager.State.Connected))
 
     Box(
         modifier = Modifier
