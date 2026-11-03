@@ -92,17 +92,20 @@ fun GetReadyScreen(
 
     // Same permission set as the capture screen: USB cameras won't open
     // without RECORD_AUDIO, and this is often the first screen to bind.
+    // Loaded (not default) settings — also drives the camera bind below.
+    val camSettings by viewModel.loadedSettings.collectAsState()
+
+    // Only what's missing (see CameraManager.missingGuestPermissions): no OS
+    // dialog for an already-set-up booth, no mic prompt because a DSLR or
+    // printer happens to be plugged in.
     val requestPermissions = {
-        val perms = buildList {
-            add(Manifest.permission.CAMERA)
-            if (viewModel.cameraManager.needsAudioPermissionForExternal()) {
-                add(Manifest.permission.RECORD_AUDIO)
-            }
-        }
-        permissionLauncher.launch(perms.toTypedArray())
+        val perms = viewModel.cameraManager.missingGuestPermissions(camSettings?.cameraId ?: "")
+        if (perms.isNotEmpty()) permissionLauncher.launch(perms)
     }
 
-    LaunchedEffect(Unit) { requestPermissions() }
+    LaunchedEffect(camSettings != null) {
+        if (camSettings != null) requestPermissions()
+    }
 
     val eyebrow = when (mode) {
         CaptureMode.Single -> stringResource(R.string.getready_card_eyebrow_single)
@@ -131,7 +134,6 @@ fun GetReadyScreen(
         // Binding from the per-screen StateFlow captured its defaults-first
         // emission in the one-shot factory, which is why an external camera
         // selected in admin never showed up here.
-        val camSettings by viewModel.loadedSettings.collectAsState()
         val cam = camSettings
         if (hasCameraPermission && cam != null) {
             key(cam.cameraId, cam.useFrontCamera, cam.mirrorImage, cam.photoResolution) {

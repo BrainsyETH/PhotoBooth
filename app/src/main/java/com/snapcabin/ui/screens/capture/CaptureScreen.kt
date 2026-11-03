@@ -90,19 +90,20 @@ fun CaptureScreen(
         hasCameraPermission = result[Manifest.permission.CAMERA] ?: hasCameraPermission
     }
 
+    // Loaded (not default) settings — also drives the camera bind below.
+    val camSettings by viewModel.loadedSettings.collectAsState()
+
     val requestPermissions = {
-        val perms = buildList {
-            add(Manifest.permission.CAMERA)
-            // Ask for the mic when any USB device is attached — the camera
-            // service won't open a UVC camera without RECORD_AUDIO.
-            if (viewModel.cameraManager.needsAudioPermissionForExternal()) {
-                add(Manifest.permission.RECORD_AUDIO)
-            }
-        }
-        permissionLauncher.launch(perms.toTypedArray())
+        // Only what's missing: an already-granted setup never shows a dialog,
+        // and the mic is asked only for a selected external (UVC) camera.
+        val perms = viewModel.cameraManager.missingGuestPermissions(camSettings?.cameraId ?: "")
+        if (perms.isNotEmpty()) permissionLauncher.launch(perms)
     }
 
-    LaunchedEffect(Unit) { requestPermissions() }
+    // Once, when the stored settings are available (so we know which camera).
+    LaunchedEffect(camSettings != null) {
+        if (camSettings != null) requestPermissions()
+    }
 
     LaunchedEffect(hasCameraPermission) {
         if (hasCameraPermission && !uiState.isFinished && uiState.shotsTaken == 0) {
@@ -149,8 +150,6 @@ fun CaptureScreen(
     // selection (external camera especially) was silently ignored. key() makes
     // the bind reactive: if the camera-relevant settings change, a fresh
     // PreviewView is created and rebound.
-    val camSettings by viewModel.loadedSettings.collectAsState()
-
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         val cam = camSettings
         if (hasCameraPermission) {
@@ -167,7 +166,14 @@ fun CaptureScreen(
                                     useFront = cam.useFrontCamera,
                                     cameraId = cam.cameraId,
                                     mirror = cam.mirrorImage,
-                                    maxResolution = cam.photoResolution.maxDimension
+                                    // GIF frames are encoded at 640 px; capturing
+                                    // them at full sensor size only made each
+                                    // frame slower (choppy GIF) and heavier.
+                                    maxResolution = if (mode == CaptureMode.Gif) {
+                                        minOf(cam.photoResolution.maxDimension, CaptureViewModel.GIF_CAPTURE_DIMENSION)
+                                    } else {
+                                        cam.photoResolution.maxDimension
+                                    }
                                 )
                             }
                         },

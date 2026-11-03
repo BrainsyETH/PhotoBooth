@@ -38,9 +38,16 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!--
+      largeHeap: a dedicated kiosk app that holds several full-size photos at
+      once (review strip, collage tiles, GIF frames, branded copy) for hours.
+      The default heap cap leaves little headroom on mid-range tablets; an OOM
+      mid-event drops guests out of the booth.
+    -->
     <application
         android:name=".SnapCabinApp"
         android:allowBackup="false"
+        android:largeHeap="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
