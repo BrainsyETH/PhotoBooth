@@ -14,6 +14,40 @@ data class PtpDeviceInfo(
 ) {
     val isCanon: Boolean get() = vendorExtensionId.toInt() == Ptp.VENDOR_CANON
 
+    /**
+     * Nikon in PTP mode reports vendor extension 0x0A; in MTP mode the same
+     * body reports Microsoft's 0x06, so fall back to the manufacturer string
+     * (what libgphoto2 does too).
+     */
+    val isNikon: Boolean
+        get() = vendorExtensionId.toInt() == Ptp.VENDOR_NIKON ||
+            manufacturer.contains("nikon", ignoreCase = true)
+
+    /** Standard PTP InitiateCapture — Nikon DSLRs and many other non-Canon bodies. */
+    val supportsInitiateCapture: Boolean
+        get() = operationsSupported.contains(Ptp.OP_INITIATE_CAPTURE)
+
+    val supportsNikonSdramCapture: Boolean
+        get() = operationsSupported.contains(Ptp.OP_NIKON_INITIATE_CAPTURE_REC_IN_SDRAM)
+
+    val supportsNikonCheckEvent: Boolean
+        get() = operationsSupported.contains(Ptp.OP_NIKON_CHECK_EVENT)
+
+    val supportsNikonDeviceReady: Boolean
+        get() = operationsSupported.contains(Ptp.OP_NIKON_DEVICE_READY)
+
+    /**
+     * Which capture path this body gets. Canon EOS uses its vendor release
+     * ops; everything else that can capture at all goes through the standard
+     * path (InitiateCapture, with Nikon extras when advertised).
+     */
+    val usesStandardCapture: Boolean
+        get() = !supportsEosRemote && (supportsInitiateCapture || supportsNikonSdramCapture)
+
+    /** True when SOME remote-capture path exists for this body. */
+    val supportsRemoteCapture: Boolean
+        get() = supportsEosRemote || usesStandardCapture
+
     /** Newer staged release (half/full press), 0x9128/0x9129. */
     val supportsStagedRelease: Boolean
         get() = operationsSupported.contains(Ptp.OP_EOS_REMOTE_RELEASE_ON)

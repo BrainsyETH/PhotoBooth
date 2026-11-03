@@ -240,6 +240,8 @@ class DslrManager(private val context: Context) {
             val info = deviceInfo
             if (info != null && info.isCanon && info.supportsEosRemote) {
                 t.transact(Ptp.OP_EOS_GET_EVENT)
+            } else if (info != null && info.usesStandardCapture && info.supportsNikonCheckEvent) {
+                t.transact(Ptp.OP_NIKON_CHECK_EVENT) // also keeps Nikon's event queue drained
             } else {
                 t.transact(Ptp.OP_GET_DEVICE_INFO)
             }
@@ -367,7 +369,8 @@ class DslrManager(private val context: Context) {
         deviceInfo = info
         Log.i(TAG, "Connected to ${info.manufacturer} ${info.model} (serial ${info.serialNumber}), " +
             "${Ptp.vendorName(info.vendorExtensionId)} ext, EOS-remote=${info.supportsEosRemote} " +
-            "(staged=${info.supportsStagedRelease} oneShot=${info.supportsOneShotRelease})")
+            "(staged=${info.supportsStagedRelease} oneShot=${info.supportsOneShotRelease}), " +
+            "standard=${info.usesStandardCapture}")
 
         // Canon needs "PC connection" + event mode on before it will
         // accept shutter-release commands. Best-effort; capture re-asserts.
@@ -386,6 +389,18 @@ class DslrManager(private val context: Context) {
                 runCatching { t.transact(Ptp.OP_EOS_REMOTE_RELEASE_OFF, intArrayOf(1)) }
             }
             drainEvents(t, "connect")
+        }
+        if (info.usesStandardCapture) {
+            // Nikon & other non-EOS bodies: no remote-mode handshake. Record
+            // which capture/event ops the body offers — the first thing to
+            // read in the on-screen trace when a new model misbehaves.
+            diag("${info.manufacturer} ${info.model}: standard capture — " +
+                "InitiateCapture=${info.supportsInitiateCapture} " +
+                "NikonSDRAM=${info.supportsNikonSdramCapture} " +
+                "CheckEvent=${info.supportsNikonCheckEvent} " +
+                "DeviceReady=${info.supportsNikonDeviceReady} " +
+                "eventEndpoint=${t.hasEventEndpoint}")
+            drainStandardEvents(t, "connect")
         }
         return info
     }
@@ -575,6 +590,14 @@ class DslrManager(private val context: Context) {
     private fun armLocked() {
         val t = transport ?: reconnectForCapture()
         disarmLocked(t) // release any stale half-press from an abandoned arm
+        if (deviceInfo?.usesStandardCapture == true) {
+            // Standard/Nikon capture has no half-press to hold. Arming still
+            // pays off: any reconnect and the stale-event drain happen during
+            // "3…2…1" instead of after the flash.
+            diag("— arming for countdown (standard capture) —")
+            drainStandardEvents(t, "arm")
+            return
+        }
         diag("— arming for countdown —")
         prepareRemote(t, "arm")
         setEosProperty(
@@ -664,6 +687,9 @@ class DslrManager(private val context: Context) {
 
     /** Full capture sequence on an open transport: prepare → fire → locate → download. */
     private fun captureOnce(t: PtpTransport, eventTimeoutMs: Long, diffTimeoutMs: Long): ByteArray {
+        if (deviceInfo?.usesStandardCapture == true) {
+            return standardCaptureOnce(t, timeoutMs = eventTimeoutMs + diffTimeoutMs)
+        }
         disarmLocked(t) // this path does its own half-press; a stale held one would confuse it
         _capture.value = Capture.Busy("Preparing camera…")
         prepareRemote(t, "capture")
@@ -793,12 +819,200 @@ class DslrManager(private val context: Context) {
      */
     private var pendingObjectHandle: Int? = null
     private fun pumpEvents(t: PtpTransport) {
+        if (deviceInfo?.usesStandardCapture == true) return // EOS-only; never eat a Nikon ObjectAdded
         runCatching {
             val (_, data) = t.transact(Ptp.OP_EOS_GET_EVENT)
             if (data != null && data.size > 8) {
                 parseEventsForObjectHandle(data)?.let { pendingObjectHandle = it }
             }
         }
+    }
+
+    // ───────────────────── Standard PTP / Nikon capture ─────────────────────
+    //
+    // Nikon DSLRs (D3100 etc.) and other non-Canon bodies: fire with the
+    // standard InitiateCapture (photo lands on the card), learn the new
+    // object from Nikon's CheckEvent, the interrupt endpoint, or — always
+    // available — a before/after diff of the card's object handles; pick the
+    // JPEG (RAW+JPEG announces two objects) and download it with GetObject.
+    // Nikon's InitiateCaptureRecInSdram is the fallback when the standard op
+    // is missing or refused. Every step lands in the on-screen trace.
+
+    /** One batch of pending events from whichever source this body offers. */
+    private fun standardEvents(t: PtpTransport, waitMs: Int): List<PtpParsing.Event> {
+        val info = deviceInfo
+        val events = when {
+            info?.supportsNikonCheckEvent == true -> {
+                val (resp, data) = t.transact(Ptp.OP_NIKON_CHECK_EVENT)
+                if (resp.ok) PtpParsing.parseNikonEvents(data) else emptyList()
+            }
+            t.hasEventEndpoint -> listOfNotNull(t.readEvent(waitMs))
+            else -> emptyList()
+        }
+        events.forEach { diag("event 0x${it.code.toString(16)} param=0x${it.param.toString(16)}") }
+        return events
+    }
+
+    /** Clear stale events so an old ObjectAdded can't be mistaken for this shot. */
+    private fun drainStandardEvents(t: PtpTransport, label: String) {
+        var total = 0
+        repeat(8) {
+            val n = standardEvents(t, waitMs = 30).size
+            total += n
+            if (n == 0) {
+                if (total > 0) diag("[$label] drained $total stale event(s)")
+                return
+            }
+        }
+    }
+
+    /** Nikon: wait while the body answers DeviceBusy (AF, card write). No-op elsewhere. */
+    private fun waitDeviceReady(t: PtpTransport, timeoutMs: Long) {
+        if (deviceInfo?.supportsNikonDeviceReady != true) return
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val code = t.transact(Ptp.OP_NIKON_DEVICE_READY).first.code
+            if (code != Ptp.RESP_DEVICE_BUSY) return
+            Thread.sleep(100)
+        }
+        diag("DeviceReady still busy after ${timeoutMs}ms")
+    }
+
+    private fun standardCaptureOnce(t: PtpTransport, timeoutMs: Long): ByteArray {
+        val info = deviceInfo
+        _capture.value = Capture.Busy("Preparing camera…")
+        drainStandardEvents(t, "pre-shutter")
+        waitDeviceReady(t, 3_000)
+        val handlesBefore = listObjectHandles(t)
+        diag("pre-shutter handles: ${handlesBefore?.size ?: "GetObjectHandles unavailable"}")
+
+        _capture.value = Capture.Busy("Firing shutter…")
+        var resp: PtpTransport.PtpResponse? = null
+        var sdram = false
+        if (info?.supportsInitiateCapture == true) {
+            // StorageID 0 / format 0 = "camera's choice": the card, as JPEG/RAW per its settings.
+            resp = releaseOp(t, "InitiateCapture(0x100E)", Ptp.OP_INITIATE_CAPTURE, intArrayOf(0, 0))
+        }
+        val standardRefused = resp == null ||
+            (!resp.ok && resp.code != Ptp.RESP_NIKON_OUT_OF_FOCUS)
+        if (standardRefused && info?.supportsNikonSdramCapture == true) {
+            // 0xFFFFFFFF = autofocus as the body is configured.
+            resp = releaseOp(
+                t, "Nikon InitiateCaptureRecInSdram(0x90C0)",
+                Ptp.OP_NIKON_INITIATE_CAPTURE_REC_IN_SDRAM, intArrayOf(-1)
+            )
+            sdram = resp.ok
+        }
+        val fired = resp ?: throw NoPhotoException(
+            "This camera doesn't offer a USB capture operation, so it can't take photos remotely."
+        )
+        when {
+            fired.code == Ptp.RESP_NIKON_OUT_OF_FOCUS -> throw NoPhotoException(
+                "The camera couldn't lock focus, so it didn't take the photo. Switch the lens to " +
+                    "MF and pre-focus where guests stand."
+            )
+            !fired.ok -> throw NoPhotoException(
+                "The camera refused the capture (0x${fired.code.toString(16)}). Check a memory card " +
+                    "is in and not full, the camera isn't showing a menu or playback, and the mode " +
+                    "dial is on P, S, A or M."
+            )
+        }
+        val shotAt = System.currentTimeMillis()
+
+        _capture.value = Capture.Busy("Waiting for the photo…")
+        val candidates = LinkedHashSet<Long>()
+        var completed = false
+        var lastAddAt = 0L
+        var lastDiffAt = 0L
+        val canPollEvents = info?.supportsNikonCheckEvent == true || t.hasEventEndpoint
+        val deadline = shotAt + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val now = System.currentTimeMillis()
+            if (canPollEvents) {
+                val events = standardEvents(t, waitMs = 200)
+                PtpParsing.addedHandles(events).forEach { if (candidates.add(it)) lastAddAt = now }
+                if (PtpParsing.captureCompleted(events)) completed = true
+                if (events.isEmpty() && info?.supportsNikonCheckEvent == true) Thread.sleep(150)
+            }
+            // Card diff as a backstop for bodies whose events don't arrive
+            // (or don't exist): from 1 s after the shot, every ~600 ms. It
+            // keeps running after the first find so RAW+JPEG's second file
+            // (written a beat later) is caught before the quiet-period break.
+            if (!sdram && handlesBefore != null &&
+                now - shotAt > 1_000 && now - lastDiffAt >= 600
+            ) {
+                lastDiffAt = now
+                val after = listObjectHandles(t)
+                after?.filter { it !in handlesBefore }?.forEach {
+                    if (candidates.add(it)) {
+                        lastAddAt = now
+                        diag("new object via diff: 0x${it.toString(16)}")
+                    }
+                }
+            }
+            // RAW+JPEG announces two objects — give the second a moment.
+            if (candidates.isNotEmpty() && (completed || now - lastAddAt > 1_000)) break
+            if (!canPollEvents) {
+                // Nothing to listen to: SDRAM shots go straight to Nikon's
+                // default handle; without a card listing there's nothing to diff.
+                if (sdram || handlesBefore == null) break
+                Thread.sleep(200)
+            }
+        }
+        if (candidates.isEmpty() && sdram) {
+            diag("no ObjectAdded for the SDRAM capture — trying Nikon's default handle")
+            candidates.add(Ptp.NIKON_SDRAM_HANDLE)
+        }
+        if (candidates.isEmpty()) {
+            throw NoPhotoException(
+                "Shutter fired but no new image appeared. If autofocus can't lock the camera may " +
+                    "refuse to fire — set the lens to MF; check a card is in and not full."
+            )
+        }
+
+        waitDeviceReady(t, 5_000) // let the card write finish before reading it
+        val handle = pickJpeg(t, candidates.toList()) ?: throw NoPhotoException(
+            "The camera saved no JPEG — set Image quality to JPEG (Fine) or RAW+JPEG."
+        )
+        _capture.value = Capture.Busy("Downloading photo…")
+        val (getResp, data) = transactRetryBusy(t, Ptp.OP_GET_OBJECT, intArrayOf(handle.toInt()))
+        if (!getResp.ok || data == null || data.size < 2 ||
+            data[0] != 0xFF.toByte() || data[1] != 0xD8.toByte()
+        ) {
+            throw NoPhotoException(
+                "Couldn't download the photo (GetObject rc=0x${getResp.code.toString(16)}, " +
+                    "${data?.size ?: 0} bytes)."
+            )
+        }
+        diag("downloaded ${data.size} bytes from 0x${handle.toString(16)}")
+        return data
+    }
+
+    /** First JPEG among [handles]; skips folders and RAW. Falls back to an unidentifiable one. */
+    private fun pickJpeg(t: PtpTransport, handles: List<Long>): Long? {
+        var unknown: Long? = null
+        for (h in handles) {
+            val (resp, data) = runCatching { transactRetryBusy(t, Ptp.OP_GET_OBJECT_INFO, intArrayOf(h.toInt())) }
+                .getOrElse { if (it is java.io.IOException) throw it; null to null }
+            val format = if (resp?.ok == true) PtpParsing.objectFormat(data) else -1
+            diag("object 0x${h.toString(16)} format=0x${format.toString(16)}")
+            when (format) {
+                Ptp.FORMAT_EXIF_JPEG -> return h
+                -1 -> if (unknown == null) unknown = h // SDRAM objects may not describe themselves
+            }
+        }
+        return unknown
+    }
+
+    /** A transaction retried while the body answers DeviceBusy (card still writing, etc.). */
+    private fun transactRetryBusy(t: PtpTransport, op: Int, params: IntArray): Pair<PtpTransport.PtpResponse, ByteArray?> {
+        var result = t.transact(op, params)
+        var retries = 0
+        while (result.first.code == Ptp.RESP_DEVICE_BUSY && retries++ < 20) {
+            Thread.sleep(150)
+            result = t.transact(op, params)
+        }
+        return result
     }
 
     /** Decode a JPEG to at most [maxDimension] on its long edge, sampling down in-decoder. */

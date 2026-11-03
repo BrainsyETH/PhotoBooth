@@ -114,6 +114,23 @@ class PtpTransport private constructor(
         return (response ?: throw IOException("No PTP response container")) to data
     }
 
+    /** True when the camera exposes the interrupt endpoint PTP uses for async events. */
+    val hasEventEndpoint: Boolean get() = intrIn != null
+
+    /**
+     * Read one async event from the interrupt endpoint, waiting up to
+     * [timeoutMs]. Standard-PTP bodies without a vendor "get events" op
+     * announce ObjectAdded / CaptureComplete here. Null on timeout or when
+     * there is no event endpoint; never throws on a quiet camera.
+     */
+    @Synchronized
+    fun readEvent(timeoutMs: Int): PtpParsing.Event? {
+        val ep = intrIn ?: return null
+        val buf = ByteArray(64)
+        val n = connection.bulkTransfer(ep, buf, buf.size, timeoutMs)
+        return if (n > 0) PtpParsing.parseInterruptEvent(buf, n) else null
+    }
+
     private fun sendContainer(type: Int, code: Int, tid: Int, payload: ByteArray) {
         val total = Ptp.HEADER_LEN + payload.size
         val buf = ByteArray(total)

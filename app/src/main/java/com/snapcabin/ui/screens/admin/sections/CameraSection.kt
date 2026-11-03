@@ -384,10 +384,15 @@ private fun DslrConnectBlock(settings: BoothSettings, viewModel: AdminViewModel)
                 )
                 Text(
                     text = "Serial ${s.info.serialNumber.ifBlank { "—" }} · " +
-                        (if (s.info.supportsEosRemote) "remote capture supported" else
-                            "this camera doesn't advertise USB remote capture"),
+                        when {
+                            s.info.supportsEosRemote -> "remote capture supported (Canon EOS)"
+                            s.info.usesStandardCapture ->
+                                if (s.info.isNikon) "remote capture supported (Nikon — new, please report results)"
+                                else "remote capture via standard PTP (untested on this brand)"
+                            else -> "this camera doesn't advertise USB remote capture"
+                        },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (s.info.supportsEosRemote) Espresso.copy(alpha = 0.7f) else Clay
+                    color = if (s.info.supportsRemoteCapture) Espresso.copy(alpha = 0.7f) else Clay
                 )
             }
             is DslrManager.State.Error -> Text(
@@ -518,7 +523,8 @@ private fun DslrConnectBlock(settings: BoothSettings, viewModel: AdminViewModel)
             Text(
                 text = "Setup tips: take a successful test photo above before turning this on. " +
                     "Set the lens to MF and pre-focus where guests stand — with autofocus on, " +
-                    "a Canon that can't lock focus silently refuses to fire. Turn off the " +
+                    "a camera that can't lock focus refuses to fire. Nikon: mode dial on P, S, A " +
+                    "or M (Auto pops the flash), Image quality JPEG or RAW+JPEG. Turn off the " +
                     "camera's auto power off and Wi-Fi/Bluetooth. For an all-night event run it " +
                     "on an AC adapter (dummy battery) with plenty of card space — every shot is " +
                     "saved to the card. When Android asks to open SnapCabin for this camera, tick " +

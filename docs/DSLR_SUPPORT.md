@@ -81,6 +81,23 @@ experimental "CONNECT DSLR" block (`DslrConnectBlock` in `CameraSection.kt`).
   - Remaining: full-res vs preview JPEG; then expand beyond Canon (Nikon/Sony
     have their own ops).
 
+- **Nikon / standard PTP capture (built; needs on-device validation, first
+  target: D3100).** Bodies without Canon's EOS release ops but with standard
+  `InitiateCapture` (0x100E) — Nikon DSLRs and many others — go through a
+  separate path: fire with InitiateCapture (photo lands on the card), find the
+  new object via Nikon `CheckEvent` (0x90C7), the USB interrupt endpoint, or a
+  before/after diff of the card's object handles, pick the JPEG via
+  `GetObjectInfo` (RAW+JPEG announces two objects), wait on Nikon
+  `DeviceReady` (0x90C8), and download with `GetObject`. Nikon
+  `InitiateCaptureRecInSdram` (0x90C0) is the fallback if the standard op is
+  missing or refused. Nikon is recognised by vendor ID 0x0A **or** the
+  manufacturer string (MTP mode reports 0x06). The booth budget, failure
+  pause and heartbeat apply unchanged. On connect, the trace lists which of
+  these ops the body advertises — read that first if a new model fails.
+  Nikon setup: mode dial P/S/A/M (Auto pops the flash), Image quality JPEG or
+  RAW+JPEG, a card inserted, lens on MF (out-of-focus refusals report Nikon
+  response 0xA002).
+
 ### All-night operator checklist (DSLR)
 
 - Lens on **MF**, pre-focused where guests stand.

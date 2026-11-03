@@ -31,6 +31,28 @@ object Ptp {
     const val OP_GET_OBJECT = 0x1009
     const val OP_INITIATE_CAPTURE = 0x100E
 
+    // ── Nikon vendor operations (from libgphoto2's ptp.h) ──
+    /** Capture into the camera's RAM instead of the card (param: 0xFFFFFFFF = AF as configured). */
+    const val OP_NIKON_INITIATE_CAPTURE_REC_IN_SDRAM = 0x90C0
+    /** Returns queued events: u16 count, then count × (u16 code, u32 param). */
+    const val OP_NIKON_CHECK_EVENT = 0x90C7
+    /** OK when the body is ready for the next command, DeviceBusy while it works. */
+    const val OP_NIKON_DEVICE_READY = 0x90C8
+
+    // ── Standard event codes ──
+    const val EC_OBJECT_ADDED = 0x4002
+    const val EC_CAPTURE_COMPLETE = 0x400D
+    // ── Nikon event codes ──
+    const val EC_NIKON_OBJECT_ADDED_IN_SDRAM = 0xC101
+    const val EC_NIKON_CAPTURE_COMPLETE_REC_IN_SDRAM = 0xC102
+
+    /** Where Nikon parks an SDRAM capture when no event names it. */
+    const val NIKON_SDRAM_HANDLE = 0xFFFF0001L
+
+    // ── Object formats (ObjectInfo.ObjectFormat) ──
+    const val FORMAT_ASSOCIATION = 0x3001 // a folder
+    const val FORMAT_EXIF_JPEG = 0x3801
+
     // ── Canon EOS vendor operations (later milestones; listed for the map) ──
     const val OP_EOS_GET_PARTIAL_OBJECT = 0x9107
     /** One-shot release (no params). The ONLY release op older Rebels support. */
@@ -61,6 +83,9 @@ object Ptp {
     /** "Ask again" — EOS answers this to a release while AF/writing is in flight. */
     const val RESP_DEVICE_BUSY = 0x2019
     const val RESP_SESSION_ALREADY_OPEN = 0x201E
+    const val RESP_OPERATION_NOT_SUPPORTED = 0x2005
+    /** Nikon: the shot was refused because autofocus couldn't lock. */
+    const val RESP_NIKON_OUT_OF_FOCUS = 0xA002
 
     // ── Vendor extension IDs (from DeviceInfo) ──
     const val VENDOR_CANON = 0x0000000B
