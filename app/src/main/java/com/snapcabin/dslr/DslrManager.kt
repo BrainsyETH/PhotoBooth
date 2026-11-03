@@ -70,6 +70,14 @@ class DslrManager(private val context: Context) {
     val capture: StateFlow<Capture> = _capture.asStateFlow()
 
     /**
+     * True once the DSLR has produced a real photo (admin test OR booth shot)
+     * on the CURRENT connection. Cleared whenever the transport drops (unplug,
+     * auto power-off, release), so setup readiness can't go stale.
+     */
+    private val _verified = MutableStateFlow(false)
+    val verified: StateFlow<Boolean> = _verified.asStateFlow()
+
+    /**
      * Human-readable trace of the last capture attempt, shown on-screen in admin
      * so the operator can report what happened without pulling logcat over adb
      * (hard when the camera occupies the USB port).
@@ -278,6 +286,7 @@ class DslrManager(private val context: Context) {
                         null
                     }
                     _capture.value = Capture.Done(jpeg, bmp)
+                    if (bmp != null) _verified.value = true
                 } catch (e: Exception) {
                     Log.e(TAG, "DSLR capture failed", e)
                     if (e is java.io.IOException && e !is NoPhotoException) {
@@ -348,8 +357,10 @@ class DslrManager(private val context: Context) {
                         dropTransport()
                         captureOnce(reconnectForCapture(), eventTimeoutMs = 6_000, diffTimeoutMs = 6_000)
                     }
-                    decodeScaled(jpeg, maxDimension)
+                    val bitmap = decodeScaled(jpeg, maxDimension)
                         ?: throw NoPhotoException("Couldn't decode the DSLR photo.")
+                    _verified.value = true
+                    bitmap
                 } catch (e: NoPhotoException) {
                     throw e
                 } catch (e: java.io.IOException) {
@@ -879,6 +890,7 @@ class DslrManager(private val context: Context) {
         transport = null
         deviceInfo = null
         armedShot = null
+        _verified.value = false
         _capture.value = Capture.Idle
     }
 }

@@ -83,7 +83,7 @@ data class BoothSettings(
     val resendSubject: String = "Your photo from {event}", // {event} expands to the event name
     val resendBodyText: String = "Your photo is attached — save it, share it, treasure it.", // {event} expands; blank lines become paragraphs
     val resendMaxPerSession: Int = 3,         // rate limit to prevent abuse
-    val resendMaxPerAddress: Int = 3,         // per-recipient cap (anti-spam, per event)
+    val resendMaxPerAddress: Int = 10,        // per-recipient cap per event; guests often do several sessions
     val resendVerifiedAt: Long = 0L,          // set when a test email succeeds; cleared on credential edit
 
     // Cloudinary (public photo hosting for QR sharing — unsigned upload preset)
@@ -242,7 +242,7 @@ class SettingsManager @Inject constructor(
         resendBodyText = prefs[Keys.RESEND_BODY_TEXT]
             ?: "Your photo is attached — save it, share it, treasure it.",
         resendMaxPerSession = prefs[Keys.RESEND_MAX_PER_SESSION] ?: 3,
-        resendMaxPerAddress = prefs[Keys.RESEND_MAX_PER_ADDRESS] ?: 3,
+        resendMaxPerAddress = prefs[Keys.RESEND_MAX_PER_ADDRESS] ?: 10,
         resendVerifiedAt = prefs[Keys.RESEND_VERIFIED_AT] ?: 0L,
         cloudinaryEnabled = prefs[Keys.CLOUDINARY_ENABLED] ?: false,
         cloudinaryCloudName = prefs[Keys.CLOUDINARY_CLOUD_NAME] ?: "",

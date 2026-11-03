@@ -416,7 +416,16 @@ class ShareViewModel @Inject constructor(
                     limit = s.resendMaxPerAddress
                 )
                 if (reservation == null) {
-                    _uiState.value = _uiState.value.copy(message = "Email limit reached for that address this event.")
+                    // Guest-facing: never a dead end. Point at whatever else
+                    // on this screen still gets them the photo.
+                    val alternative = when {
+                        s.enableQrSharing && cachedPublicUrl != null -> " Scan the QR code to save this one."
+                        s.enablePrint -> " Tap Print to take this one home."
+                        else -> " Ask the host if you'd like more."
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        message = "That email has reached its photo limit for this event.$alternative"
+                    )
                     return@launch
                 }
                 _uiState.value = _uiState.value.copy(message = "Sending to $to…")

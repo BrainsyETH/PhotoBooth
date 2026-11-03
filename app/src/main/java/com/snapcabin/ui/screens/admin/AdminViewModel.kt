@@ -18,6 +18,7 @@ import com.snapcabin.settings.BoothSettings
 import com.snapcabin.settings.PhotoResolution
 import com.snapcabin.settings.SettingsManager
 import com.snapcabin.camera.CameraManager
+import com.snapcabin.camera.CameraTestStore
 import com.snapcabin.dslr.DslrManager
 import com.snapcabin.share.CloudinaryUploader
 import com.snapcabin.share.ResendEmailSender
@@ -48,18 +49,19 @@ class AdminViewModel @Inject constructor(
     private val soundManager: SoundManager,
     val cameraManager: CameraManager,
     val dslrManager: DslrManager,
+    private val cameraTestStore: CameraTestStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val _testedCameraSettings = MutableStateFlow<BoothSettings?>(null)
-    val testedCameraSettings: StateFlow<BoothSettings?> = _testedCameraSettings.asStateFlow()
+    /** Survives leaving admin (process-scoped); see [CameraTestStore]. */
+    val testedCameraKey: StateFlow<List<String>?> = cameraTestStore.testedKey
 
-    fun clearCameraTest() { _testedCameraSettings.value = null }
+    fun clearCameraTest() = cameraTestStore.clear()
 
     fun recordCameraTest(tested: BoothSettings) {
         val bound = cameraManager.bindState.value as? com.snapcabin.camera.CameraBindState.Bound
         if (bound?.matchedRequest == true && tested.cameraTestKey() == settings.value.cameraTestKey()) {
-            _testedCameraSettings.value = tested
+            cameraTestStore.record(tested.cameraTestKey())
         }
     }
 
@@ -108,7 +110,8 @@ class AdminViewModel @Inject constructor(
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
-            clearCameraTest()
+            // CameraTestStore invalidates the camera test itself (video devices
+            // only, and even while admin is closed).
             // Re-enumerate when a USB camera is plugged or unplugged
             detectCameras()
         }

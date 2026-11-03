@@ -223,15 +223,17 @@ internal fun ResendSection(
                     onValueChange = { v ->
                         viewModel.updateSetting { copy(resendMaxPerAddress = v.toInt()) }
                     },
-                    valueRange = 1f..10f,
-                    steps = 8,
+                    valueRange = 1f..50f,
+                    steps = 48,
                     modifier = Modifier.width(200.dp),
                     colors = adminSliderColors()
                 )
             }
 
             Text(
-                text = "Resend's free tier caps at 100 emails a day, so the per-session default is 3.",
+                text = "Resend's free tier caps at 100 emails a day, so the per-session default is 3. " +
+                    "The per-address cap counts every session for the whole event, so leave room for guests " +
+                    "who come back for more photos.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Espresso.copy(alpha = 0.6f),
                 modifier = Modifier.padding(horizontal = Spacing.xs)
