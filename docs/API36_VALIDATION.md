@@ -1,6 +1,7 @@
 # API 36 readiness
 
-The app now compiles/targets API 36 with AGP 8.10.1, Gradle 8.11.1 and JDK 17.
+The app now compiles/targets API 36 with AGP 8.10.1 and Gradle 8.11.1. Any JDK 17+ works
+(Android Studio's bundled JDK 21 locally, JDK 17 in CI); the Gradle daemon JDK is deliberately not pinned.
 The API 36 large-screen compatibility opt-out preserves landscape kiosk behavior.
 This is temporary: before targeting API 37, implement/test fully adaptive layouts.
 
