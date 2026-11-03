@@ -61,7 +61,6 @@ import com.snapcabin.ui.components.BigButton
 import com.snapcabin.ui.components.BigButtonVariant
 import com.snapcabin.ui.components.BrandingLiveOverlay
 import com.snapcabin.ui.components.CameraPermissionPrompt
-import com.snapcabin.ui.components.FramingGuide
 import com.snapcabin.ui.screens.capture.CaptureMode
 import com.snapcabin.ui.theme.CabinLine
 import com.snapcabin.ui.theme.Cream
@@ -197,37 +196,6 @@ fun GetReadyScreen(
                 onRequest = requestPermissions,
                 modifier = Modifier.align(Alignment.Center)
             )
-        }
-
-        if (settings.framingGuideEnabled) {
-            FramingGuide()
-
-            // Framing OK pill
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 80.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Cream.copy(alpha = 0.94f))
-                    .padding(horizontal = 18.dp, vertical = 10.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Pine)
-                )
-                Text(
-                    text = stringResource(R.string.getready_framing_ok).uppercase(),
-                    fontFamily = HankenGrotesk,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    letterSpacing = 0.18f.em,
-                    color = Espresso
-                )
-            }
         }
 
         // Bottom instructions card

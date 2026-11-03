@@ -45,7 +45,6 @@ data class BoothSettings(
     val gifFrameCount: Int = 6,
     val gifFrameDelayMs: Int = 250,
     val coachingEnabled: Boolean = true,
-    val framingGuideEnabled: Boolean = true,
     val flashColor: String = "#FDFAF1",
     val cameraLensPosition: String = "top", // top | bottom | left | right | none
     val posePromptsCollage: String = "",    // ||-delimited; empty = use defaults
@@ -146,7 +145,6 @@ class SettingsManager @Inject constructor(
         val GIF_FRAME_COUNT = intPreferencesKey("gif_frame_count")
         val GIF_FRAME_DELAY_MS = intPreferencesKey("gif_frame_delay_ms")
         val COACHING_ENABLED = booleanPreferencesKey("coaching_enabled")
-        val FRAMING_GUIDE_ENABLED = booleanPreferencesKey("framing_guide_enabled")
         val FLASH_COLOR = stringPreferencesKey("flash_color")
         val CAMERA_LENS_POSITION = stringPreferencesKey("camera_lens_position")
         val POSE_PROMPTS_COLLAGE = stringPreferencesKey("pose_prompts_collage")
@@ -213,7 +211,6 @@ class SettingsManager @Inject constructor(
         gifFrameCount = prefs[Keys.GIF_FRAME_COUNT] ?: 6,
         gifFrameDelayMs = prefs[Keys.GIF_FRAME_DELAY_MS] ?: 250,
         coachingEnabled = prefs[Keys.COACHING_ENABLED] ?: true,
-        framingGuideEnabled = prefs[Keys.FRAMING_GUIDE_ENABLED] ?: true,
         flashColor = prefs[Keys.FLASH_COLOR] ?: "#FDFAF1",
         cameraLensPosition = prefs[Keys.CAMERA_LENS_POSITION] ?: "top",
         posePromptsCollage = prefs[Keys.POSE_PROMPTS_COLLAGE] ?: "",
@@ -313,7 +310,6 @@ class SettingsManager @Inject constructor(
             prefs[Keys.GIF_FRAME_COUNT] = updated.gifFrameCount
             prefs[Keys.GIF_FRAME_DELAY_MS] = updated.gifFrameDelayMs
             prefs[Keys.COACHING_ENABLED] = updated.coachingEnabled
-            prefs[Keys.FRAMING_GUIDE_ENABLED] = updated.framingGuideEnabled
             prefs[Keys.FLASH_COLOR] = updated.flashColor
             prefs[Keys.CAMERA_LENS_POSITION] = updated.cameraLensPosition
             prefs[Keys.POSE_PROMPTS_COLLAGE] = updated.posePromptsCollage

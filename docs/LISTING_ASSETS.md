@@ -92,8 +92,7 @@ In rough priority order:
 2. **Mode select** — shows the animated mode previews
    (`AnimatedModePreview.kt`). Capture mid-animation so each card shows
    different state.
-3. **Get Ready** — the framing oval + "You're in frame" pill + bottom
-   instruction card all visible.
+3. **Get Ready** — live preview with the bottom instruction card visible.
 4. **Capture mid-count** — huge "2" with the LOOK HERE pointer pulsing.
 5. **Review (Collage)** — assembled 2×2 with the action row.
 6. **Share** — QR code + Email / Save / Print stack visible.

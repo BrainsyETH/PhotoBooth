@@ -855,14 +855,6 @@ internal fun CaptureSection(
             modifier = Modifier.padding(horizontal = Spacing.xs)
         )
 
-        SettingRow("Framing guide") {
-            Switch(
-                checked = settings.framingGuideEnabled,
-                onCheckedChange = { v -> viewModel.updateSetting { copy(framingGuideEnabled = v) } },
-                colors = adminSwitchColors()
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
