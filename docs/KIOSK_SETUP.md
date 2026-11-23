@@ -166,7 +166,9 @@ For better image quality you can plug a USB webcam — or a camera that
 offers a "webcam mode" — into the tablet's USB-C port (use an OTG
 adapter or a powered hub if the camera needs more power).
 
-1. Plug the camera in **before the event**, while you're in admin.
+1. Plug the camera in **before the event**, while you're in admin. (It
+   can be plugged in at any time — the app picks up a camera connected
+   after it started — but set it up and test it before guests arrive.)
 2. Open **CAMERA** and check the **External camera (USB)** box. It tells
    you whether the tablet sees the USB device and whether Android is
    exposing it as a camera. Tap **REFRESH CAMERAS** after plugging in.
@@ -174,9 +176,12 @@ adapter or a powered hub if the camera needs more power).
    **— External**, tap it. If it doesn't show up in that list (USB cameras
    don't always enumerate there), tap **USE EXTERNAL USB CAMERA** in the
    External camera box instead — that binds to whatever USB camera is
-   connected. Either way, turn **Mirror Image** off (external cameras face
-   guests like a rear camera) and run **TEST CAMERA** to confirm the live
-   preview.
+   connected. Then run **TEST CAMERA** to confirm the live preview. Under
+   the preview, **Live now** names the camera that is actually running; if
+   it isn't the USB camera, the line below it says why.
+   **Mirror Image** flips both the preview and the photo for a USB camera,
+   so the photo always matches what guests saw: leave it on for a
+   mirror-like booth, turn it off if signs or shirts need to read correctly.
 4. **Allow the microphone prompt.** USB cameras are audio+video devices,
    so Android won't open one unless the app has microphone permission.
    SnapCabin never records audio — it only needs the permission to turn
@@ -193,7 +198,16 @@ tablet's Android build doesn't support USB (UVC) cameras — not every
 tablet does. The booth works fine on the built-in camera; if an external
 camera matters, test the exact tablet + camera pair before event day.
 Keep the camera plugged in for the whole event: if it disconnects
-mid-session the booth automatically falls back to a built-in camera.
+mid-session the booth automatically falls back to a built-in camera, and
+switches back by itself when the camera is plugged in again. A USB camera
+that stays connected but stops working (won't turn on, or two shots in a
+row fail) is skipped for 3 minutes so guests keep getting photos from the
+tablet camera; replugging it, or **REFRESH CAMERAS** in admin, tries it
+again right away.
+
+USB cameras are used in widescreen (16:9) at the highest resolution the
+camera offers, up to the **Photo Resolution** setting. A typical webcam or
+HDMI capture stick gives 1080p photos.
 
 ### Using a DSLR (Canon, Nikon, etc.)
 

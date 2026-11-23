@@ -1,5 +1,6 @@
 package com.snapcabin.camera
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -17,6 +18,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Surface
 import androidx.camera.camera2.interop.Camera2CameraInfo
@@ -27,6 +29,7 @@ import androidx.camera.core.CameraState
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -73,7 +76,9 @@ sealed class CameraBindState {
         val facingLabel: String,
         val isExternal: Boolean,
         /** False when this is a fallback, not the camera the settings asked for. */
-        val matchedRequest: Boolean
+        val matchedRequest: Boolean,
+        /** Operator-facing reason for a fallback, when one is known. */
+        val note: String? = null
     ) : CameraBindState()
 
     data class Failed(val message: String) : CameraBindState()
@@ -102,9 +107,7 @@ class CameraManager @Inject constructor(
     private var imageCapture: ImageCapture? = null
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
-    private var useFrontCamera: Boolean = true
     @Volatile private var mirrorImage: Boolean = true // read on captureExecutor
-    private var selectedCameraId: String = ""
 
     private val _bindState = MutableStateFlow<CameraBindState>(CameraBindState.Idle)
     /** What's live right now — admin surfaces this under TEST CAMERA. */
@@ -134,7 +137,22 @@ class CameraManager @Inject constructor(
     )
     private var lastRequest: BindRequest? = null
     private var recoveryAttempts = 0
-    private val recoveryRunnable = Runnable { rebindLast("scheduled recovery") }
+    private val recoveryRunnable = Runnable {
+        // Waiting for a USB camera to show up must not restart the live
+        // preview every few seconds: rebind only when it would change cameras.
+        if (recoveryWouldChangeNothing()) scheduleRecovery() else rebindLast("scheduled recovery")
+    }
+
+    /** Cameras a CameraX restart was already tried for (see [CameraPlan.refreshFor]). */
+    private val refreshTried = mutableSetOf<String>()
+
+    /**
+     * A USB camera that keeps failing (won't open, shots time out) is skipped
+     * until this time so guests get the tablet camera instead of a dark booth.
+     */
+    private var externalPausedUntil = 0L
+    private var externalStrikes = 0
+    private var openWatchdog: Runnable? = null
 
     private val cameraStateObserver = Observer<CameraState> { onCameraState(it) }
     private var observedCameraState: LiveData<CameraState>? = null
@@ -156,13 +174,17 @@ class CameraManager @Inject constructor(
         /** Recovery backoff: 1 s, 2 s, 4 s, 8 s, 15 s, then wait for the next trigger. */
         private val RECOVERY_DELAYS_MS = longArrayOf(1_000, 2_000, 4_000, 8_000, 15_000)
 
-        /**
-         * Sentinel camera id meaning "bind to whatever external (USB) camera is
-         * present, by lens-facing." More robust than a specific Camera2 id:
-         * external cameras enumerate unreliably in cameraIdList, but CameraX can
-         * still select them by LENS_FACING_EXTERNAL.
-         */
-        const val EXTERNAL_CAMERA_ID = "external"
+        /** Any external (USB) camera; see [com.snapcabin.camera.EXTERNAL_CAMERA_ID]. */
+        const val EXTERNAL_CAMERA_ID = com.snapcabin.camera.EXTERNAL_CAMERA_ID
+
+        /** A bound USB camera that hasn't opened by now is treated as dead. */
+        private const val EXTERNAL_OPEN_TIMEOUT_MS = 8_000L
+
+        /** Failures in a row before the USB camera is skipped for a while. */
+        private const val EXTERNAL_MAX_STRIKES = 2
+
+        /** How long a failing USB camera is skipped (same as the DSLR pause). */
+        private const val EXTERNAL_PAUSE_MS = 3 * 60_000L
     }
 
     init {
@@ -175,10 +197,7 @@ class CameraManager @Inject constructor(
                 val device: UsbDevice? =
                     @Suppress("DEPRECATION")
                     intent?.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-                val isVideo = device != null && (0 until device.interfaceCount).any {
-                    device.getInterface(it).interfaceClass == UsbConstants.USB_CLASS_VIDEO
-                }
-                if (!isVideo) return // DSLR (PTP), printers, hubs: not our camera
+                if (device == null || !device.isVideoDevice()) return // DSLR (PTP), printers, hubs
                 when (intent?.action) {
                     UsbManager.ACTION_USB_DEVICE_DETACHED -> {
                         val bound = _bindState.value as? CameraBindState.Bound
@@ -189,15 +208,9 @@ class CameraManager @Inject constructor(
                         }
                     }
                     UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
-                        val bound = _bindState.value as? CameraBindState.Bound
-                        val wantsExternal = lastRequest?.cameraId?.isNotEmpty() == true
-                        if (wantsExternal && bound?.matchedRequest != true) {
-                            // The camera HAL needs a moment to enumerate the
-                            // new device; the backoff covers a slow one.
-                            Log.i(TAG, "Video device attached — trying to get the selected camera back")
-                            recoveryAttempts = 0
-                            scheduleRecovery()
-                        }
+                        // A (re)plugged camera gets a clean slate.
+                        clearExternalPause()
+                        onWantedCameraMayBeBack("USB video device attached")
                     }
                 }
             }
@@ -209,6 +222,79 @@ class CameraManager @Inject constructor(
         // Protected system broadcasts — exempt from the API 34 export-flag rule.
         @Suppress("UnspecifiedRegisterReceiverFlag")
         context.registerReceiver(receiver, filter)
+
+        // The USB broadcast arrives before the camera service has finished
+        // enumerating the device, and never arrives for a camera that was
+        // already plugged in at boot. This fires when the camera is really
+        // usable, so the booth switches to it without guessing a delay.
+        try {
+            val systemCameraManager = context.getSystemService(Context.CAMERA_SERVICE) as SystemCameraManager
+            systemCameraManager.registerAvailabilityCallback(
+                object : SystemCameraManager.AvailabilityCallback() {
+                    override fun onCameraAvailable(cameraId: String) {
+                        val bound = _bindState.value as? CameraBindState.Bound
+                        if (cameraId == bound?.cameraId) return
+                        if (systemCameras()?.any { it.id == cameraId && it.isExternal } != true) return
+                        onWantedCameraMayBeBack("External camera $cameraId available")
+                    }
+                },
+                mainHandler
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Couldn't watch camera availability", e)
+        }
+    }
+
+    private fun UsbDevice.isVideoDevice(): Boolean = (0 until interfaceCount).any {
+        getInterface(it).interfaceClass == UsbConstants.USB_CLASS_VIDEO
+    }
+
+    /** The selected camera isn't the live one and may be usable now: go look. */
+    private fun onWantedCameraMayBeBack(reason: String) {
+        val wantsSpecific = lastRequest?.cameraId?.isNotEmpty() == true
+        val bound = _bindState.value as? CameraBindState.Bound
+        if (!wantsSpecific || bound?.matchedRequest == true) return
+        Log.i(TAG, "$reason — trying to get the selected camera back")
+        recoveryAttempts = 0
+        scheduleRecovery()
+    }
+
+    /**
+     * Try the selected camera again right now — after the operator grants a
+     * permission or asks for a retry. Clears any failure pause.
+     */
+    fun retrySelectedCamera() {
+        clearExternalPause()
+        val bound = _bindState.value as? CameraBindState.Bound
+        if (lastRequest?.cameraId?.isNotEmpty() == true && bound?.matchedRequest != true) {
+            recoveryAttempts = 0
+            rebindLast("retry requested")
+        }
+    }
+
+    /** What the system camera service lists right now, or null if it can't be read. */
+    private fun systemCameras(): List<KnownCamera>? = try {
+        val systemCameraManager = context.getSystemService(Context.CAMERA_SERVICE) as SystemCameraManager
+        systemCameraManager.cameraIdList.mapNotNull { id ->
+            try {
+                val facing = systemCameraManager.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.LENS_FACING)
+                KnownCamera(id, facing == CameraCharacteristics.LENS_FACING_EXTERNAL)
+            } catch (e: Exception) {
+                null // unplugged between the list and the lookup
+            }
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "Failed to list system cameras", e)
+        null
+    }
+
+    /** True when a USB video-class (UVC) device is physically plugged in. */
+    fun hasUsbVideoDevice(): Boolean = try {
+        (context.getSystemService(Context.USB_SERVICE) as? UsbManager)
+            ?.deviceList?.values?.any { it.isVideoDevice() } == true
+    } catch (e: Exception) {
+        false
     }
 
     /**
@@ -282,8 +368,13 @@ class CameraManager @Inject constructor(
      */
     fun missingGuestPermissions(cameraId: String): Array<String> = buildList {
         if (!isGranted(android.Manifest.permission.CAMERA)) add(android.Manifest.permission.CAMERA)
-        val externalSelected = cameraId == EXTERNAL_CAMERA_ID ||
-            (cameraId.isNotEmpty() && detectCameras().any { it.id == cameraId && it.isExternal })
+        val externalSelected = cameraId == EXTERNAL_CAMERA_ID || (
+            cameraId.isNotEmpty() && detectCameras().let { cams ->
+                // Listed as external, or a USB camera that isn't listed yet.
+                cams.any { it.id == cameraId && it.isExternal } ||
+                    (cams.none { it.id == cameraId } && hasUsbVideoDevice())
+            }
+        )
         if (externalSelected && !isGranted(android.Manifest.permission.RECORD_AUDIO)) {
             add(android.Manifest.permission.RECORD_AUDIO)
         }
@@ -301,160 +392,267 @@ class CameraManager @Inject constructor(
         mirror: Boolean = true,
         maxResolution: Int = Int.MAX_VALUE
     ) {
-        useFrontCamera = useFront
         mirrorImage = mirror
-        selectedCameraId = cameraId
         _bindState.value = CameraBindState.Idle
         mainHandler.removeCallbacks(recoveryRunnable)
+        cancelOpenWatchdog()
         recoveryAttempts = 0 // rebindLast() restores its own count after this
-        lastRequest = BindRequest(
+        val request = BindRequest(
             WeakReference(lifecycleOwner), WeakReference(previewView),
             useFront, cameraId, mirror, maxResolution
         )
+        lastRequest = request
+        startBind(request)
+    }
 
+    private fun startBind(request: BindRequest) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
         cameraProviderFuture.addListener({
-            try {
-                val provider = cameraProviderFuture.get()
-                cameraProvider = provider
+            // A newer bind (settings change, recovery) replaced this one.
+            if (lastRequest !== request) return@addListener
+            val owner = request.owner.get()
+            val view = request.view.get()
+            if (owner == null || view == null ||
+                owner.lifecycle.currentState == Lifecycle.State.DESTROYED
+            ) {
+                return@addListener
+            }
+            val provider = try {
+                cameraProviderFuture.get()
+            } catch (e: Exception) {
+                Log.e(TAG, "CameraX failed to start", e)
+                _bindState.value = CameraBindState.Failed("The camera couldn't start. Retrying…")
+                scheduleRecovery()
+                return@addListener
+            }
+            cameraProvider = provider
 
-                val preview = Preview.Builder()
-                    .build()
-                    .also { it.surfaceProvider = previewView.surfaceProvider }
-
-                val captureBuilder = ImageCapture.Builder()
-                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-
-                // Apply resolution constraint if not max
-                if (maxResolution < Int.MAX_VALUE) {
-                    val resSelector = ResolutionSelector.Builder()
-                        .setResolutionStrategy(
-                            ResolutionStrategy(
-                                android.util.Size(maxResolution, maxResolution * 3 / 4),
-                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
-                            )
-                        )
-                        .build()
-                    captureBuilder.setResolutionSelector(resSelector)
+            val plan = planFor(request.cameraId, provider)
+            val unseenCamera = plan.refreshFor
+            if (unseenCamera != null) {
+                // Plugged in after CameraX started: CameraX reads the camera
+                // list once, so it has to be restarted to see this camera.
+                refreshTried += unseenCamera
+                refreshProvider(provider) {
+                    if (lastRequest === request) startBind(request)
                 }
+                return@addListener
+            }
 
-                val capture = captureBuilder.build()
-                capture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
-
-                imageCapture = capture
-
-                val cameraSelector = buildCameraSelector(provider, cameraId, useFront)
-
-                provider.unbindAll()
-                val bound = provider.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    preview,
-                    imageCapture
+            val plannedId = plan.cameraId
+            val info = plannedId?.let { infoFor(provider, it) }
+            try {
+                val selector = when {
+                    plannedId != null && info != null -> selectorForId(plannedId)
+                    request.useFront -> CameraSelector.DEFAULT_FRONT_CAMERA
+                    else -> CameraSelector.DEFAULT_BACK_CAMERA
+                }
+                bindTo(provider, owner, view, request, plan, selector, info, plainUseCases = false)
+                Log.i(
+                    TAG,
+                    "Camera bound: ${_bindState.value} " +
+                        "(requested front=${request.useFront} id=${request.cameraId})"
                 )
-                camera = bound
-                watchCameraState(bound)
-                _bindState.value = describeBound(bound, cameraId)
-
-                Log.i(TAG, "Camera bound: ${_bindState.value} (requested front=$useFront id=$cameraId)")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to bind camera, trying fallback", e)
-                tryFallbackCamera(cameraProviderFuture.get(), lifecycleOwner, previewView)
+                if (info != null && isExternalInfo(info)) noteExternalStrike("bind failed")
+                tryFallbackCamera(provider, owner, view, request, plan)
             }
         }, ContextCompat.getMainExecutor(context))
     }
 
+    /** Decide which camera this request should get right now. Main thread only. */
+    private fun planFor(requestedId: String, provider: ProcessCameraProvider): CameraPlan {
+        val known = providerCameras(provider)
+        val system = systemCameras() ?: known
+        refreshTried.retainAll(system.map { it.id }.toSet())
+        return planCamera(
+            requestedId = requestedId,
+            system = system,
+            provider = known,
+            usbVideoPresent = hasUsbVideoDevice(),
+            micGranted = isGranted(android.Manifest.permission.RECORD_AUDIO),
+            externalPaused = SystemClock.elapsedRealtime() < externalPausedUntil,
+            refreshTried = refreshTried
+        )
+    }
+
     /**
-     * Build a CameraSelector. If [cameraId] is set, bind to that specific Camera2 ID
-     * (handles external/USB cameras). Otherwise default to front/back per [useFront].
+     * Shut CameraX down so the next [ProcessCameraProvider.getInstance] starts
+     * a fresh one that re-reads the camera list. CameraX only supports cameras
+     * added at runtime from 1.6; until the app moves to it, this is how a USB
+     * camera plugged in after startup becomes usable without restarting the app.
      */
-    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
-    private fun buildCameraSelector(
-        provider: ProcessCameraProvider,
-        cameraId: String,
-        useFront: Boolean
-    ): CameraSelector {
-        // "Use external camera" — bind to any external camera by lens-facing.
-        if (cameraId == EXTERNAL_CAMERA_ID) {
-            val external = externalCameraSelector()
-            try {
-                if (provider.hasCamera(external)) return external
-            } catch (e: Exception) {
-                Log.w(TAG, "External camera not bindable yet, falling back", e)
-            }
-            // Fall through to a built-in default if no external is ready.
-            return if (useFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
-        }
-
-        if (cameraId.isNotEmpty()) {
-            try {
-                val selector = CameraSelector.Builder()
-                    .addCameraFilter { cameraInfos ->
-                        cameraInfos.filter { info ->
-                            Camera2CameraInfo.from(info).cameraId == cameraId
-                        }
-                    }
-                    .build()
-                if (provider.hasCamera(selector)) {
-                    return selector
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Specific camera ID $cameraId not available, falling back", e)
-            }
-        }
-
-        return if (useFront) {
-            CameraSelector.DEFAULT_FRONT_CAMERA
-        } else {
-            CameraSelector.DEFAULT_BACK_CAMERA
+    @SuppressLint("VisibleForTests", "RestrictedApi")
+    private fun refreshProvider(provider: ProcessCameraProvider, then: () -> Unit) {
+        Log.i(TAG, "Restarting CameraX to pick up a newly connected camera")
+        observedCameraState?.removeObserver(cameraStateObserver)
+        observedCameraState = null
+        camera = null
+        imageCapture = null
+        cameraProvider = null
+        try {
+            provider.shutdownAsync().addListener({ then() }, ContextCompat.getMainExecutor(context))
+        } catch (e: Exception) {
+            Log.w(TAG, "CameraX restart failed", e)
+            then()
         }
     }
 
-    /** A selector matching any LENS_FACING_EXTERNAL camera. */
     @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
-    private fun externalCameraSelector(): CameraSelector =
+    private fun cameraIdOf(info: CameraInfo): String? = try {
+        Camera2CameraInfo.from(info).cameraId
+    } catch (e: Exception) {
+        null
+    }
+
+    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
+    private fun isExternalInfo(info: CameraInfo): Boolean = try {
+        Camera2CameraInfo.from(info)
+            .getCameraCharacteristic(CameraCharacteristics.LENS_FACING) ==
+            CameraCharacteristics.LENS_FACING_EXTERNAL
+    } catch (e: Exception) {
+        false
+    }
+
+    /** The cameras CameraX knows — fixed when it started, so it can be stale. */
+    private fun providerCameras(provider: ProcessCameraProvider): List<KnownCamera> =
+        provider.availableCameraInfos.mapNotNull { info ->
+            cameraIdOf(info)?.let { KnownCamera(it, isExternalInfo(info)) }
+        }
+
+    private fun infoFor(provider: ProcessCameraProvider, cameraId: String): CameraInfo? =
+        provider.availableCameraInfos.firstOrNull { cameraIdOf(it) == cameraId }
+
+    private fun selectorForId(cameraId: String): CameraSelector =
         CameraSelector.Builder()
-            .addCameraFilter { infos ->
-                infos.filter { info ->
-                    try {
-                        Camera2CameraInfo.from(info)
-                            .getCameraCharacteristic(CameraCharacteristics.LENS_FACING) ==
-                            CameraCharacteristics.LENS_FACING_EXTERNAL
-                    } catch (e: Exception) { false }
-                }
-            }
+            .addCameraFilter { infos -> infos.filter { cameraIdOf(it) == cameraId } }
             .build()
 
     /**
-     * If the primary bind failed, walk the fallback chain:
-     * 1) the opposite built-in (back if we tried front, etc.)
-     * 2) any external camera that's available
+     * Bind preview + still capture to one camera and publish the result.
+     * [info] is set when binding a specific camera by id (null = a built-in
+     * default selector). Throws if the camera can't be bound.
      */
-    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
+    private fun bindTo(
+        provider: ProcessCameraProvider,
+        owner: LifecycleOwner,
+        view: PreviewView,
+        request: BindRequest,
+        plan: CameraPlan,
+        selector: CameraSelector,
+        info: CameraInfo?,
+        plainUseCases: Boolean
+    ) {
+        val external = info != null && isExternalInfo(info)
+        // A USB camera sits on its own stand: its picture must not turn when
+        // the TABLET is rotated. CameraX assumes every camera is fixed to the
+        // device and would turn the preview and photo sideways on tablets
+        // whose landscape is a rotated display, so pin the rotation instead.
+        val steady = external && info?.getSensorRotationDegrees(Surface.ROTATION_0) == 0
+
+        val previewBuilder = Preview.Builder()
+        val captureBuilder = ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+        when {
+            external -> {
+                // Webcams and HDMI capture sticks are 16:9. CameraX prefers
+                // 4:3 by default, which picks a webcam's small 4:3 modes
+                // (960x720 on a 1080p camera) and makes a capture stick
+                // squeeze the HDMI picture.
+                previewBuilder.setResolutionSelector(
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                        .build()
+                )
+                captureBuilder.setResolutionSelector(externalCaptureResolution(request.maxResolution))
+            }
+            !plainUseCases && request.maxResolution < Int.MAX_VALUE -> {
+                captureBuilder.setResolutionSelector(
+                    ResolutionSelector.Builder()
+                        .setResolutionStrategy(
+                            ResolutionStrategy(
+                                android.util.Size(request.maxResolution, request.maxResolution * 3 / 4),
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
+                            )
+                        )
+                        .build()
+                )
+            }
+        }
+        if (steady) previewBuilder.setTargetRotation(Surface.ROTATION_0)
+
+        val preview = previewBuilder.build().also { it.surfaceProvider = view.surfaceProvider }
+        val capture = captureBuilder.build()
+        capture.targetRotation =
+            if (steady) Surface.ROTATION_0 else view.display?.rotation ?: Surface.ROTATION_0
+
+        provider.unbindAll()
+        val bound = provider.bindToLifecycle(owner, selector, preview, capture)
+        imageCapture = capture
+        camera = bound
+        // The built-in front preview is mirrored by CameraX; a USB camera's
+        // isn't. Flip it here so "Mirror Image" means the same thing for both:
+        // the photo matches what guests saw on screen.
+        view.scaleX = if (external && request.mirror) -1f else 1f
+
+        val state = describeBound(bound, request.cameraId, plan)
+        _bindState.value = state
+        watchCameraState(bound)
+        when {
+            state.isExternal -> armOpenWatchdog(request)
+            // Plugged in but not offered as a camera yet (still enumerating,
+            // e.g. right after boot): keep checking, without touching the preview.
+            plan.fallback == FallbackReason.NOT_OFFERED_BY_TABLET -> scheduleRecovery()
+        }
+    }
+
+    private fun externalCaptureResolution(maxResolution: Int): ResolutionSelector =
+        ResolutionSelector.Builder()
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+            .setResolutionStrategy(
+                if (maxResolution < Int.MAX_VALUE) {
+                    ResolutionStrategy(
+                        android.util.Size(maxResolution, maxResolution * 9 / 16),
+                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
+                    )
+                } else {
+                    ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
+                }
+            )
+            .build()
+
+    /**
+     * If the planned bind failed, walk the fallback chain: the built-in camera
+     * the settings prefer, the other built-in, then a usable USB camera.
+     */
     private fun tryFallbackCamera(
         provider: ProcessCameraProvider,
-        lifecycleOwner: LifecycleOwner,
-        previewView: PreviewView
+        owner: LifecycleOwner,
+        view: PreviewView,
+        request: BindRequest,
+        plan: CameraPlan
     ) {
-        val candidates = buildList {
-            add(if (useFrontCamera) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA)
-            // Any LENS_FACING_EXTERNAL camera.
-            add(externalCameraSelector())
+        val preferred = if (request.useFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+        val other = if (request.useFront) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
+        val candidates = buildList<Pair<CameraSelector, CameraInfo?>> {
+            // The planned camera was a specific one, so the preferred built-in is untried.
+            if (plan.cameraId != null) add(preferred to null)
+            add(other to null)
+            val usb = planFor(EXTERNAL_CAMERA_ID, provider).cameraId
+            if (usb != null && usb != plan.cameraId) {
+                infoFor(provider, usb)?.let { add(selectorForId(usb) to it) }
+            }
         }
+        // The planned camera failed, so whatever binds now is a fallback.
+        val fallbackPlan =
+            if (plan.cameraId != null) plan.copy(fallback = FallbackReason.NOT_USABLE) else plan
 
-        for (selector in candidates) {
+        for ((selector, info) in candidates) {
             try {
                 if (!provider.hasCamera(selector)) continue
-                val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
-                imageCapture = ImageCapture.Builder()
-                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                    .build()
-                provider.unbindAll()
-                val bound = provider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture)
-                camera = bound
-                watchCameraState(bound)
-                _bindState.value = describeBound(bound, selectedCameraId)
+                bindTo(provider, owner, view, request, fallbackPlan, selector, info, plainUseCases = true)
                 Log.i(TAG, "Fallback camera bound: ${_bindState.value}")
                 return
             } catch (e: Exception) {
@@ -468,6 +666,81 @@ class CameraManager @Inject constructor(
         // Keep trying in the background (camera service busy, USB camera
         // still enumerating) instead of leaving the booth dark all night.
         scheduleRecovery()
+    }
+
+    private fun fallbackNote(reason: FallbackReason?): String? = when (reason) {
+        FallbackReason.NOT_CONNECTED -> "No USB camera is connected."
+        FallbackReason.NOT_OFFERED_BY_TABLET ->
+            "A USB camera is plugged in, but the tablet isn't offering it as a camera yet."
+        FallbackReason.MIC_NOT_ALLOWED ->
+            "Microphone access isn't allowed, and Android won't turn a USB camera on without it."
+        FallbackReason.PAUSED_AFTER_FAILURES ->
+            "The USB camera kept failing, so the booth is using the tablet camera for a few minutes."
+        FallbackReason.NOT_USABLE -> "The selected camera couldn't be started on this tablet."
+        null -> null
+    }
+
+    private fun noteExternalStrike(reason: String) {
+        externalStrikes++
+        Log.w(TAG, "USB camera failure $externalStrikes/$EXTERNAL_MAX_STRIKES: $reason")
+        if (externalStrikes >= EXTERNAL_MAX_STRIKES) pauseExternal()
+    }
+
+    private fun pauseExternal() {
+        externalStrikes = 0
+        externalPausedUntil = SystemClock.elapsedRealtime() + EXTERNAL_PAUSE_MS
+        Log.w(TAG, "USB camera paused for ${EXTERNAL_PAUSE_MS / 60_000} min; using a built-in camera")
+    }
+
+    private fun clearExternalPause() {
+        externalStrikes = 0
+        externalPausedUntil = 0L
+    }
+
+    /**
+     * A USB camera can bind fine and then never open — unplugged a moment ago,
+     * or refused by the camera service — and CameraX just keeps retrying behind
+     * a black preview. If it isn't open shortly after binding, give guests the
+     * tablet camera instead.
+     */
+    private fun armOpenWatchdog(request: BindRequest) {
+        cancelOpenWatchdog()
+        val watchdog = Runnable {
+            openWatchdog = null
+            val owner = request.owner.get()
+            if (lastRequest !== request || owner == null) return@Runnable
+            // Off screen (tablet asleep, app in the background): CameraX keeps
+            // the camera closed on purpose.
+            if (!owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@Runnable
+            if (observedCameraState?.value?.type == CameraState.Type.OPEN) return@Runnable
+            Log.e(TAG, "USB camera didn't open within ${EXTERNAL_OPEN_TIMEOUT_MS}ms")
+            pauseExternal()
+            rebindLast("USB camera never opened")
+        }
+        openWatchdog = watchdog
+        mainHandler.postDelayed(watchdog, EXTERNAL_OPEN_TIMEOUT_MS)
+    }
+
+    private fun cancelOpenWatchdog() {
+        openWatchdog?.let { mainHandler.removeCallbacks(it) }
+        openWatchdog = null
+    }
+
+    /**
+     * True when a recovery rebind would land on the camera that's already
+     * live — e.g. still waiting for a USB camera to appear.
+     */
+    private fun recoveryWouldChangeNothing(): Boolean {
+        val request = lastRequest ?: return false
+        val bound = _bindState.value as? CameraBindState.Bound ?: return false
+        val provider = cameraProvider ?: return false
+        val plan = planFor(request.cameraId, provider)
+        if (plan.refreshFor != null) return false
+        return if (plan.cameraId != null) {
+            plan.cameraId == bound.cameraId
+        } else {
+            !bound.isExternal && !bound.matchedRequest
+        }
     }
 
     /** Follow the bound camera's health; only one camera is observed at a time. */
@@ -492,17 +765,27 @@ class CameraManager @Inject constructor(
         // or a successful capture.
         val error = state.error ?: return
         Log.w(TAG, "Camera state ${state.type} error code=${error.code} type=${error.type}")
-        if (error.type == CameraState.ErrorType.CRITICAL) {
-            _bindState.value = CameraBindState.Failed(
-                when (error.code) {
-                    CameraState.ERROR_CAMERA_DISABLED -> "The camera is disabled on this tablet (device policy)."
-                    CameraState.ERROR_DO_NOT_DISTURB_MODE_ENABLED -> "Do Not Disturb is blocking the camera — turn it off."
-                    CameraState.ERROR_STREAM_CONFIG -> "The camera rejected this resolution — try a lower one."
-                    else -> "The camera stopped responding. Reconnecting…"
-                }
-            )
-            scheduleRecovery()
+        val bound = _bindState.value as? CameraBindState.Bound
+        if (error.type != CameraState.ErrorType.CRITICAL) {
+            // CameraX retries these forever — pointless once the camera has
+            // been unplugged, so move on as soon as the system stops listing it.
+            if (bound?.isExternal == true &&
+                systemCameras()?.none { it.id == bound.cameraId } == true && !hasUsbVideoDevice()
+            ) {
+                scheduleRecovery()
+            }
+            return
         }
+        if (bound?.isExternal == true) noteExternalStrike("camera error ${error.code}")
+        _bindState.value = CameraBindState.Failed(
+            when (error.code) {
+                CameraState.ERROR_CAMERA_DISABLED -> "The camera is disabled on this tablet (device policy)."
+                CameraState.ERROR_DO_NOT_DISTURB_MODE_ENABLED -> "Do Not Disturb is blocking the camera — turn it off."
+                CameraState.ERROR_STREAM_CONFIG -> "The camera rejected this resolution — try a lower one."
+                else -> "The camera stopped responding. Reconnecting…"
+            }
+        )
+        scheduleRecovery()
     }
 
     private fun scheduleRecovery() {
@@ -536,10 +819,10 @@ class CameraManager @Inject constructor(
     /**
      * Resolve which physical camera actually got bound, and whether it's the
      * one the settings asked for ([requestedId] "" = auto, sentinel = any
-     * external, otherwise a specific Camera2 id).
+     * external, otherwise a specific Camera2 id; [plan] is how it was chosen).
      */
     @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
-    private fun describeBound(bound: Camera, requestedId: String): CameraBindState.Bound {
+    private fun describeBound(bound: Camera, requestedId: String, plan: CameraPlan): CameraBindState.Bound {
         val info = Camera2CameraInfo.from(bound.cameraInfo)
         val facing = try {
             info.getCameraCharacteristic(CameraCharacteristics.LENS_FACING)
@@ -554,15 +837,18 @@ class CameraManager @Inject constructor(
             else -> "Camera"
         }
         val matched = when {
-            requestedId == EXTERNAL_CAMERA_ID -> isExternal
-            requestedId.isNotEmpty() -> info.cameraId == requestedId
-            else -> true
+            requestedId.isEmpty() -> true
+            // Any USB camera satisfies the request (including one that came
+            // back under a new id after a replug).
+            plan.acceptAnyExternal -> isExternal
+            else -> info.cameraId == requestedId
         }
         return CameraBindState.Bound(
             cameraId = info.cameraId,
             facingLabel = facingLabel,
             isExternal = isExternal,
-            matchedRequest = matched
+            matchedRequest = matched,
+            note = if (matched) null else fallbackNote(plan.fallback)
         )
     }
 
@@ -581,13 +867,33 @@ class CameraManager @Inject constructor(
         timeoutMs: Long = CAPTURE_TIMEOUT_MS
     ): Bitmap {
         val maxDim = maxDecodeDimension.coerceIn(320, MAX_DECODE_DIMENSION)
-        val photo = withTimeoutOrNull(timeoutMs) { captureStill(maxDim) }
+        val photo = try {
+            withTimeoutOrNull(timeoutMs) { captureStill(maxDim) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A USB camera that streams but can't deliver stills: after a
+            // couple of misses, hand guests the tablet camera.
+            mainHandler.post {
+                if ((_bindState.value as? CameraBindState.Bound)?.isExternal == true) {
+                    noteExternalStrike("capture failed")
+                    if (SystemClock.elapsedRealtime() < externalPausedUntil) rebindLast("USB camera paused")
+                }
+            }
+            throw e
+        }
         if (photo != null) {
-            recoveryAttempts = 0 // healthy again — future failures get a full backoff
+            mainHandler.post {
+                recoveryAttempts = 0 // healthy again — future failures get a full backoff
+                externalStrikes = 0
+            }
             return photo
         }
         Log.e(TAG, "Capture timed out after ${timeoutMs}ms — re-opening the camera")
         mainHandler.post {
+            if ((_bindState.value as? CameraBindState.Bound)?.isExternal == true) {
+                noteExternalStrike("capture timed out")
+            }
             recoveryAttempts = 0
             rebindLast("capture timeout")
         }
@@ -719,6 +1025,7 @@ class CameraManager @Inject constructor(
 
     fun release() {
         mainHandler.removeCallbacks(recoveryRunnable)
+        cancelOpenWatchdog()
         lastRequest = null
         observedCameraState?.removeObserver(cameraStateObserver)
         observedCameraState = null

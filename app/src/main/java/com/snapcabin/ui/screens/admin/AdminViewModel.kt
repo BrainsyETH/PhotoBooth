@@ -102,7 +102,9 @@ class AdminViewModel @Inject constructor(
         /** Some device exposes a USB video-class (UVC webcam) interface. */
         val hasVideoDevice: Boolean = false,
         /** Some device exposes ONLY a still-image (PTP) interface — a DSLR tether, not a webcam. */
-        val hasPtpOnlyDevice: Boolean = false
+        val hasPtpOnlyDevice: Boolean = false,
+        /** Product names of the video-class devices, so the operator can see WHICH camera the tablet found. */
+        val videoDeviceNames: List<String> = emptyList()
     )
 
     private val _usbDiagnostics = MutableStateFlow(UsbDiagnostics())
@@ -268,6 +270,7 @@ class AdminViewModel @Inject constructor(
                 ?.deviceList?.values.orEmpty()
             var video = false
             var ptpOnly = false
+            val videoNames = mutableListOf<String>()
             for (device in devices) {
                 var hasVideo = false
                 var hasStill = false
@@ -277,13 +280,17 @@ class AdminViewModel @Inject constructor(
                         UsbConstants.USB_CLASS_STILL_IMAGE -> hasStill = true
                     }
                 }
-                if (hasVideo) video = true
+                if (hasVideo) {
+                    video = true
+                    device.productName?.trim()?.takeIf { it.isNotEmpty() }?.let { videoNames += it }
+                }
                 if (hasStill && !hasVideo) ptpOnly = true
             }
             UsbDiagnostics(
                 deviceCount = devices.size,
                 hasVideoDevice = video,
-                hasPtpOnlyDevice = ptpOnly
+                hasPtpOnlyDevice = ptpOnly,
+                videoDeviceNames = videoNames
             )
         } catch (e: Exception) {
             UsbDiagnostics()
