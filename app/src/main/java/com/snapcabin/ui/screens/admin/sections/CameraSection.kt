@@ -218,6 +218,8 @@ private fun ExternalCameraStatusBlock(
         if (granted) {
             // The external camera often only enumerates once we can open it.
             viewModel.detectCameras()
+            // If TEST CAMERA is open on a fallback, switch to the USB camera now.
+            viewModel.cameraManager.retrySelectedCamera()
         } else {
             micRequestDenied = true
         }
@@ -241,13 +243,18 @@ private fun ExternalCameraStatusBlock(
             text = when {
                 hasExternal ->
                     "External camera detected — select it in the camera list, then run TEST CAMERA below. " +
-                        "Tip: turn Mirror Image off for an external camera pointed at guests."
+                        "Mirror Image flips both the preview and the photo for a USB camera: leave it on " +
+                        "for a mirror-like booth, turn it off to keep text readable."
                 usb.hasPtpOnlyDevice ->
                     "This USB device is a DSLR / photo camera in photo-transfer mode — Canon and Nikon " +
                         "connect this way. Android can't use it as a live camera, so it will never appear " +
                         "here, no matter how long you wait. To use it with SnapCabin: connect the camera's " +
                         "HDMI output to an HDMI-to-USB capture stick (≈$20) and plug the stick in here — " +
                         "it shows up as a webcam. Otherwise, use the tablet's built-in camera."
+                usb.hasVideoDevice ->
+                    "The tablet sees a USB camera, but Android isn't offering it as a camera yet. Wait a " +
+                        "few seconds and tap REFRESH. If it never appears, this tablet's Android build " +
+                        "doesn't support USB cameras; a powered USB-C hub sometimes helps."
                 usbCount > 0 ->
                     "A USB device is plugged in, but Android isn't showing it as a camera yet. " +
                         "Wait a few seconds and tap REFRESH. Make sure the camera is a UVC webcam " +
@@ -260,6 +267,15 @@ private fun ExternalCameraStatusBlock(
             style = MaterialTheme.typography.bodySmall,
             color = Espresso.copy(alpha = 0.7f)
         )
+
+        if (usb.videoDeviceNames.isNotEmpty()) {
+            Text(
+                text = "USB camera found: ${usb.videoDeviceNames.joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = Pine
+            )
+        }
 
         // Native DSLR control over USB (PTP) — the no-capture-stick path. Only
         // offered when a DSLR (PTP device) is actually present.
@@ -341,7 +357,10 @@ private fun ExternalCameraStatusBlock(
 
         BigButton(
             text = "REFRESH CAMERAS",
-            onClick = { viewModel.detectCameras() },
+            onClick = {
+                viewModel.detectCameras()
+                viewModel.cameraManager.retrySelectedCamera()
+            },
             variant = BigButtonVariant.Surface
         )
     }
@@ -654,9 +673,10 @@ private fun CameraPreviewBlock(
                     )
                     if (!bs.matchedRequest) {
                         Text(
-                            text = "This is NOT the camera you selected — it couldn't be opened, " +
-                                "so the booth fell back to this one. For a USB camera: check the " +
-                                "cable, allow microphone access above, then reopen TEST CAMERA.",
+                            text = "This is NOT the camera you selected. " +
+                                (bs.note ?: "It couldn't be opened, so the booth fell back to this one.") +
+                                " For a USB camera: check the cable and microphone access above, then " +
+                                "tap REFRESH CAMERAS. It switches over by itself once the camera is ready.",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = Clay

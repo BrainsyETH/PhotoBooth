@@ -45,6 +45,19 @@ artifact) for these. It is test-only: never upload it to Play.
 - **USB camera unplug/replug:** with an external camera selected, unplug it at
   Get Ready → preview switches to a built-in camera within seconds; plug it back
   → the external camera returns without leaving the screen.
+- **USB camera plugged in late:** start the app with no USB camera, open a guest
+  session (so the camera has already run), then plug a webcam in and select it
+  in admin → TEST CAMERA shows **Live now: External** without restarting the app.
+- **USB camera at boot:** with kiosk auto-start on and the external camera
+  selected, reboot the tablet with the camera plugged in → the booth ends up on
+  the external camera without anyone touching it.
+- **USB camera picture:** on TEST CAMERA and a real guest photo, the picture is
+  upright, widescreen and not stretched, in both landscape orientations of the
+  tablet; with Mirror Image on, preview and photo are both mirrored. Check the
+  test photo's size (1920×1080 on a 1080p webcam or capture stick at Full).
+- **USB camera mic denied:** deny the microphone, select the external camera →
+  the booth runs on the tablet camera and admin says the microphone is the
+  reason; allow it → the preview switches to the external camera by itself.
 - **Permissions:** with a DSLR (or any non-camera USB device) plugged in and mic
   permission denied, guest sessions must show NO system dialog.
 - **Multi-tap:** hammer Get Ready, a mode card, Accept on Review, and admin's

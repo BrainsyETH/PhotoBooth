@@ -94,6 +94,8 @@ fun GetReadyScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
         hasCameraPermission = result[Manifest.permission.CAMERA] ?: hasCameraPermission
+        // The mic was just allowed: a selected USB camera can open now.
+        if (result[Manifest.permission.RECORD_AUDIO] == true) viewModel.cameraManager.retrySelectedCamera()
     }
 
     // Same permission set as the capture screen: USB cameras won't open

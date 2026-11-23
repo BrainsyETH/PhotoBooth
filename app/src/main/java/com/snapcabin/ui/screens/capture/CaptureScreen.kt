@@ -93,6 +93,8 @@ fun CaptureScreen(
         // CAMERA gates the flow; RECORD_AUDIO is best-effort (only needed to
         // open a USB camera, which is a composite audio+video device).
         hasCameraPermission = result[Manifest.permission.CAMERA] ?: hasCameraPermission
+        // The mic was just allowed: a selected USB camera can open now.
+        if (result[Manifest.permission.RECORD_AUDIO] == true) viewModel.cameraManager.retrySelectedCamera()
     }
 
     // Loaded (not default) settings — also drives the camera bind below.
